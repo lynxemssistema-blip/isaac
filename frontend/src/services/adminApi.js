@@ -1281,3 +1281,143 @@ export async function fetchTermsAcceptanceLogs() {
 
 
 
+
+// ============================================================================
+// LINKS DE CADASTRO DIRETO & ENVIO AUTOMÁTICO DE MÚLTIPLOS PDFS
+// ============================================================================
+
+export async function fetchPublicCampaignBySlug(slug) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/campaigns/public/${encodeURIComponent(slug)}`);
+    if (res.ok) {
+      const ct = res.headers.get('content-type') || '';
+      if (ct.includes('application/json')) return await res.json();
+    }
+  } catch {}
+
+  const { data } = await supabase
+    .from('izaque_pdf_campaigns')
+    .select('id, title, slug, subtitle, pdf_file_name, is_default, is_active')
+    .eq('slug', slug)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  return { found: Boolean(data), campaign: data || null };
+}
+
+export async function fetchPublicDefaultCampaign() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/campaigns/public-default`);
+    if (res.ok) {
+      const ct = res.headers.get('content-type') || '';
+      if (ct.includes('application/json')) return await res.json();
+    }
+  } catch {}
+
+  const { data } = await supabase
+    .from('izaque_pdf_campaigns')
+    .select('id, title, slug, subtitle, pdf_file_name, is_default, is_active')
+    .eq('is_default', true)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  return { campaign: data || null };
+}
+
+export async function completeSignupAndDeliverPdfApi(payload) {
+  const res = await fetch(`${BACKEND_URL}/api/campaigns/complete-signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao finalizar cadastro e enviar PDF.');
+  }
+  return data;
+}
+
+export async function sendPdfToExistingUserApi(payload) {
+  const res = await fetch(`${BACKEND_URL}/api/campaigns/send-existing`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || 'Falha ao solicitar envio do PDF.');
+    err.code = data.code || null;
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+export async function fetchAdminPdfCampaigns() {
+  const res = await fetch(`${BACKEND_URL}/api/admin/pdf-campaigns`);
+  const data = await res.json().catch(() => []);
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao carregar campanhas de PDF.');
+  }
+  return data;
+}
+
+export async function createAdminPdfCampaign(payload) {
+  const res = await fetch(`${BACKEND_URL}/api/admin/pdf-campaigns`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao criar campanha de PDF.');
+  }
+  return data;
+}
+
+export async function updateAdminPdfCampaign(id, payload) {
+  const res = await fetch(`${BACKEND_URL}/api/admin/pdf-campaigns/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao atualizar campanha de PDF.');
+  }
+  return data;
+}
+
+export async function deleteAdminPdfCampaign(id) {
+  const res = await fetch(`${BACKEND_URL}/api/admin/pdf-campaigns/${id}`, {
+    method: 'DELETE',
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao excluir campanha de PDF.');
+  }
+  return data;
+}
+
+export async function sendTestOrManualCampaignPdf(id, payload) {
+  const res = await fetch(`${BACKEND_URL}/api/admin/pdf-campaigns/${id}/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao enviar PDF.');
+  }
+  return data;
+}
+
+export async function fetchAdminPdfDeliveries(campaignId = '') {
+  const qs = campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : '';
+  const res = await fetch(`${BACKEND_URL}/api/admin/pdf-deliveries${qs}`);
+  const data = await res.json().catch(() => []);
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao carregar histórico de envios.');
+  }
+  return data;
+}

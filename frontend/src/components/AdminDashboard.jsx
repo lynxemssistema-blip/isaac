@@ -35,6 +35,7 @@ import {
   Mail,
   Calendar,
   SlidersHorizontal,
+  FileText,
 } from 'lucide-react';
 import {
   fetchAdminMetrics,
@@ -64,6 +65,7 @@ import AdminUserGroups from './AdminUserGroups';
 import AdminProjectPlanning from './AdminProjectPlanning';
 import AdminCreativeTroubles from './AdminCreativeTroubles';
 import AdminSystemSettings from './AdminSystemSettings';
+import AdminPdfCampaigns from './AdminPdfCampaigns';
 
 export default function AdminDashboard({ currentUser }) {
   const isSuperAdmin = currentUser?.role === 'master' || currentUser?.email === 'edsonmanoel2012@gmail.com';
@@ -590,6 +592,18 @@ export default function AdminDashboard({ currentUser }) {
             </button>
 
             <button
+              onClick={() => setActiveTab('pdf_campaigns')}
+              className={`px-3 sm:px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'pdf_campaigns'
+                  ? 'bg-teal-700 text-white shadow-sm'
+                  : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              <span>Links &amp; PDFs de Cadastro</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('broadcast')}
               className={`px-3 sm:px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
                 activeTab === 'broadcast'
@@ -741,6 +755,19 @@ export default function AdminDashboard({ currentUser }) {
                             {u.full_name || 'Sem nome'}
                           </div>
                           <div className="text-[11px] text-stone-400">{u.email}</div>
+                          {(u.phone || u.city || u.occupation || u.main_goal) && (
+                            <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px] text-stone-500 dark:text-stone-400">
+                              {u.phone && <span>📱 {u.phone}</span>}
+                              {u.city && (
+                                <span>
+                                  📍 {u.city}
+                                  {u.state ? `/${u.state}` : ''}
+                                </span>
+                              )}
+                              {u.occupation && <span>💼 {u.occupation}</span>}
+                              {u.main_goal && <span>🎯 {u.main_goal}</span>}
+                            </div>
+                          )}
                         </td>
 
                         <td className="p-4">
@@ -1819,6 +1846,11 @@ export default function AdminDashboard({ currentUser }) {
         {/* ABA 13: PARÂMETROS AVANÇADOS DO SISTEMA (EXCLUSIVO SUPERADMIN) */}
         {activeTab === 'advanced_params' && isSuperAdmin && (
           <AdminSystemSettings currentUser={currentUser} />
+        )}
+
+        {/* ABA 14: LINKS DE CADASTRO DIRETO & ENVIO AUTOMÁTICO DE PDFS */}
+        {activeTab === 'pdf_campaigns' && (
+          <AdminPdfCampaigns currentUser={currentUser} />
         )}
 
         {/* MODAL PARA CRIAR AGENTE */}

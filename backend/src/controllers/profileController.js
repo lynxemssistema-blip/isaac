@@ -36,7 +36,17 @@ export async function getProfile(req, res) {
 export async function updateProfile(req, res) {
   try {
     const { userId } = req.params;
-    const { full_name, phone, avatar_url, preferences } = req.body;
+    const {
+      full_name,
+      phone,
+      avatar_url,
+      preferences,
+      birth_date,
+      city,
+      state,
+      occupation,
+      main_goal,
+    } = req.body;
 
     if (!userId) {
       return res.status(400).json({ error: 'ID do usuário é obrigatório.' });
@@ -49,6 +59,11 @@ export async function updateProfile(req, res) {
     if (full_name !== undefined) updatePayload.full_name = full_name.trim();
     if (phone !== undefined) updatePayload.phone = phone.trim();
     if (avatar_url !== undefined) updatePayload.avatar_url = avatar_url.trim();
+    if (birth_date !== undefined) updatePayload.birth_date = birth_date ? birth_date : null;
+    if (city !== undefined) updatePayload.city = city ? city.trim() : null;
+    if (state !== undefined) updatePayload.state = state ? state.trim().toUpperCase() : null;
+    if (occupation !== undefined) updatePayload.occupation = occupation ? occupation.trim() : null;
+    if (main_goal !== undefined) updatePayload.main_goal = main_goal ? main_goal.trim() : null;
     if (preferences !== undefined) {
       updatePayload.preferences = typeof preferences === 'object' && preferences !== null ? preferences : {};
     }
@@ -69,6 +84,11 @@ export async function updateProfile(req, res) {
       if (updatePayload.full_name !== undefined) metaToUpdate.full_name = updatePayload.full_name;
       if (updatePayload.phone !== undefined) metaToUpdate.phone = updatePayload.phone;
       if (updatePayload.avatar_url !== undefined) metaToUpdate.avatar_url = updatePayload.avatar_url;
+      if (updatePayload.birth_date !== undefined) metaToUpdate.birth_date = updatePayload.birth_date;
+      if (updatePayload.city !== undefined) metaToUpdate.city = updatePayload.city;
+      if (updatePayload.state !== undefined) metaToUpdate.state = updatePayload.state;
+      if (updatePayload.occupation !== undefined) metaToUpdate.occupation = updatePayload.occupation;
+      if (updatePayload.main_goal !== undefined) metaToUpdate.main_goal = updatePayload.main_goal;
       if (updatePayload.preferences !== undefined) metaToUpdate.preferences = updatePayload.preferences;
 
       await supabaseAdmin.auth.admin.updateUserById(userId, {

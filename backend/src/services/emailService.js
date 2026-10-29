@@ -752,3 +752,105 @@ export async function sendTaskCompletedEmail({
 }
 
 
+
+/**
+ * Envia o e-mail de boas-vindas / campanha contendo o arquivo PDF em anexo
+ * e link seguro alternativo para download + acesso ao app.
+ */
+export async function sendCampaignPdfEmail({
+  toEmail,
+  recipientName,
+  campaignTitle,
+  emailSubject,
+  emailBody,
+  pdfBuffer,
+  pdfFileName,
+  pdfPublicUrl,
+  appUrl,
+}) {
+  const transporter = getEmailTransporter();
+  const fromAddress = `"IZAQUE - Clareza & Mentoria" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
+
+  const firstName = recipientName ? recipientName.trim().split(/\s+/)[0] : 'Viajante';
+  const safeAppUrl = appUrl || process.env.FRONTEND_URL || 'https://izaque.lynxems.com.br';
+
+  const interpolate = (str = '') =>
+    str
+      .replace(/\{\{\s*nome\s*\}\}/gi, firstName)
+      .replace(/\{\{\s*nome_completo\s*\}\}/gi, recipientName || firstName)
+      .replace(/\{\{\s*titulo\s*\}\}/gi, campaignTitle || 'Material Exclusivo');
+
+  const resolvedSubject = interpolate(
+    emailSubject || `📄 Seu material chegou: ${campaignTitle || 'Guia Exclusivo IZAQUE'}`
+  );
+
+  const defaultBody = `Olá, ${firstName}!\n\nQue alegria receber você no ecossistema IZAQUE.\n\nConforme prometido, anexamos neste e-mail o seu material "${campaignTitle || 'Guia Exclusivo'}" em formato PDF para você ler e guardar com tranquilidade.\n\nAproveite também para acessar sua área de mentoria e iniciar suas conversas de clareza quando desejar.`;
+
+  const rawBody = emailBody && emailBody.trim() ? interpolate(emailBody.trim()) : defaultBody;
+  const formattedBodyHtml = rawBody
+    .split(/\n{2,}/)
+    .map(
+      (paragraph) =>
+        `<p style="font-size: 14px; line-height: 1.7; color: #44403c; margin: 0 0 14px 0;">${paragraph
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br/>')}</p>`
+    )
+    .join('');
+
+  const attachments = [];
+  if (pdfBuffer) {
+    attachments.push({
+      filename: pdfFileName || 'material-izaque.pdf',
+      content: pdfBuffer,
+      contentType: 'application/pdf',
+    });
+  }
+
+  const mailOptions = {
+    from: fromAddress,
+    to: toEmail,
+    subject: resolvedSubject,
+    attachments,
+    html: `
+      <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #faf9f6; padding: 32px 20px; border-radius: 24px; border: 1px solid #e7e5e4; color: #292524;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 700; letter-spacing: -0.5px;">IZAQUE</h1>
+          <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Espaço de Clareza, Escuta &amp; Transformação</p>
+        </div>
+
+        <div style="background-color: #ffffff; padding: 30px; border-radius: 20px; border: 1px solid #f0eeeb; box-shadow: 0 4px 14px rgba(0,0,0,0.03);">
+          <div style="margin-bottom: 20px; padding: 12px 16px; background-color: #f0fdfa; border-left: 4px solid #0f766e; border-radius: 10px;">
+            <p style="margin: 0; font-size: 13px; color: #115e59; font-weight: 600;">
+              📎 Anexo incluído: ${pdfFileName || 'Material em PDF'}
+            </p>
+          </div>
+
+          ${formattedBodyHtml}
+
+          <div style="text-align: center; margin: 28px 0 16px 0;">
+            ${
+              pdfPublicUrl
+                ? `<a href="${pdfPublicUrl}" target="_blank" rel="noopener noreferrer" style="background-color: #0f766e; color: #ffffff; text-decoration: none; padding: 13px 26px; border-radius: 14px; font-weight: 600; font-size: 14px; display: inline-block; margin: 6px; box-shadow: 0 4px 10px rgba(15, 118, 110, 0.22);">
+                    Baixar PDF Diretamente
+                  </a>`
+                : ''
+            }
+            <a href="${safeAppUrl}" target="_blank" rel="noopener noreferrer" style="background-color: #f5f5f4; color: #1c1917; border: 1px solid #d6d3d1; text-decoration: none; padding: 13px 24px; border-radius: 14px; font-weight: 600; font-size: 14px; display: inline-block; margin: 6px;">
+              Entrar no App IZAQUE
+            </a>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 22px; font-size: 12px; color: #78716c;">
+          Dúvidas ou suporte? Fale conosco em <a href="mailto:suporte@lynxems.com.br" style="color: #0f766e; font-weight: 600;">suporte@lynxems.com.br</a>
+        </div>
+      </div>
+    `,
+  };
+
+  const info = await transporter.sendMail(mailOptions);
+  console.log(`✉️ [Campaign PDF Sent] PDF "${pdfFileName}" enviado para ${toEmail}. Message ID: ${info.messageId}`);
+  return info;
+}

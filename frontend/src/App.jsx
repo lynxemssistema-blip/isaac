@@ -5,6 +5,7 @@ import LandingPage from './components/LandingPage';
 import ReflectionSpace from './components/ReflectionSpace';
 import AdminDashboard from './components/AdminDashboard';
 import AuthModal from './components/AuthModal';
+import DirectSignupPage from './components/DirectSignupPage';
 import WelcomeOnboarding from './components/WelcomeOnboarding';
 import UserProfileModal from './components/UserProfileModal';
 import MobileBottomNav from './components/MobileBottomNav';
@@ -17,11 +18,35 @@ import { AlertTriangle, LifeBuoy } from 'lucide-react';
 import { applyAppTheme, getCurrentTheme } from './services/themeService';
 import { fetchSystemSettings, acceptTermsOfUseApi } from './services/adminApi';
 
+function parseDirectSignupLocation() {
+  if (typeof window === 'undefined') return null;
+  const pathname = window.location.pathname || '/';
+  const searchParams = new URLSearchParams(window.location.search);
+
+  // Suporta /cadastro, /cadastro/slug, /c/slug
+  const pathMatch = pathname.match(/^\/(?:cadastro|c)(?:\/([^/?#]+))?\/?$/i);
+  if (pathMatch) {
+    return { slug: decodeURIComponent(pathMatch[1] || '').trim() };
+  }
+
+  // Suporta ?cadastro=slug ou ?cadastro=1
+  if (searchParams.has('cadastro')) {
+    const raw = searchParams.get('cadastro') || '';
+    const slug = raw === '1' || raw === 'true' ? '' : raw.trim();
+    return { slug };
+  }
+
+  return null;
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [activeTab, setActiveTab] = useState('landing'); // 'landing' | 'chat' | 'admin'
+  const [directSignupRoute, setDirectSignupRoute] = useState(() => parseDirectSignupLocation());
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState('login');
+  const [authInitialEmail, setAuthInitialEmail] = useState('');
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
   const [resetTokenHash, setResetTokenHash] = useState('');
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
@@ -101,6 +126,19 @@ export default function App() {
     activeTabRef.current = activeTab;
   }, [activeTab]);
 
+  const directSignupRef = useRef(directSignupRoute);
+  useEffect(() => {
+    directSignupRef.current = directSignupRoute;
+  }, [directSignupRoute]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setDirectSignupRoute(parseDirectSignupLocation());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   useEffect(() => {
     // Carrega Parâmetros Globais do Sistema (Superadmin)
     fetchSystemSettings().then((res) => {
@@ -170,12 +208,16 @@ export default function App() {
       setUser(currentUser);
       if (currentUser) {
         loadUserProfile(currentUser);
-        // REQUISITO: Usuário autenticado já abre direto na página de conversa com IZAQUE
-        setActiveTab('chat');
-        // Verifica se é o primeiro acesso para exibir o onboarding
-        const completed = localStorage.getItem('izaque_onboarding_completed');
-        if (!completed) {
-          setShowOnboarding(true);
+        // Se estiver em link direto de cadastro (/cadastro/...), mantém a página de PDF visível
+        const onSignupLink = Boolean(parseDirectSignupLocation());
+        if (!onSignupLink) {
+          // REQUISITO: Usuário autenticado já abre direto na página de conversa com IZAQUE
+          setActiveTab('chat');
+          // Verifica se é o primeiro acesso para exibir o onboarding
+          const completed = localStorage.getItem('izaque_onboarding_completed');
+          if (!completed) {
+            setShowOnboarding(true);
+          }
         }
       } else {
         setLoadingProfile(false);
@@ -193,10 +235,16 @@ export default function App() {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
+        const isFlowLocked =
+          (typeof window !== 'undefined' && window.__izaqueSignupFlowActive) ||
+          Boolean(directSignupRef.current);
+
         loadUserProfile(currentUser);
-        const completed = localStorage.getItem('izaque_onboarding_completed');
-        if (!completed) {
-          setShowOnboarding(true);
+        if (!isFlowLocked) {
+          const completed = localStorage.getItem('izaque_onboarding_completed');
+          if (!completed) {
+            setShowOnboarding(true);
+          }
         }
       } else {
         setProfile(null);
@@ -209,6 +257,7 @@ export default function App() {
     return () => {
       subscription.unsubscribe();
       window.removeEventListener('app-theme-changed', handleThemeChange);
+      window.removeEventListener('system-settings-updated', handleSystemSettingsUpdated);
     };
   }, []);
 
@@ -221,6 +270,12 @@ export default function App() {
 
   // Verifica se o usuário autenticado precisa aceitar os termos de uso (Clickwrap)
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.__izaqueSignupFlowActive) {
+      return;
+    }
+    if (directSignupRoute) {
+      return;
+    }
     if (user && profile && !loadingProfile) {
       if (profile.terms_accepted !== true) {
         setIsTermsPromptOpen(true);
@@ -228,7 +283,7 @@ export default function App() {
         setIsTermsPromptOpen(false);
       }
     }
-  }, [user, profile, loadingProfile]);
+  }, [user, profile, loadingProfile, directSignupRoute]);
 
   const handleAcceptTerms = async () => {
     if (!user) return;
@@ -241,14 +296,24 @@ export default function App() {
     }
   };
 
-  const handleAuthSuccess = (loggedUser) => {
+  const handleAuthSuccess = (loggedUser, savedProfile = null) => {
+    setDirectSignupRoute(null);
     setUser(loggedUser);
+    if (savedProfile) {
+      setProfile(savedProfile);
+    }
     loadUserProfile(loggedUser);
     const completed = localStorage.getItem('izaque_onboarding_completed');
     if (!completed) {
       setShowOnboarding(true);
     }
     setActiveTab('chat');
+  };
+
+  const openAuthModal = (mode = 'login', emailPrefill = '') => {
+    setAuthInitialMode(mode);
+    setAuthInitialEmail(emailPrefill || '');
+    setIsAuthOpen(true);
   };
 
   const handleCompleteOnboarding = (chosenName) => {
@@ -260,11 +325,48 @@ export default function App() {
 
   const handleStartChat = () => {
     if (!user) {
-      setIsAuthOpen(true);
+      openAuthModal('login', '');
     } else {
       setActiveTab('chat');
     }
   };
+
+  // PÁGINA DEDICADA DE CADASTRO DIRETO POR LINK (/cadastro ou /cadastro/:slug)
+  if (directSignupRoute) {
+    return (
+      <>
+        <DirectSignupPage
+          slug={directSignupRoute.slug}
+          currentUser={user}
+          onEnterApp={(loggedUser, savedProfile) => {
+            handleAuthSuccess(loggedUser, savedProfile);
+          }}
+          onOpenLogin={(emailPrefill) => {
+            if (typeof window !== 'undefined') {
+              window.history.replaceState({}, '', '/');
+            }
+            setDirectSignupRoute(null);
+            openAuthModal('login', emailPrefill);
+          }}
+          onBackToHome={() => {
+            if (typeof window !== 'undefined') {
+              window.history.replaceState({}, '', '/');
+            }
+            setDirectSignupRoute(null);
+            setActiveTab('landing');
+          }}
+        />
+
+        <AuthModal
+          isOpen={isAuthOpen}
+          initialMode={authInitialMode}
+          initialEmail={authInitialEmail}
+          onClose={() => setIsAuthOpen(false)}
+          onSuccess={handleAuthSuccess}
+        />
+      </>
+    );
+  }
 
   // BLOQUEIO DE ACESSO PELO SUPERADMIN
   if (user && profile && profile.is_active === false) {
@@ -322,12 +424,12 @@ export default function App() {
           activeTab={activeTab}
           setActiveTab={(tab) => {
             if ((tab === 'chat' || tab === 'admin') && !user) {
-              setIsAuthOpen(true);
+              openAuthModal('login', '');
               return;
             }
             setActiveTab(tab);
           }}
-          onOpenAuth={() => setIsAuthOpen(true)}
+          onOpenAuth={() => openAuthModal('login', '')}
           onLogout={handleLogout}
           onOpenOnboarding={() => setShowOnboarding(true)}
           onOpenProfile={() => setIsProfileOpen(true)}
@@ -366,7 +468,7 @@ export default function App() {
                     Para que seus momentos de reflexão e desenvolvimento fiquem guardados com total sigilo e continuidade, entre na sua conta.
                   </p>
                   <button
-                    onClick={() => setIsAuthOpen(true)}
+                    onClick={() => openAuthModal('login', '')}
                     className="w-full py-3.5 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-medium text-xs tracking-wide shadow-md shadow-teal-700/20 transition"
                   >
                     Acessar Mentoria
@@ -420,7 +522,7 @@ export default function App() {
                     Para mapear e transformar seus incômodos com a metodologia e ter seus diagnósticos guardados, acesse sua conta.
                   </p>
                   <button
-                    onClick={() => setIsAuthOpen(true)}
+                    onClick={() => openAuthModal('login', '')}
                     className="w-full py-3.5 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-medium text-xs tracking-wide shadow-md shadow-teal-700/20 transition"
                   >
                     Entrar ou Criar Conta
@@ -435,6 +537,8 @@ export default function App() {
       {/* MODAL DE ENTRADA / CADASTRO */}
       <AuthModal
         isOpen={isAuthOpen}
+        initialMode={authInitialMode}
+        initialEmail={authInitialEmail}
         onClose={() => setIsAuthOpen(false)}
         onSuccess={handleAuthSuccess}
       />
@@ -447,10 +551,10 @@ export default function App() {
           setIsResetPasswordOpen(false);
           setResetTokenHash('');
         }}
-        onOpenForgot={() => setIsAuthOpen(true)}
+        onOpenForgot={() => openAuthModal('forgot', '')}
       />
 
-      {/* MODAL DE PERFIL DO USUÁRIO (FOTO, NOME, WHATSAPP) */}
+      {/* MODAL DE PERFIL DO USUÁRIO (FOTO, NOME, WHATSAPP, DADOS COMPLETOS) */}
       {user && (
         <UserProfileModal
           isOpen={isProfileOpen}
@@ -479,14 +583,14 @@ export default function App() {
         activeTab={activeTab}
         onNavigate={(tab) => {
           if ((tab === 'chat' || tab === 'admin') && !user) {
-            setIsAuthOpen(true);
+            openAuthModal('login', '');
             return;
           }
           setActiveTab(tab);
         }}
         onOpenProfile={() => {
           if (!user) {
-            setIsAuthOpen(true);
+            openAuthModal('login', '');
           } else {
             setIsProfileOpen(true);
           }
@@ -496,7 +600,6 @@ export default function App() {
         profile={profile}
         systemSettings={systemSettings}
       />
-
 
       {/* MODAL DE SUPORTE, SUGESTÕES E RECLAMAÇÕES LYNX */}
       <SubscriberFeedbackModal

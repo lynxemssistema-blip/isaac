@@ -1,21 +1,85 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 import { requestPasswordReset } from '../services/api';
-import { acceptTermsOfUseApi } from '../services/adminApi';
+import {
+  fetchPublicDefaultCampaign,
+  completeSignupAndDeliverPdfApi,
+} from '../services/adminApi';
 import TermsOfUseModal, { TERMS_VERSION } from './TermsOfUseModal';
-import { X, Lock, Mail, User, Feather, AlertCircle, ArrowRight, CheckCircle2, LifeBuoy, Scale } from 'lucide-react';
+import {
+  BRAZIL_STATES,
+  MAIN_GOAL_OPTIONS,
+  formatPhoneMask,
+} from './DirectSignupPage';
+import {
+  X,
+  Lock,
+  Mail,
+  User,
+  Phone,
+  Calendar,
+  MapPin,
+  Briefcase,
+  Compass,
+  FileText,
+  Feather,
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  LifeBuoy,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
 
-export default function AuthModal({ isOpen, onClose, onSuccess }) {
+export default function AuthModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  initialMode = 'login',
+  initialEmail = '',
+}) {
   // 'login' | 'signup' | 'forgot'
-  const [mode, setMode] = useState('login');
-  const [email, setEmail] = useState('');
+  const [mode, setMode] = useState(initialMode || 'login');
+  const [email, setEmail] = useState(initialEmail || '');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Campos completos de cadastro
   const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [city, setCity] = useState('');
+  const [stateUf, setStateUf] = useState('');
+  const [occupation, setOccupation] = useState('');
+  const [mainGoal, setMainGoal] = useState('');
+
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [defaultCampaign, setDefaultCampaign] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [forgotSuccessMsg, setForgotSuccessMsg] = useState('');
+
+  // Confirmação pós-cadastro (mensagem + botão para entrar no app)
+  const [signupSuccessState, setSignupSuccessState] = useState(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode || 'login');
+      if (initialEmail) setEmail(initialEmail);
+      setErrorMsg('');
+      setForgotSuccessMsg('');
+      setSignupSuccessState(null);
+
+      fetchPublicDefaultCampaign()
+        .then((res) => setDefaultCampaign(res?.campaign || null))
+        .catch(() => {});
+    } else if (typeof window !== 'undefined') {
+      window.__izaqueSignupFlowActive = false;
+    }
+  }, [isOpen, initialMode, initialEmail]);
 
   if (!isOpen) return null;
 
@@ -26,14 +90,44 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
     setTermsAccepted(false);
   };
 
+  const handleEnterAfterSignup = () => {
+    if (typeof window !== 'undefined') {
+      window.__izaqueSignupFlowActive = false;
+    }
+    const createdUser = signupSuccessState?.user;
+    const savedProfile = signupSuccessState?.profile;
+    setSignupSuccessState(null);
+    onSuccess(createdUser, savedProfile);
+    onClose();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setForgotSuccessMsg('');
 
-    if (mode === 'signup' && !termsAccepted) {
-      setErrorMsg('É necessário concordar com os Termos e Condições de Uso para criar sua conta.');
-      return;
+    if (mode === 'signup') {
+      const cleanDigits = phone.replace(/\D/g, '');
+      if (fullName.trim().length < 2) {
+        setErrorMsg('Por favor, informe seu nome completo.');
+        return;
+      }
+      if (cleanDigits.length < 10) {
+        setErrorMsg('Informe um número de WhatsApp/celular válido com DDD.');
+        return;
+      }
+      if (password.length < 6) {
+        setErrorMsg('A senha deve ter pelo menos 6 caracteres.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setErrorMsg('A confirmação de senha não confere.');
+        return;
+      }
+      if (!termsAccepted) {
+        setErrorMsg('É necessário concordar com os Termos e Condições de Uso para criar sua conta.');
+        return;
+      }
     }
 
     setLoading(true);
@@ -48,29 +142,57 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
         onSuccess(data.user);
         onClose();
       } else if (mode === 'signup') {
+        if (typeof window !== 'undefined') {
+          window.__izaqueSignupFlowActive = true;
+        }
+
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
+          email: email.trim().toLowerCase(),
           password,
           options: {
-            data: { full_name: fullName.trim() },
+            data: {
+              full_name: fullName.trim(),
+              phone: phone.trim(),
+            },
           },
         });
-        if (error) throw error;
+        if (error) {
+          if (typeof window !== 'undefined') window.__izaqueSignupFlowActive = false;
+          throw error;
+        }
 
-        // Grava auditoria forense do aceite do termo com carimbo de tempo e IP
+        let completeRes = null;
         if (data?.user) {
           try {
-            await acceptTermsOfUseApi({
+            completeRes = await completeSignupAndDeliverPdfApi({
               userId: data.user.id,
+              email: email.trim().toLowerCase(),
+              fullName: fullName.trim(),
+              phone: phone.trim(),
+              birthDate: birthDate || null,
+              city: city.trim() || null,
+              state: stateUf || null,
+              occupation: occupation.trim() || null,
+              mainGoal: mainGoal || null,
               termsVersion: TERMS_VERSION,
+              campaignSlug: '',
+              signupOrigin: 'landing_modal',
+              appUrl: typeof window !== 'undefined' ? window.location.origin : '',
             });
-          } catch (termErr) {
-            console.warn('Aviso: falha secundária ao gravar aceite de termos:', termErr);
+          } catch (completeErr) {
+            console.warn('Aviso ao concluir perfil/envio de PDF:', completeErr);
           }
         }
 
-        onSuccess(data.user);
-        onClose();
+        setSignupSuccessState({
+          user: data.user,
+          profile: completeRes?.profile || null,
+          recipientEmail: email.trim().toLowerCase(),
+          campaign: completeRes?.campaign || defaultCampaign,
+          hasCampaign: Boolean(completeRes?.hasCampaign || defaultCampaign),
+          pdfDelivered: Boolean(completeRes?.pdfDelivered),
+          deliveryError: completeRes?.deliveryError || null,
+        });
       } else if (mode === 'forgot') {
         if (!email || !email.includes('@')) {
           setErrorMsg('Por favor, digite um e-mail válido.');
@@ -83,6 +205,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
         );
       }
     } catch (err) {
+      if (typeof window !== 'undefined') window.__izaqueSignupFlowActive = false;
       console.error('Erro no fluxo de autenticação:', err);
       setErrorMsg(err.message || 'Ocorreu um erro ao processar sua solicitação.');
     } finally {
@@ -90,9 +213,68 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
     }
   };
 
+  // Tela interna de confirmação pós-cadastro com mensagem + botão para entrar no app
+  if (signupSuccessState) {
+    const campTitle = signupSuccessState.campaign?.title || 'Material Exclusivo';
+    return (
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-stone-900/60 backdrop-blur-md pt-safe animate-fadeIn">
+        <div className="relative w-full max-w-md p-6 sm:p-9 bg-stone-50 dark:bg-slate-900 border-t sm:border border-stone-200 dark:border-slate-800 rounded-t-3xl sm:rounded-4xl shadow-2xl text-stone-800 dark:text-stone-100 text-center space-y-5">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-1.5">
+            <h2 className="text-xl sm:text-2xl font-serif font-medium text-stone-900 dark:text-stone-50">
+              Cadastro Realizado com Sucesso!
+            </h2>
+            <p className="text-xs text-stone-500 dark:text-stone-400 font-serif leading-relaxed">
+              Seu espaço pessoal de clareza e mentoria já está pronto.
+            </p>
+          </div>
+
+          {signupSuccessState.hasCampaign && (
+            <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-left space-y-1.5">
+              <div className="flex items-center gap-2 text-xs font-semibold text-teal-800 dark:text-teal-300">
+                <FileText className="w-4 h-4 shrink-0" />
+                <span>
+                  {signupSuccessState.pdfDelivered
+                    ? 'Seu PDF foi enviado para o seu e-mail!'
+                    : 'Aviso sobre o envio do PDF'}
+                </span>
+              </div>
+              {signupSuccessState.pdfDelivered ? (
+                <p className="text-xs text-teal-900/85 dark:text-teal-200/85 leading-relaxed">
+                  Enviamos <strong>{campTitle}</strong> em anexo para{' '}
+                  <strong>{signupSuccessState.recipientEmail}</strong>. Confira também as pastas Spam ou Promoções caso não localize em instantes.
+                </p>
+              ) : (
+                <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+                  Sua conta foi criada normalmente, mas houve uma oscilação ao enviar o e-mail ({signupSuccessState.deliveryError || 'tente novamente depois'}).
+                </p>
+              )}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleEnterAfterSignup}
+            className="w-full py-3.5 px-6 rounded-2xl bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white font-semibold text-sm tracking-wide shadow-md shadow-teal-700/20 transition flex items-center justify-center gap-2 active:scale-95"
+          >
+            <span>Entrar no App Agora</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-stone-900/60 backdrop-blur-md pt-safe animate-fadeIn">
-      <div className="relative w-full max-w-md p-6 sm:p-9 bg-stone-50 dark:bg-slate-900 border-t sm:border border-stone-200 dark:border-slate-800 rounded-t-3xl sm:rounded-4xl shadow-2xl text-stone-800 dark:text-stone-100 max-h-[92dvh] overflow-y-auto overscroll-contain pb-safe sm:pb-9">
+      <div
+        className={`relative w-full ${
+          mode === 'signup' ? 'max-w-xl' : 'max-w-md'
+        } p-6 sm:p-8 bg-stone-50 dark:bg-slate-900 border-t sm:border border-stone-200 dark:border-slate-800 rounded-t-3xl sm:rounded-4xl shadow-2xl text-stone-800 dark:text-stone-100 max-h-[92dvh] overflow-y-auto overscroll-contain pb-safe sm:pb-8 transition-all`}
+      >
         {/* Barra de Arraste visual (Mobile Native Pull-bar) */}
         <div className="w-12 h-1 bg-stone-300 dark:bg-slate-700 rounded-full mx-auto mb-3 sm:hidden" />
 
@@ -105,10 +287,20 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
         </button>
 
         {/* Cabeçalho */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-teal-700/10 dark:bg-teal-500/15 border border-teal-700/20 dark:border-teal-500/30 mb-3 text-teal-800 dark:text-teal-400 shadow-sm">
+        <div className="text-center mb-5">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-teal-700/10 dark:bg-teal-500/15 border border-teal-700/20 dark:border-teal-500/30 mb-2.5 text-teal-800 dark:text-teal-400 shadow-sm">
             <Feather className="w-6 h-6 stroke-[1.75]" />
           </div>
+
+          {mode === 'signup' && defaultCampaign && (
+            <div className="mb-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200/80 dark:border-teal-800/50 text-teal-800 dark:text-teal-300 text-[11px] font-medium">
+                <FileText className="w-3.5 h-3.5" />
+                <span>Receba por e-mail: {defaultCampaign.title}</span>
+              </span>
+            </div>
+          )}
+
           <h2 className="text-xl sm:text-2xl font-serif font-medium tracking-tight text-stone-900 dark:text-stone-50">
             {mode === 'login' && 'Acessar Mentoria'}
             {mode === 'signup' && 'Iniciar Sua Jornada'}
@@ -116,7 +308,10 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
           </h2>
           <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 font-serif leading-relaxed">
             {mode === 'login' && 'Conecte-se para continuar seus momentos de reflexão e escuta'}
-            {mode === 'signup' && 'Dê o primeiro passo para desatar bloqueios com tranquilidade'}
+            {mode === 'signup' &&
+              (defaultCampaign
+                ? 'Preencha seu cadastro completo para entrar no app e receber o PDF gratuito no seu e-mail'
+                : 'Dê o primeiro passo para desatar bloqueios com tranquilidade')}
             {mode === 'forgot' && 'Enviaremos um link seguro para o seu e-mail redefinir a senha'}
           </p>
         </div>
@@ -146,71 +341,255 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
         )}
 
         {/* Formulário */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === 'signup' && (
-            <div>
-              <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
-                Nome Completo
-              </label>
-              <div className="relative">
-                <User className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
-                <input
-                  type="text"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Como você gostaria de ser chamado?"
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-base sm:text-sm placeholder-stone-400 outline-none transition"
-                />
-              </div>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
-              Seu E-mail
-            </label>
-            <div className="relative">
-              <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu@email.com"
-                className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-base sm:text-sm placeholder-stone-400 outline-none transition"
-              />
-            </div>
-          </div>
-
-          {mode !== 'forgot' && (
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300">
-                  Senha de Acesso
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          {mode === 'signup' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Nome Completo */}
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                  Nome Completo *
                 </label>
-                {mode === 'login' && (
+                <div className="relative">
+                  <User className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
+                  <input
+                    type="text"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Como você gostaria de ser chamado?"
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-base sm:text-sm placeholder-stone-400 outline-none transition"
+                  />
+                </div>
+              </div>
+
+              {/* E-mail */}
+              <div>
+                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                  Seu E-mail *
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="seu@email.com"
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-base sm:text-sm placeholder-stone-400 outline-none transition"
+                  />
+                </div>
+              </div>
+
+              {/* WhatsApp */}
+              <div>
+                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                  WhatsApp / Celular (DDD) *
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
+                  <input
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(formatPhoneMask(e.target.value))}
+                    placeholder="(11) 99999-9999"
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-base sm:text-sm placeholder-stone-400 outline-none transition"
+                  />
+                </div>
+              </div>
+
+              {/* Senha */}
+              <div>
+                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                  Senha de Acesso *
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    className="w-full pl-10 pr-10 py-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-base sm:text-sm placeholder-stone-400 outline-none transition"
+                  />
                   <button
                     type="button"
-                    onClick={() => handleModeChange('forgot')}
-                    className="text-xs text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 hover:underline transition"
+                    onClick={() => setShowPassword((p) => !p)}
+                    className="absolute right-3 top-3 text-stone-400 hover:text-stone-600 p-0.5"
+                    tabIndex={-1}
                   >
-                    Esqueceu a senha?
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
-                )}
+                </div>
               </div>
-              <div className="relative">
-                <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-base sm:text-sm placeholder-stone-400 outline-none transition"
-                />
+
+              {/* Confirmar Senha */}
+              <div>
+                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                  Confirmar Senha *
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Repita sua senha"
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-base sm:text-sm placeholder-stone-400 outline-none transition"
+                  />
+                </div>
+              </div>
+
+              {/* Data de Nascimento */}
+              <div>
+                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                  Data de Nascimento
+                </label>
+                <div className="relative">
+                  <Calendar className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400 pointer-events-none" />
+                  <input
+                    type="date"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                    className="w-full pl-10 pr-3 py-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-base sm:text-sm text-stone-700 dark:text-stone-200 outline-none transition"
+                  />
+                </div>
+              </div>
+
+              {/* Profissão */}
+              <div>
+                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                  Profissão / Ocupação
+                </label>
+                <div className="relative">
+                  <Briefcase className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
+                  <input
+                    type="text"
+                    value={occupation}
+                    onChange={(e) => setOccupation(e.target.value)}
+                    placeholder="Sua área de atuação"
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-base sm:text-sm placeholder-stone-400 outline-none transition"
+                  />
+                </div>
+              </div>
+
+              {/* Cidade */}
+              <div>
+                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                  Cidade
+                </label>
+                <div className="relative">
+                  <MapPin className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Sua cidade"
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-base sm:text-sm placeholder-stone-400 outline-none transition"
+                  />
+                </div>
+              </div>
+
+              {/* Estado / UF */}
+              <div>
+                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                  Estado (UF)
+                </label>
+                <select
+                  value={stateUf}
+                  onChange={(e) => setStateUf(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-base sm:text-sm text-stone-700 dark:text-stone-200 outline-none transition"
+                >
+                  <option value="">Selecione...</option>
+                  {BRAZIL_STATES.map((uf) => (
+                    <option key={uf} value={uf}>
+                      {uf}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Objetivo Principal */}
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                  Principal Momento / Objetivo
+                </label>
+                <div className="relative">
+                  <Compass className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400 pointer-events-none" />
+                  <select
+                    value={mainGoal}
+                    onChange={(e) => setMainGoal(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-base sm:text-sm text-stone-700 dark:text-stone-200 outline-none transition"
+                  >
+                    <option value="">Selecione o que mais busca hoje...</option>
+                    {MAIN_GOAL_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                  Seu E-mail
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="seu@email.com"
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-base sm:text-sm placeholder-stone-400 outline-none transition"
+                  />
+                </div>
+              </div>
+
+              {mode === 'login' && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-stone-700 dark:text-stone-300">
+                      Senha de Acesso
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange('forgot')}
+                      className="text-xs text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 hover:underline transition"
+                    >
+                      Esqueceu a senha?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-10 pr-10 py-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-base sm:text-sm placeholder-stone-400 outline-none transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((p) => !p)}
+                      className="absolute right-3 top-3 text-stone-400 hover:text-stone-600 p-0.5"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {mode === 'signup' && (
@@ -244,13 +623,20 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
           >
             {loading ? (
               <span>
-                {mode === 'forgot' ? 'Enviando link seguro...' : 'Processando com cuidado...'}
+                {mode === 'forgot'
+                  ? 'Enviando link seguro...'
+                  : mode === 'signup'
+                  ? 'Concluindo cadastro...'
+                  : 'Processando com cuidado...'}
               </span>
             ) : (
               <>
                 <span>
                   {mode === 'login' && 'Acessar Mentoria'}
-                  {mode === 'signup' && 'Iniciar Minha Jornada'}
+                  {mode === 'signup' &&
+                    (defaultCampaign
+                      ? 'Concluir Cadastro e Receber PDF'
+                      : 'Iniciar Minha Jornada')}
                   {mode === 'forgot' && 'Enviar Link de Recuperação'}
                 </span>
                 <ArrowRight className="w-4 h-4" />
