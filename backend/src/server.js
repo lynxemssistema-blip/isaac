@@ -7,6 +7,7 @@ import chatRoutes from './routes/chatRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import creativeTroubleRoutes from './routes/creativeTroubleRoutes.js';
 import pdfCampaignRoutes from './routes/pdfCampaignRoutes.js';
+import inscriptionRoutes from './routes/inscriptionRoutes.js';
 
 dotenv.config();
 
@@ -59,6 +60,7 @@ app.use('/api', chatRoutes);
 app.use('/api', adminRoutes);
 app.use('/api', creativeTroubleRoutes);
 app.use('/api', pdfCampaignRoutes);
+app.use('/api', inscriptionRoutes);
 
 // Servir frontend compilado em produção se o diretório dist existir
 if (fs.existsSync(distPath)) {

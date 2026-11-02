@@ -6,6 +6,7 @@ import ReflectionSpace from './components/ReflectionSpace';
 import AdminDashboard from './components/AdminDashboard';
 import AuthModal from './components/AuthModal';
 import DirectSignupPage from './components/DirectSignupPage';
+import SimpleInscriptionPage from './components/SimpleInscriptionPage';
 import WelcomeOnboarding from './components/WelcomeOnboarding';
 import UserProfileModal from './components/UserProfileModal';
 import MobileBottomNav from './components/MobileBottomNav';
@@ -39,11 +40,27 @@ function parseDirectSignupLocation() {
   return null;
 }
 
+function parseInscriptionLocation() {
+  if (typeof window === 'undefined') return false;
+  const pathname = window.location.pathname || '/';
+  const searchParams = new URLSearchParams(window.location.search);
+
+  // Suporta /inscricao ou ?inscricao=1
+  if (/^\/inscricao(?:\/.*)?$/i.test(pathname)) {
+    return true;
+  }
+  if (searchParams.has('inscricao')) {
+    return true;
+  }
+  return false;
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [activeTab, setActiveTab] = useState('landing'); // 'landing' | 'chat' | 'admin'
   const [directSignupRoute, setDirectSignupRoute] = useState(() => parseDirectSignupLocation());
+  const [isInscriptionRoute, setIsInscriptionRoute] = useState(() => parseInscriptionLocation());
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState('login');
   const [authInitialEmail, setAuthInitialEmail] = useState('');
@@ -131,9 +148,15 @@ export default function App() {
     directSignupRef.current = directSignupRoute;
   }, [directSignupRoute]);
 
+  const inscriptionRouteRef = useRef(isInscriptionRoute);
+  useEffect(() => {
+    inscriptionRouteRef.current = isInscriptionRoute;
+  }, [isInscriptionRoute]);
+
   useEffect(() => {
     const handlePopState = () => {
       setDirectSignupRoute(parseDirectSignupLocation());
+      setIsInscriptionRoute(parseInscriptionLocation());
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -208,8 +231,8 @@ export default function App() {
       setUser(currentUser);
       if (currentUser) {
         loadUserProfile(currentUser);
-        // Se estiver em link direto de cadastro (/cadastro/...), mantém a página de PDF visível
-        const onSignupLink = Boolean(parseDirectSignupLocation());
+        // Se estiver em link direto de cadastro (/cadastro/...) ou ficha (/inscricao), mantém a página pública visível
+        const onSignupLink = Boolean(parseDirectSignupLocation()) || parseInscriptionLocation();
         if (!onSignupLink) {
           // REQUISITO: Usuário autenticado já abre direto na página de conversa com IZAQUE
           setActiveTab('chat');
@@ -237,7 +260,8 @@ export default function App() {
       if (currentUser) {
         const isFlowLocked =
           (typeof window !== 'undefined' && window.__izaqueSignupFlowActive) ||
-          Boolean(directSignupRef.current);
+          Boolean(directSignupRef.current) ||
+          Boolean(inscriptionRouteRef.current);
 
         loadUserProfile(currentUser);
         if (!isFlowLocked) {
@@ -273,7 +297,7 @@ export default function App() {
     if (typeof window !== 'undefined' && window.__izaqueSignupFlowActive) {
       return;
     }
-    if (directSignupRoute) {
+    if (directSignupRoute || isInscriptionRoute) {
       return;
     }
     if (user && profile && !loadingProfile) {
@@ -283,7 +307,7 @@ export default function App() {
         setIsTermsPromptOpen(false);
       }
     }
-  }, [user, profile, loadingProfile, directSignupRoute]);
+  }, [user, profile, loadingProfile, directSignupRoute, isInscriptionRoute]);
 
   const handleAcceptTerms = async () => {
     if (!user) return;
@@ -330,6 +354,11 @@ export default function App() {
       setActiveTab('chat');
     }
   };
+
+  // PÁGINA NOVA E INDEPENDENTE DE FICHA DE INSCRIÇÃO SIMPLES (/inscricao)
+  if (isInscriptionRoute) {
+    return <SimpleInscriptionPage />;
+  }
 
   // PÁGINA DEDICADA DE CADASTRO DIRETO POR LINK (/cadastro ou /cadastro/:slug)
   if (directSignupRoute) {

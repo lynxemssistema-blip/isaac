@@ -605,7 +605,8 @@ export default function AdminUserGroups({ allUsers = [], currentUser }) {
                   (u) =>
                     !search ||
                     u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-                    u.email?.toLowerCase().includes(search.toLowerCase())
+                    u.email?.toLowerCase().includes(search.toLowerCase()) ||
+                    u.phone?.toLowerCase().includes(search.toLowerCase())
                 )
                 .slice(0, 30)
                 .map((u) => (
@@ -629,7 +630,9 @@ export default function AdminUserGroups({ allUsers = [], currentUser }) {
                         <p className="text-xs font-bold text-stone-900 dark:text-white truncate">
                           {u.full_name || 'Sem nome cadastrado'}
                         </p>
-                        <p className="text-[11px] text-stone-400 truncate">{u.email}</p>
+                        <p className="text-[11px] text-stone-400 truncate">
+                          {u.email || (u.phone ? `📱 ${u.phone}` : 'Ficha /inscricao')}
+                        </p>
                       </div>
                     </div>
 
@@ -1086,7 +1089,8 @@ export default function AdminUserGroups({ allUsers = [], currentUser }) {
                     (u) =>
                       !memberSearch ||
                       u.full_name?.toLowerCase().includes(memberSearch.toLowerCase()) ||
-                      u.email?.toLowerCase().includes(memberSearch.toLowerCase())
+                      u.email?.toLowerCase().includes(memberSearch.toLowerCase()) ||
+                      u.phone?.toLowerCase().includes(memberSearch.toLowerCase())
                   )
                   .map((u) => {
                     const isMember = groupMembers.some((m) => m.id === u.id);
@@ -1107,7 +1111,9 @@ export default function AdminUserGroups({ allUsers = [], currentUser }) {
                             <p className="text-xs font-semibold text-stone-900 dark:text-white truncate">
                               {u.full_name || 'Sem nome'}
                             </p>
-                            <p className="text-[10px] text-stone-400 truncate">{u.email}</p>
+                            <p className="text-[10px] text-stone-400 truncate">
+                              {u.email || (u.phone ? `📱 ${u.phone}` : 'Ficha /inscricao')}
+                            </p>
                           </div>
                         </div>
 

@@ -36,6 +36,12 @@ import {
   Calendar,
   SlidersHorizontal,
   FileText,
+  Copy,
+  Check,
+  ExternalLink,
+  Link2,
+  Phone,
+  X,
 } from 'lucide-react';
 import {
   fetchAdminMetrics,
@@ -55,7 +61,10 @@ import {
   fetchAdminCreator,
   updateAdminCreator,
   uploadCreatorPhoto,
+  updateAdminInscriptionApi,
+  deleteAdminInscriptionApi,
 } from '../services/adminApi';
+import { formatPhoneMask } from './DirectSignupPage';
 import CreateAgentModal from './CreateAgentModal';
 import AgentKnowledgeManager from './AgentKnowledgeManager';
 import AdminHelpGuide from './AdminHelpGuide';
@@ -85,6 +94,10 @@ export default function AdminDashboard({ currentUser }) {
 
   // Filtros e busca
   const [userSearch, setUserSearch] = useState('');
+  const [userSourceFilter, setUserSourceFilter] = useState('all'); // 'all' | 'app' | 'inscricao'
+  const [copiedInscricaoLink, setCopiedInscricaoLink] = useState(false);
+  const [editingInscription, setEditingInscription] = useState(null);
+  const [savingInscription, setSavingInscription] = useState(false);
   const [memoryFilter, setMemoryFilter] = useState('all');
   const [feedbackMsg, setFeedbackMsg] = useState('');
 
@@ -399,11 +412,83 @@ export default function AdminDashboard({ currentUser }) {
     setEditingQuestionCategory('');
   };
 
-  const filteredUsers = users.filter(
-    (u) =>
-      u.email?.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.full_name?.toLowerCase().includes(userSearch.toLowerCase())
-  );
+  const inscricaoPublicUrl =
+    typeof window !== 'undefined' ? `${window.location.origin}/inscricao` : '/inscricao';
+
+  const handleCopyInscricaoLink = async () => {
+    try {
+      await navigator.clipboard.writeText(inscricaoPublicUrl);
+      setCopiedInscricaoLink(true);
+      setFeedbackMsg('Link da Ficha de Inscrição (/inscricao) copiado!');
+      setTimeout(() => {
+        setCopiedInscricaoLink(false);
+        setFeedbackMsg('');
+      }, 3000);
+    } catch {
+      alert('Copie o link: ' + inscricaoPublicUrl);
+    }
+  };
+
+  const handleOpenEditInscription = (u) => {
+    setEditingInscription({
+      id: u.id,
+      fullName: u.full_name || '',
+      email: u.email || '',
+      phone: u.phone || '',
+      notes: u.notes || '',
+    });
+  };
+
+  const handleSaveInscription = async (e) => {
+    e?.preventDefault();
+    if (!editingInscription) return;
+    setSavingInscription(true);
+    try {
+      await updateAdminInscriptionApi(editingInscription.id, {
+        fullName: editingInscription.fullName,
+        email: editingInscription.email,
+        phone: editingInscription.phone,
+        notes: editingInscription.notes,
+      });
+      setEditingInscription(null);
+      setFeedbackMsg('Ficha de inscrição atualizada com sucesso!');
+      setTimeout(() => setFeedbackMsg(''), 3000);
+      loadAllData();
+    } catch (err) {
+      alert('Erro ao salvar ficha de inscrição: ' + err.message);
+    } finally {
+      setSavingInscription(false);
+    }
+  };
+
+  const handleDeleteInscription = async (u) => {
+    if (!window.confirm(`Deseja realmente remover a ficha de inscrição de "${u.full_name || u.email || u.phone}"?`)) {
+      return;
+    }
+    try {
+      await deleteAdminInscriptionApi(u.id);
+      setFeedbackMsg('Ficha de inscrição removida com sucesso!');
+      setTimeout(() => setFeedbackMsg(''), 3000);
+      loadAllData();
+    } catch (err) {
+      alert('Erro ao remover ficha de inscrição: ' + err.message);
+    }
+  };
+
+  const appUsersTotal = users.filter((u) => !u.is_inscription).length;
+  const inscriptionsTotal = users.filter((u) => u.is_inscription).length;
+
+  const filteredUsers = users.filter((u) => {
+    if (userSourceFilter === 'app' && u.is_inscription) return false;
+    if (userSourceFilter === 'inscricao' && !u.is_inscription) return false;
+    if (!userSearch.trim()) return true;
+    const q = userSearch.toLowerCase();
+    return (
+      u.email?.toLowerCase().includes(q) ||
+      u.full_name?.toLowerCase().includes(q) ||
+      u.phone?.toLowerCase().includes(q)
+    );
+  });
 
   const filteredMemories = memories.filter((m) => {
     if (memoryFilter === 'all') return true;
@@ -411,7 +496,9 @@ export default function AdminDashboard({ currentUser }) {
   });
 
   const pendingSubsCount = subscriptions.filter((s) => s.status === 'pending').length;
-  const activeSubscribersCount = users.filter((u) => u.plan_id && u.plan_id !== 'free').length;
+  const activeSubscribersCount = users.filter(
+    (u) => !u.is_inscription && u.plan_id && u.plan_id !== 'free'
+  ).length;
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-slate-900 text-stone-800 dark:text-stone-100 p-3.5 sm:p-8 font-sans transition-colors duration-300">
@@ -718,16 +805,94 @@ export default function AdminDashboard({ currentUser }) {
         {/* ABA 1: GERENCIAR USUÁRIOS E CONTROLE DE ACESSO */}
         {activeTab === 'users' && (
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between gap-4 items-center">
+            {/* Atalho rápido do Link da Ficha de Inscrição Simples (/inscricao) */}
+            <div className="p-4 rounded-3xl bg-white dark:bg-slate-800/90 border border-stone-200/80 dark:border-slate-700 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex items-start sm:items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                  <Link2 className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-stone-900 dark:text-stone-100">
+                      Link da Ficha de Inscrição Simples (sem senha e sem envio de e-mail):
+                    </span>
+                    <code className="px-2 py-0.5 rounded-lg bg-stone-100 dark:bg-slate-900 text-[11px] text-teal-800 dark:text-teal-300 border border-stone-200 dark:border-slate-700 truncate max-w-full">
+                      {inscricaoPublicUrl}
+                    </code>
+                  </div>
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+                    Quem preenche esta ficha aparece automaticamente na lista abaixo junto com os demais usuários.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleCopyInscricaoLink}
+                  className="px-3.5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-sm active:scale-95"
+                >
+                  {copiedInscricaoLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedInscricaoLink ? 'Copiado!' : 'Copiar Link /inscricao'}</span>
+                </button>
+                <a
+                  href="/inscricao"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-2 rounded-xl bg-stone-100 dark:bg-slate-700 hover:bg-stone-200 dark:hover:bg-slate-600 text-stone-700 dark:text-stone-200 text-xs font-medium transition flex items-center gap-1.5"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Abrir Ficha</span>
+                </a>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-between gap-3 items-stretch sm:items-center">
               <div className="relative w-full sm:w-80">
                 <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
                 <input
                   type="text"
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
-                  placeholder="Buscar por nome ou e-mail..."
+                  placeholder="Buscar por nome, e-mail ou celular..."
                   className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 text-xs text-stone-800 dark:text-stone-100 placeholder-stone-400 outline-none focus:border-teal-700"
                 />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setUserSourceFilter('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                    userSourceFilter === 'all'
+                      ? 'bg-teal-700 text-white shadow-sm'
+                      : 'bg-white dark:bg-slate-800 text-stone-600 dark:text-stone-300 border border-stone-200 dark:border-slate-700 hover:bg-stone-100'
+                  }`}
+                >
+                  Todos ({users.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserSourceFilter('app')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                    userSourceFilter === 'app'
+                      ? 'bg-teal-700 text-white shadow-sm'
+                      : 'bg-white dark:bg-slate-800 text-stone-600 dark:text-stone-300 border border-stone-200 dark:border-slate-700 hover:bg-stone-100'
+                  }`}
+                >
+                  Contas do App ({appUsersTotal})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserSourceFilter('inscricao')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                    userSourceFilter === 'inscricao'
+                      ? 'bg-amber-600 text-white shadow-sm'
+                      : 'bg-white dark:bg-slate-800 text-stone-600 dark:text-stone-300 border border-stone-200 dark:border-slate-700 hover:bg-stone-100'
+                  }`}
+                >
+                  Fichas /inscricao ({inscriptionsTotal})
+                </button>
               </div>
             </div>
 
@@ -735,27 +900,41 @@ export default function AdminDashboard({ currentUser }) {
               <table className="w-full text-left text-xs text-stone-700 dark:text-stone-300">
                 <thead className="bg-stone-100/70 dark:bg-slate-850 uppercase font-semibold text-[11px] text-stone-500 border-b border-stone-200/80 dark:border-slate-700">
                   <tr>
-                    <th className="p-4">Cliente / E-mail</th>
-                    <th className="p-4">Papel</th>
+                    <th className="p-4">Cliente / Contato</th>
+                    <th className="p-4">Papel / Origem</th>
                     <th className="p-4">Plano Atual</th>
-                    <th className="p-4">Status de Acesso</th>
+                    <th className="p-4">Status</th>
                     <th className="p-4">Data de Cadastro</th>
-                    <th className="p-4 text-right">Ação de Bloqueio</th>
+                    <th className="p-4 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-200/60 dark:divide-slate-700/60">
                   {filteredUsers.map((u) => {
                     const isActive = u.is_active !== false;
                     const planId = u.plan_id || 'free';
+                    const isInscription = Boolean(u.is_inscription);
 
                     return (
-                      <tr key={u.id} className="hover:bg-stone-50/70 dark:hover:bg-slate-750 transition">
+                      <tr key={`${isInscription ? 'insc' : 'app'}_${u.id}`} className="hover:bg-stone-50/70 dark:hover:bg-slate-750 transition">
                         <td className="p-4">
-                          <div className="font-serif font-medium text-stone-900 dark:text-stone-100 text-sm">
-                            {u.full_name || 'Sem nome'}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-serif font-medium text-stone-900 dark:text-stone-100 text-sm">
+                              {u.full_name || 'Sem nome'}
+                            </span>
+                            {isInscription ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+                                Ficha /inscricao
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 dark:bg-teal-950/50 text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60">
+                                Conta do App
+                              </span>
+                            )}
                           </div>
-                          <div className="text-[11px] text-stone-400">{u.email}</div>
-                          {(u.phone || u.city || u.occupation || u.main_goal) && (
+                          <div className="text-[11px] text-stone-400">
+                            {u.email || 'Sem e-mail (contato por celular)'}
+                          </div>
+                          {(u.phone || u.city || u.occupation || u.main_goal || u.notes) && (
                             <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px] text-stone-500 dark:text-stone-400">
                               {u.phone && <span>📱 {u.phone}</span>}
                               {u.city && (
@@ -766,39 +945,52 @@ export default function AdminDashboard({ currentUser }) {
                               )}
                               {u.occupation && <span>💼 {u.occupation}</span>}
                               {u.main_goal && <span>🎯 {u.main_goal}</span>}
+                              {u.notes && <span>📝 {u.notes}</span>}
                             </div>
                           )}
                         </td>
 
                         <td className="p-4">
-                          <select
-                            value={u.role}
-                            onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                            className="bg-stone-50 dark:bg-slate-900 border border-stone-300 dark:border-slate-700 text-xs rounded-xl px-2.5 py-1 text-stone-800 dark:text-stone-200 outline-none focus:border-teal-700"
-                          >
-                            <option value="user">user</option>
-                            <option value="admin">admin</option>
-                            <option value="master">master</option>
-                          </select>
+                          {isInscription ? (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-[11px] font-medium bg-amber-50/70 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/50">
+                              Ficha de Contato
+                            </span>
+                          ) : (
+                            <select
+                              value={u.role}
+                              onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                              className="bg-stone-50 dark:bg-slate-900 border border-stone-300 dark:border-slate-700 text-xs rounded-xl px-2.5 py-1 text-stone-800 dark:text-stone-200 outline-none focus:border-teal-700"
+                            >
+                              <option value="user">user</option>
+                              <option value="admin">admin</option>
+                              <option value="master">master</option>
+                            </select>
+                          )}
                         </td>
 
                         {/* PLANO ATUAL EDITÁVEL PELO SUPERADMIN */}
                         <td className="p-4">
-                          <select
-                            value={planId}
-                            onChange={(e) => handleUserPlanChange(u.id, e.target.value)}
-                            className={`text-xs rounded-xl px-2.5 py-1 font-medium border outline-none ${
-                              planId === 'pro_annual'
-                                ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-300'
-                                : planId === 'pro_monthly'
-                                ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-300 border-teal-300'
-                                : 'bg-stone-100 dark:bg-slate-700 text-stone-600 dark:text-stone-300 border-stone-300'
-                            }`}
-                          >
-                            <option value="free">Gratuito (free)</option>
-                            <option value="pro_monthly">Mensal (R$ 29,90)</option>
-                            <option value="pro_annual">Anual (R$ 247,00)</option>
-                          </select>
+                          {isInscription ? (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-[11px] font-medium bg-stone-100 dark:bg-slate-900 text-stone-500 dark:text-stone-400 border border-stone-200 dark:border-slate-700">
+                              Sem login no app
+                            </span>
+                          ) : (
+                            <select
+                              value={planId}
+                              onChange={(e) => handleUserPlanChange(u.id, e.target.value)}
+                              className={`text-xs rounded-xl px-2.5 py-1 font-medium border outline-none ${
+                                planId === 'pro_annual'
+                                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-300'
+                                  : planId === 'pro_monthly'
+                                  ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-300 border-teal-300'
+                                  : 'bg-stone-100 dark:bg-slate-700 text-stone-600 dark:text-stone-300 border-stone-300'
+                              }`}
+                            >
+                              <option value="free">Gratuito (free)</option>
+                              <option value="pro_monthly">Mensal (R$ 29,90)</option>
+                              <option value="pro_annual">Anual (R$ 247,00)</option>
+                            </select>
+                          )}
                         </td>
 
                         {/* STATUS DE ACESSO */}
@@ -811,7 +1003,7 @@ export default function AdminDashboard({ currentUser }) {
                             }`}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-600' : 'bg-rose-600'}`} />
-                            {isActive ? 'Ativo' : 'Bloqueado'}
+                            {isActive ? 'Ativo' : isInscription ? 'Inativo' : 'Bloqueado'}
                           </span>
                         </td>
 
@@ -819,29 +1011,63 @@ export default function AdminDashboard({ currentUser }) {
                           {new Date(u.created_at).toLocaleDateString('pt-BR')}
                         </td>
 
-                        {/* BOTÃO PARA ATIVAR / BLOQUEAR */}
+                        {/* BOTÕES DE AÇÃO */}
                         <td className="p-4 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleUserStatus(u.id, isActive)}
-                            className={`px-3 py-1 rounded-xl text-xs font-semibold transition active:scale-95 flex items-center gap-1.5 ml-auto ${
-                              isActive
-                                ? 'bg-rose-100 dark:bg-rose-950/50 hover:bg-rose-200 text-rose-800 dark:text-rose-300'
-                                : 'bg-emerald-100 dark:bg-emerald-950/50 hover:bg-emerald-200 text-emerald-800 dark:text-emerald-300'
-                            }`}
-                          >
-                            {isActive ? (
-                              <>
-                                <UserX className="w-3.5 h-3.5" />
-                                <span>Bloquear Acesso</span>
-                              </>
-                            ) : (
-                              <>
-                                <UserCheck className="w-3.5 h-3.5" />
-                                <span>Liberar Acesso</span>
-                              </>
-                            )}
-                          </button>
+                          {isInscription ? (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditInscription(u)}
+                                title="Editar dados da ficha"
+                                className="px-2.5 py-1 rounded-xl text-xs font-semibold bg-stone-100 dark:bg-slate-700 hover:bg-stone-200 dark:hover:bg-slate-600 text-stone-700 dark:text-stone-200 transition flex items-center gap-1"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                <span>Editar</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleUserStatus(u.id, isActive)}
+                                className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition flex items-center gap-1 ${
+                                  isActive
+                                    ? 'bg-amber-100 dark:bg-amber-950/50 hover:bg-amber-200 text-amber-800 dark:text-amber-300'
+                                    : 'bg-emerald-100 dark:bg-emerald-950/50 hover:bg-emerald-200 text-emerald-800 dark:text-emerald-300'
+                                }`}
+                              >
+                                {isActive ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                                <span>{isActive ? 'Inativar' : 'Ativar'}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteInscription(u)}
+                                title="Excluir ficha de inscrição"
+                                className="p-1.5 rounded-xl bg-rose-100 dark:bg-rose-950/50 hover:bg-rose-200 text-rose-700 dark:text-rose-300 transition"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleUserStatus(u.id, isActive)}
+                              className={`px-3 py-1 rounded-xl text-xs font-semibold transition active:scale-95 flex items-center gap-1.5 ml-auto ${
+                                isActive
+                                  ? 'bg-rose-100 dark:bg-rose-950/50 hover:bg-rose-200 text-rose-800 dark:text-rose-300'
+                                  : 'bg-emerald-100 dark:bg-emerald-950/50 hover:bg-emerald-200 text-emerald-800 dark:text-emerald-300'
+                              }`}
+                            >
+                              {isActive ? (
+                                <>
+                                  <UserX className="w-3.5 h-3.5" />
+                                  <span>Bloquear Acesso</span>
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck className="w-3.5 h-3.5" />
+                                  <span>Liberar Acesso</span>
+                                </>
+                              )}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -1851,6 +2077,114 @@ export default function AdminDashboard({ currentUser }) {
         {/* ABA 14: LINKS DE CADASTRO DIRETO & ENVIO AUTOMÁTICO DE PDFS */}
         {activeTab === 'pdf_campaigns' && (
           <AdminPdfCampaigns currentUser={currentUser} />
+        )}
+
+        {/* MODAL PARA EDITAR FICHA DE INSCRIÇÃO (/inscricao) */}
+        {editingInscription && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-700 rounded-3xl shadow-2xl p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-stone-100 dark:border-slate-800 pb-3">
+                <div>
+                  <h3 className="font-serif font-bold text-base text-stone-900 dark:text-stone-50">
+                    Editar Ficha de Inscrição
+                  </h3>
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400">
+                    Atualize os dados de contato e observações internas.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingInscription(null)}
+                  className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveInscription} className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                    Nome Completo *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingInscription.fullName}
+                    onChange={(e) =>
+                      setEditingInscription((prev) => ({ ...prev, fullName: e.target.value }))
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-slate-800 border border-stone-300 dark:border-slate-700 text-xs text-stone-900 dark:text-stone-100 outline-none focus:border-teal-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                    E-mail
+                  </label>
+                  <input
+                    type="email"
+                    value={editingInscription.email}
+                    onChange={(e) =>
+                      setEditingInscription((prev) => ({ ...prev, email: e.target.value }))
+                    }
+                    placeholder="email@exemplo.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-slate-800 border border-stone-300 dark:border-slate-700 text-xs text-stone-900 dark:text-stone-100 outline-none focus:border-teal-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                    Celular / WhatsApp
+                  </label>
+                  <input
+                    type="tel"
+                    value={editingInscription.phone}
+                    onChange={(e) =>
+                      setEditingInscription((prev) => ({
+                        ...prev,
+                        phone: formatPhoneMask(e.target.value),
+                      }))
+                    }
+                    placeholder="(11) 99999-9999"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-slate-800 border border-stone-300 dark:border-slate-700 text-xs text-stone-900 dark:text-stone-100 outline-none focus:border-teal-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                    Observações Internas (visível apenas no Admin)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={editingInscription.notes}
+                    onChange={(e) =>
+                      setEditingInscription((prev) => ({ ...prev, notes: e.target.value }))
+                    }
+                    placeholder="Ex: Veio pelo evento / prefere contato via WhatsApp..."
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-slate-800 border border-stone-300 dark:border-slate-700 text-xs text-stone-900 dark:text-stone-100 outline-none focus:border-teal-700"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingInscription(null)}
+                    className="px-4 py-2 rounded-xl text-xs text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingInscription}
+                    className="px-5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                  >
+                    {savingInscription ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    <span>Salvar Alterações</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
 
         {/* MODAL PARA CRIAR AGENTE */}

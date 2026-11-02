@@ -16,8 +16,9 @@ import {
 // 1. Obter métricas gerais do sistema
 export async function getAdminMetrics(req, res) {
   try {
-    const [usersRes, memoriesRes, agentsRes] = await Promise.all([
+    const [usersRes, inscriptionsRes, memoriesRes, agentsRes] = await Promise.all([
       supabaseAdmin.from('izaque_profiles').select('id', { count: 'exact', head: true }),
+      supabaseAdmin.from('izaque_inscriptions').select('id', { count: 'exact', head: true }),
       supabaseAdmin.from('izaque_user_memories').select('id', { count: 'exact', head: true }),
       supabaseAdmin.from('izaque_agents').select('id', { count: 'exact', head: true }),
     ]);
@@ -32,8 +33,13 @@ export async function getAdminMetrics(req, res) {
       return acc;
     }, {});
 
+    const appUsersCount = usersRes.count || 0;
+    const inscriptionsCount = inscriptionsRes.count || 0;
+
     res.status(200).json({
-      totalUsers: usersRes.count || 0,
+      totalUsers: appUsersCount + inscriptionsCount,
+      appUsersCount,
+      inscriptionsCount,
       totalMemories: memoriesRes.count || 0,
       totalAgents: agentsRes.count || 0,
       categoriesCount,
@@ -44,16 +50,48 @@ export async function getAdminMetrics(req, res) {
   }
 }
 
-// 2. Listar todos os usuários com perfis
+// 2. Listar todos os usuários com perfis + inscritos da ficha simples (/inscricao)
 export async function getAdminUsers(req, res) {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('izaque_profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const [profilesRes, inscriptionsRes] = await Promise.all([
+      supabaseAdmin
+        .from('izaque_profiles')
+        .select('*')
+        .order('created_at', { ascending: false }),
+      supabaseAdmin
+        .from('izaque_inscriptions')
+        .select('*')
+        .order('created_at', { ascending: false }),
+    ]);
 
-    if (error) throw error;
-    res.status(200).json(data);
+    if (profilesRes.error) throw profilesRes.error;
+
+    const appUsers = (profilesRes.data || []).map((u) => ({
+      ...u,
+      account_type: 'app',
+      is_inscription: false,
+    }));
+
+    const inscriptionUsers = (inscriptionsRes.data || []).map((i) => ({
+      id: i.id,
+      full_name: i.full_name,
+      email: i.email || null,
+      phone: i.phone || null,
+      notes: i.notes || null,
+      is_active: i.is_active !== false,
+      role: 'inscrito',
+      plan_id: null,
+      account_type: 'inscricao',
+      is_inscription: true,
+      created_at: i.created_at,
+      updated_at: i.updated_at,
+    }));
+
+    const unified = [...appUsers, ...inscriptionUsers].sort(
+      (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+    );
+
+    res.status(200).json(unified);
   } catch (error) {
     console.error('❌ Erro ao listar usuários:', error);
     res.status(500).json({ error: 'Erro ao listar usuários.' });
@@ -410,7 +448,7 @@ export async function updateAdminPlan(req, res) {
 // GESTÃO DE ACESSO E PLANOS DE CLIENTES (SUPERADMIN)
 // ==========================================
 
-// 15. Ativar ou Bloquear/Desativar o acesso geral de um cliente
+// 15. Ativar ou Bloquear/Desativar o acesso geral de um cliente (ou ficha de inscrição)
 export async function updateUserStatus(req, res) {
   try {
     const { userId, isActive } = req.body;
@@ -419,20 +457,38 @@ export async function updateUserStatus(req, res) {
       return res.status(400).json({ error: 'ID de usuário e status isActive obrigatórios.' });
     }
 
-    const { data, error } = await supabaseAdmin
+    const now = new Date().toISOString();
+    const { data: profileData, error: profileErr } = await supabaseAdmin
       .from('izaque_profiles')
       .update({
         is_active: Boolean(isActive),
-        updated_at: new Date().toISOString(),
+        updated_at: now,
+      })
+      .eq('id', userId)
+      .select()
+      .maybeSingle();
+
+    if (profileErr) throw profileErr;
+
+    if (profileData) {
+      console.log(`👤 [User Access] Usuário ${userId} status alterado para: ${isActive ? 'ATIVO' : 'BLOQUEADO'}`);
+      return res.status(200).json(profileData);
+    }
+
+    const { data: inscData, error: inscErr } = await supabaseAdmin
+      .from('izaque_inscriptions')
+      .update({
+        is_active: Boolean(isActive),
+        updated_at: now,
       })
       .eq('id', userId)
       .select()
       .single();
 
-    if (error) throw error;
+    if (inscErr) throw inscErr;
 
-    console.log(`👤 [User Access] Usuário ${userId} status de acesso alterado para: ${isActive ? 'ATIVO' : 'BLOQUEADO'}`);
-    res.status(200).json(data);
+    console.log(`📋 [Inscription Status] Ficha ${userId} status alterado para: ${isActive ? 'ATIVO' : 'INATIVO'}`);
+    res.status(200).json(inscData);
   } catch (error) {
     console.error('❌ Erro ao alterar status de acesso do usuário:', error);
     res.status(500).json({ error: 'Erro ao alterar status de acesso do usuário.' });
@@ -694,23 +750,43 @@ export async function generateBroadcastDraftController(req, res) {
  */
 export async function getBroadcastStatsController(req, res) {
   try {
-    const { data: users, error } = await supabaseAdmin
-      .from('izaque_profiles')
-      .select('id, email, plan_id, is_active')
-      .not('email', 'is', null)
-      .neq('is_active', false);
+    const [profilesRes, inscriptionsRes] = await Promise.all([
+      supabaseAdmin
+        .from('izaque_profiles')
+        .select('id, email, plan_id, is_active')
+        .not('email', 'is', null)
+        .neq('is_active', false),
+      supabaseAdmin
+        .from('izaque_inscriptions')
+        .select('id, email, is_active')
+        .not('email', 'is', null)
+        .neq('is_active', false),
+    ]);
 
-    if (error) throw error;
+    if (profilesRes.error) throw profilesRes.error;
 
-    const validUsers = (users || []).filter(u => u.email && u.email.includes('@'));
-    const totalUsers = validUsers.length;
-    const subscribers = validUsers.filter(u => u.plan_id && u.plan_id !== 'free').length;
-    const freeUsers = validUsers.filter(u => !u.plan_id || u.plan_id === 'free').length;
+    const validProfiles = (profilesRes.data || []).filter((u) => u.email && u.email.includes('@'));
+    const seenEmails = new Set(validProfiles.map((u) => u.email.trim().toLowerCase()));
+
+    const extraInscriptions = (inscriptionsRes.data || []).filter((i) => {
+      if (!i.email || !i.email.includes('@')) return false;
+      const key = i.email.trim().toLowerCase();
+      if (seenEmails.has(key)) return false;
+      seenEmails.add(key);
+      return true;
+    });
+
+    const subscribers = validProfiles.filter((u) => u.plan_id && u.plan_id !== 'free').length;
+    const freeUsers =
+      validProfiles.filter((u) => !u.plan_id || u.plan_id === 'free').length +
+      extraInscriptions.length;
+    const totalUsers = validProfiles.length + extraInscriptions.length;
 
     res.status(200).json({
       totalUsers,
       subscribers,
       freeUsers,
+      inscriptionsWithEmail: extraInscriptions.length,
       smtpUser: process.env.SMTP_USER || 'suporte@lynxems.com.br',
       smtpHost: process.env.SMTP_HOST || 'smtp.hostinger.com',
     });
@@ -1049,13 +1125,32 @@ export async function getAdminGroupMembers(req, res) {
     const userIds = (data || []).map((m) => m.user_id);
     if (userIds.length === 0) return res.status(200).json([]);
 
-    const { data: profiles, error: profError } = await supabaseAdmin
-      .from('izaque_profiles')
-      .select('id, full_name, email, avatar_url, role, plan_status')
-      .in('id', userIds);
+    const [profRes, inscRes] = await Promise.all([
+      supabaseAdmin
+        .from('izaque_profiles')
+        .select('id, full_name, email, phone, avatar_url, role, plan_status')
+        .in('id', userIds),
+      supabaseAdmin
+        .from('izaque_inscriptions')
+        .select('id, full_name, email, phone')
+        .in('id', userIds),
+    ]);
 
-    if (profError) throw profError;
-    res.status(200).json(profiles || []);
+    if (profRes.error) throw profRes.error;
+
+    const appProfiles = (profRes.data || []).map((p) => ({ ...p, is_inscription: false }));
+    const inscProfiles = (inscRes.data || []).map((i) => ({
+      id: i.id,
+      full_name: i.full_name,
+      email: i.email || i.phone || 'Sem e-mail',
+      phone: i.phone || null,
+      avatar_url: null,
+      role: 'inscrito',
+      plan_status: 'inscricao',
+      is_inscription: true,
+    }));
+
+    res.status(200).json([...appProfiles, ...inscProfiles]);
   } catch (error) {
     console.error('❌ Erro ao listar membros do grupo:', error);
     res.status(500).json({ error: 'Erro ao carregar membros do grupo.' });
@@ -1177,21 +1272,30 @@ export async function sendGroupBroadcast(req, res) {
 
     if (broadcastError) throw broadcastError;
 
-    // 3. Criar notificações individuais para cada usuário único
-    const notificationsToInsert = uniqueUserIds.map((uId) => ({
-      user_id: uId,
-      broadcast_id: broadcast.id,
-      title: title.trim(),
-      content: content ? content.trim() : '',
-      audio_url: audio_url || null,
-      is_read: false,
-    }));
+    // 3. Criar notificações individuais In-App apenas para contas reais do app (auth.users)
+    const { data: realAppUsers } = await supabaseAdmin
+      .from('izaque_profiles')
+      .select('id')
+      .in('id', uniqueUserIds);
 
-    const { error: notifError } = await supabaseAdmin
-      .from('izaque_user_notifications')
-      .insert(notificationsToInsert);
+    const realAppUserIds = (realAppUsers || []).map((u) => u.id);
 
-    if (notifError) throw notifError;
+    if (realAppUserIds.length > 0) {
+      const notificationsToInsert = realAppUserIds.map((uId) => ({
+        user_id: uId,
+        broadcast_id: broadcast.id,
+        title: title.trim(),
+        content: content ? content.trim() : '',
+        audio_url: audio_url || null,
+        is_read: false,
+      }));
+
+      const { error: notifError } = await supabaseAdmin
+        .from('izaque_user_notifications')
+        .insert(notificationsToInsert);
+
+      if (notifError) throw notifError;
+    }
 
     res.status(201).json({
       success: true,

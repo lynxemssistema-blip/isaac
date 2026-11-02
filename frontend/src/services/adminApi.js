@@ -1421,3 +1421,44 @@ export async function fetchAdminPdfDeliveries(campaignId = '') {
   }
   return data;
 }
+
+// ============================================================================
+// FICHA SIMPLES DE INSCRIÇÃO PÚBLICA (/inscricao — SEM SENHA / SEM ENVIO)
+// ============================================================================
+
+export async function submitPublicInscriptionApi(payload) {
+  const res = await fetch(`${BACKEND_URL}/api/inscriptions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao enviar ficha de inscrição.');
+  }
+  return data;
+}
+
+export async function updateAdminInscriptionApi(id, payload) {
+  const res = await fetch(`${BACKEND_URL}/api/admin/inscriptions/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao atualizar inscrição.');
+  }
+  return data;
+}
+
+export async function deleteAdminInscriptionApi(id) {
+  const res = await fetch(`${BACKEND_URL}/api/admin/inscriptions/${id}`, {
+    method: 'DELETE',
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao excluir inscrição.');
+  }
+  return data;
+}

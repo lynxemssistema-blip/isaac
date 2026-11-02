@@ -504,7 +504,7 @@ export async function sendBroadcastEmail({
     };
   }
 
-  // 2. Busca os usuários alvo no Supabase
+  // 2. Busca os usuários alvo no Supabase (contas do app + fichas de inscrição com e-mail)
   let query = supabaseAdmin
     .from('izaque_profiles')
     .select('id, email, full_name, plan_id, is_active')
@@ -520,7 +520,38 @@ export async function sendBroadcastEmail({
   const { data: users, error: userErr } = await query;
   if (userErr) throw userErr;
 
-  const validUsers = (users || []).filter(u => u.email && u.email.includes('@'));
+  let mergedUsers = [...(users || [])];
+
+  if (targetAudience !== 'subscribers') {
+    const { data: inscriptions } = await supabaseAdmin
+      .from('izaque_inscriptions')
+      .select('id, email, full_name, is_active')
+      .not('email', 'is', null)
+      .neq('is_active', false);
+
+    const existingEmails = new Set(
+      mergedUsers
+        .filter((u) => u.email)
+        .map((u) => u.email.trim().toLowerCase())
+    );
+
+    for (const insc of inscriptions || []) {
+      if (!insc.email || !insc.email.includes('@')) continue;
+      const lower = insc.email.trim().toLowerCase();
+      if (!existingEmails.has(lower)) {
+        existingEmails.add(lower);
+        mergedUsers.push({
+          id: insc.id,
+          email: insc.email.trim(),
+          full_name: insc.full_name,
+          plan_id: 'inscricao',
+          is_active: insc.is_active,
+        });
+      }
+    }
+  }
+
+  const validUsers = mergedUsers.filter(u => u.email && u.email.includes('@'));
   if (validUsers.length === 0) {
     return {
       success: true,
