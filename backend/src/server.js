@@ -65,9 +65,20 @@ app.use('/api', inscriptionRoutes);
 // Servir frontend compilado em produção se o diretório dist existir
 if (fs.existsSync(distPath)) {
   console.log(`📦 [Static Assets] Servindo frontend a partir de: ${distPath}`);
-  app.use(express.static(distPath));
+  app.use(
+    express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('index.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+      },
+    })
+  );
   app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path === '/health') return next();
+    if (req.path.startsWith('/api') || req.path === '/health' || req.path.startsWith('/assets/')) {
+      return next();
+    }
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.sendFile(path.join(distPath, 'index.html'));
   });
 } else {
