@@ -68,7 +68,7 @@ export default function TermsOfUseModal({
           <div className="mx-5 sm:mx-6 mt-4 p-3.5 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200/90 dark:border-amber-800/60 flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200 leading-relaxed shrink-0">
             <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <strong className="font-semibold">Aviso Importante de Validade Jurídica:</strong> O ISSAC opera em fase experimental contínua (Beta). A leitura atenta e a concordância expressa com as cláusulas de isenção de responsabilidade e autonomia de backup são condições obrigatórias para acesso à plataforma.
+              <strong className="font-semibold">Aviso Importante de Validade Jurídica:</strong> O ISAAC opera em fase experimental contínua (Beta). A leitura atenta e a concordância expressa com as cláusulas de isenção de responsabilidade e autonomia de backup são condições obrigatórias para acesso à plataforma.
             </div>
           </div>
 
@@ -76,19 +76,19 @@ export default function TermsOfUseModal({
           <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 text-xs sm:text-sm text-stone-700 dark:text-stone-300 leading-relaxed font-serif select-text">
             <div>
               <p className="mb-3">
-                Bem-vindo(a) ao <strong>ISSAC</strong> (
+                Bem-vindo(a) ao <strong>ISAAC</strong> (
                 <a
-                  href="https://issac.lynxems.com.br/"
+                  href="https://isaac.lynxems.com.br/"
                   target="_blank"
                   rel="noreferrer"
                   className="text-teal-700 dark:text-teal-400 hover:underline"
                 >
-                  https://issac.lynxems.com.br/
+                  https://isaac.lynxems.com.br/
                 </a>
                 ), um aplicativo desenvolvido, operado e mantido por <strong>Lynx EMS Soluções Tecnológicas Ltda.</strong> (doravante denominada "Desenvolvedora").
               </p>
               <p>
-                A leitura, compreensão e aceitação destes Termos de Uso são obrigatórias e indispensáveis para a utilização do aplicativo. Ao marcar a caixa de aceitação e utilizar o ISSAC, você ("Usuário") expressa sua <strong>concordância plena, integral e sem reservas</strong> com todas as condições aqui descritas. Caso não concorde com qualquer disposição, você deve interromper imediatamente o acesso e não utilizar a plataforma.
+                A leitura, compreensão e aceitação destes Termos de Uso são obrigatórias e indispensáveis para a utilização do aplicativo. Ao marcar a caixa de aceitação e utilizar o ISAAC, você ("Usuário") expressa sua <strong>concordância plena, integral e sem reservas</strong> com todas as condições aqui descritas. Caso não concorde com qualquer disposição, você deve interromper imediatamente o acesso e não utilizar a plataforma.
               </p>
             </div>
 
@@ -99,7 +99,7 @@ export default function TermsOfUseModal({
                 1. Fase de Desenvolvimento (Versão Beta)
               </h4>
               <p className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed">
-                <strong>1.1.</strong> O Usuário reconhece e concorda expressamente que o Aplicativo ISSAC encontra-se em fase de desenvolvimento, testes e aprimoramento contínuo (Versão Beta).
+                <strong>1.1.</strong> O Usuário reconhece e concorda expressamente que o Aplicativo ISAAC encontra-se em fase de desenvolvimento, testes e aprimoramento contínuo (Versão Beta).
               </p>
               <p className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed">
                 <strong>1.2.</strong> A plataforma é disponibilizada <em>"no estado em que se encontra" (as is)</em> e <em>"conforme a disponibilidade" (as available)</em>. Devido à natureza de um software em construção, o sistema pode apresentar instabilidades operacionais, erros estruturais (bugs), interrupções de acesso, lentidão ou resultar na perda, corrupção e indisponibilidade temporária ou permanente de dados.
@@ -143,7 +143,7 @@ export default function TermsOfUseModal({
                 <li>Quaisquer falhas operacionais, atrasos, ou prejuízos financeiros derivados da dependência do Usuário em relação às informações, processos ou relatórios gerados pelo sistema.</li>
               </ul>
               <p className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed pt-1">
-                <strong>3.2.</strong> O Aplicativo atua como ferramenta de apoio reflexivo e metodológico. É de inteira e exclusiva responsabilidade do Usuário manter cópias de segurança (backups) em ambientes externos de todas as informações críticas inseridas no ISSAC. Ao aceitar estes termos, o Usuário isenta a Desenvolvedora e renuncia ao direito de ajuizar processos por eventuais perdas.
+                <strong>3.2.</strong> O Aplicativo atua como ferramenta de apoio reflexivo e metodológico. É de inteira e exclusiva responsabilidade do Usuário manter cópias de segurança (backups) em ambientes externos de todas as informações críticas inseridas no ISAAC. Ao aceitar estes termos, o Usuário isenta a Desenvolvedora e renuncia ao direito de ajuizar processos por eventuais perdas.
               </p>
             </div>
 
@@ -154,7 +154,7 @@ export default function TermsOfUseModal({
                 4. Propriedade Intelectual
               </h4>
               <p className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed">
-                <strong>4.1.</strong> Todo o código-fonte, design, interfaces, bancos de dados, logotipos, marca e arquitetura do Aplicativo ISSAC são de propriedade exclusiva da Desenvolvedora. O acesso à plataforma concede apenas uma licença de uso temporária, precária, revogável, intransferível e não exclusiva, não conferindo ao Usuário nenhum direito de propriedade intelectual, cópia, modificação, engenharia reversa, comercialização ou distribuição do software.
+                <strong>4.1.</strong> Todo o código-fonte, design, interfaces, bancos de dados, logotipos, marca e arquitetura do Aplicativo ISAAC são de propriedade exclusiva da Desenvolvedora. O acesso à plataforma concede apenas uma licença de uso temporária, precária, revogável, intransferível e não exclusiva, não conferindo ao Usuário nenhum direito de propriedade intelectual, cópia, modificação, engenharia reversa, comercialização ou distribuição do software.
               </p>
             </div>
 

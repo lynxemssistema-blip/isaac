@@ -732,7 +732,7 @@ export default function AdminHelpGuide() {
               <ul className="list-disc pl-4 mt-2 space-y-1 text-xs text-stone-600 dark:text-stone-400">
                 <li><strong>Estágio 1 (Builder):</strong> Compila o Frontend React/Vite gerando a pasta estática <code>dist/</code> com rotas relativas (<code>/api/...</code>).</li>
                 <li><strong>Estágio 2 (Produção):</strong> Instala apenas as dependências do Node.js backend, copia o <code>dist/</code> do frontend e serve tudo na porta unificada <code>3001</code>.</li>
-                <li><strong>Roteador Nginx/Traefik:</strong> O Easypanel recebe a requisição externa em HTTPS no domínio <code>https://izaque.lynxems.com.br</code> e repassa para o container interno na porta 3001.</li>
+                <li><strong>Roteador Nginx/Traefik:</strong> O Easypanel recebe a requisição externa em HTTPS no domínio <code>https://isaac.lynxems.com.br</code> e repassa para o container interno na porta 3001.</li>
               </ul>
             </div>
 
@@ -740,10 +740,10 @@ export default function AdminHelpGuide() {
               <div className="p-3.5 rounded-2xl bg-stone-900 text-stone-100 flex items-center justify-between">
                 <div>
                   <span className="text-stone-500 block text-[10px]"># URL Oficial de Produção</span>
-                  <code>https://izaque.lynxems.com.br</code>
+                  <code>https://isaac.lynxems.com.br</code>
                 </div>
                 <button
-                  onClick={() => copyToClipboard('https://izaque.lynxems.com.br', 'url-prod')}
+                  onClick={() => copyToClipboard('https://isaac.lynxems.com.br', 'url-prod')}
                   className="p-2 text-stone-400 hover:text-white"
                 >
                   {copiedCmd === 'url-prod' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
@@ -779,10 +779,10 @@ export default function AdminHelpGuide() {
               <div className="p-3.5 rounded-2xl bg-stone-900 text-stone-100 flex items-center justify-between">
                 <div>
                   <span className="text-stone-500 block text-[10px]"># Health Check de Produção</span>
-                  <code>curl -I https://izaque.lynxems.com.br/health</code>
+                  <code>curl -I https://isaac.lynxems.com.br/health</code>
                 </div>
                 <button
-                  onClick={() => copyToClipboard('curl -I https://izaque.lynxems.com.br/health', 'health')}
+                  onClick={() => copyToClipboard('curl -I https://isaac.lynxems.com.br/health', 'health')}
                   className="p-2 text-stone-400 hover:text-white"
                 >
                   {copiedCmd === 'health' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
