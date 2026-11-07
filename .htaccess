@@ -2,36 +2,23 @@
   RewriteEngine On
   RewriteBase /
 
-  # 1. Proteger arquivos de configuração sensíveis e git
-  <FilesMatch "^\.|\.env|package\.json|package-lock\.json|.*\.md$">
-    Require all denied
-  </FilesMatch>
-
-  # 2. Encaminhar chamadas /api para o Backend Node.js caso mod_proxy esteja ativo
+  # 1. Encaminhar chamadas /api para o Backend Node.js caso mod_proxy esteja ativo
   <IfModule mod_proxy.c>
     RewriteCond %{REQUEST_URI} ^/api(/.*)?$ [NC]
     RewriteRule ^api/(.*)$ http://127.0.0.1:3001/api/$1 [P,L]
   </IfModule>
 
-  # 3. Não reescrever rotas de API para o frontend se mod_proxy não estiver ativo
+  # 2. Não reescrever rotas de API para o index.html
   RewriteCond %{REQUEST_URI} ^/api [NC]
   RewriteRule ^ - [L]
 
-  # 4. Mapear requisições diretas de /assets/... para frontend/dist/assets/...
-  RewriteCond %{REQUEST_URI} !^/frontend/dist/assets/
-  RewriteRule ^assets/(.*)$ frontend/dist/assets/$1 [L,NC]
-
-  # 5. Se o arquivo solicitado existir fisicamente (na raiz ou dentro de frontend/dist), entregá-lo
+  # 3. Se o arquivo ou diretório solicitado existir fisicamente (js, css, imagens), entregá-lo
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # 6. Se o arquivo existir dentro de frontend/dist, entregá-lo diretamente
-  RewriteCond %{DOCUMENT_ROOT}/frontend/dist/$1 -f
-  RewriteRule ^(.*)$ frontend/dist/$1 [L]
-
-  # 7. Todas as demais rotas (SPA /login, /admin, etc.) e a raiz carregam o frontend/dist/index.html
-  RewriteRule ^(.*)$ frontend/dist/index.html [L]
+  # 4. Redirecionar todas as rotas SPA (/login, /admin, /inscricao, etc.) para o index.html
+  RewriteRule ^ index.html [L]
 </IfModule>
 
 # Habilitar compressão GZIP
