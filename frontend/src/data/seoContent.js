@@ -94,3 +94,4 @@ export const CORE_TOPICS_PREVIEW = [
       'Identifique gatilhos nos minutos críticos e substitua ciclos de culpa por constância gentil e firme.',
   },
 ];
+

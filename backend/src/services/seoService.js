@@ -907,7 +907,7 @@ export async function serveSeoHtml(req, res, distPath) {
     pathname === '/admin' ||
     pathname.startsWith('/admin/');
 
-  const ogImageUrl = `${baseUrl}/og-isaac-cover.jpg`;
+  const ogImageUrl = `${baseUrl}/og-isaac-cover.png`;
   const creatorSameAs = buildCreatorSameAs(snapshot.creator);
 
   let statusCode = 200;
@@ -1190,7 +1190,7 @@ export async function serveSeoHtml(req, res, distPath) {
     <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
     <meta property="og:image" content="${escapeHtml(ogImageUrl)}" />
     <meta property="og:image:secure_url" content="${escapeHtml(ogImageUrl)}" />
-    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Mentoria ISAAC — Espaço Seguro de Clareza, Escuta Profunda e Transformação" />
