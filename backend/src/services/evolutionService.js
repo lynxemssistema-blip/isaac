@@ -957,6 +957,36 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
     }
   }
 
+  // 0. Opt-out / Opt-in também sincronizado na tabela izaque_whatsapp_contacts (inclusive não cadastrados)
+  if (messageText) {
+    const universalIntent = detectWhatsAppPermissionIntent(messageText);
+    if (universalIntent === 'opt_out') {
+      await supabaseAdmin
+        .from('izaque_whatsapp_contacts')
+        .update({ opt_out: true, updated_at: new Date().toISOString() })
+        .eq('jid', remoteJid)
+        .then(() => {})
+        .catch(() => {});
+
+      if (!matchedProfile) {
+        if (evoEnabled) {
+          await sendWhatsAppTextSafe({
+            jidOrNumber: remoteJid,
+            text: 'Perfeitamente compreendido. Seu número foi removido da nossa lista de convites imediatamente, com total respeito ao seu espaço.',
+          }).catch(() => {});
+        }
+        return { eventType, matchedUserId: null, remoteJid, action: 'unregistered_opt_out_applied' };
+      }
+    } else if (universalIntent === 'opt_in') {
+      await supabaseAdmin
+        .from('izaque_whatsapp_contacts')
+        .update({ opt_out: false, updated_at: new Date().toISOString() })
+        .eq('jid', remoteJid)
+        .then(() => {})
+        .catch(() => {});
+    }
+  }
+
   // 1. REGRA UNIVERSAL PARA TODOS OS USUÁRIOS (INDEPENDENTE DO PLANO):
   // Pedido para parar (ou reativar) o envio de mensagens/lembretes pelo WhatsApp
   if (matchedProfile && messageText) {

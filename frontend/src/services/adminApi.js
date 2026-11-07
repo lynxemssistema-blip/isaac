@@ -761,11 +761,25 @@ export async function setUserAssignedGroups(userId, groupIds) {
 /**
  * Disparar Mensagem de Texto e/ou Áudio para Grupos (Superadmin)
  */
-export async function sendAdminGroupBroadcast({ title, content, audio_url, target_group_ids, sender_id }) {
+export async function sendAdminGroupBroadcast({
+  title,
+  content,
+  audio_url,
+  target_group_ids,
+  sender_id,
+  send_whatsapp = true,
+}) {
   const res = await authFetch(`${BACKEND_URL}/api/admin/group-broadcasts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, content, audio_url, target_group_ids, sender_id }),
+    body: JSON.stringify({
+      title,
+      content,
+      audio_url,
+      target_group_ids,
+      sender_id,
+      send_whatsapp,
+    }),
   });
 
   const data = await res.json().catch(() => ({}));
@@ -823,7 +837,7 @@ export async function uploadBroadcastAudio(audioBlobOrFile) {
 
 /**
  * ============================================================================
- * GESTÃO E CRONOGRAMA DO PROJETO IZAQUE (MEMBROS, MARCOS, TAREFAS E COBRANÇAS)
+ * GESTÃO E CRONOGRAMA DO PROJETO ISAAC (MEMBROS, MARCOS, TAREFAS E COBRANÇAS)
  * ============================================================================
  */
 
@@ -1521,6 +1535,87 @@ export async function updateAdminAsaasPlanApi(payload) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(data.error || 'Falha ao atualizar plano no Asaas.');
+  }
+  return data;
+}
+
+// ============================================================================
+// CONTATOS EVOLUTION WHATSAPP + PROGRAMAÇÃO DE ENVIOS ANTI-BAN + CONTROLE
+// ============================================================================
+
+export async function fetchAdminWhatsappOutreachOverview({ search = '', filter = 'all', limit = 250 } = {}) {
+  const params = new URLSearchParams();
+  if (search) params.set('search', search);
+  if (filter) params.set('filter', filter);
+  if (limit) params.set('limit', String(limit));
+
+  const res = await authFetch(`${BACKEND_URL}/api/admin/whatsapp/outreach/overview?${params.toString()}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao carregar contatos e controle de envios WhatsApp.');
+  }
+  return data;
+}
+
+export async function syncAdminEvolutionContactsApi() {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/whatsapp/outreach/sync-contacts`, {
+    method: 'POST',
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao sincronizar contatos da Evolution API.');
+  }
+  return data;
+}
+
+export async function createAdminWhatsappCampaignApi(payload) {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/whatsapp/outreach/campaigns`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao programar campanha de envio.');
+  }
+  return data;
+}
+
+export async function controlAdminWhatsappCampaignApi(campaignId, action) {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/whatsapp/outreach/campaigns/${campaignId}/control`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao atualizar campanha.');
+  }
+  return data;
+}
+
+export async function sendAdminWhatsappOutreachPreviewApi(payload) {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/whatsapp/outreach/send-preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao disparar envio controlado.');
+  }
+  return data;
+}
+
+export async function updateAdminWhatsappSafetyApi(payload) {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/whatsapp/outreach/safety`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao atualizar Trava de Segurança.');
   }
   return data;
 }

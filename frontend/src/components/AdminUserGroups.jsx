@@ -26,6 +26,7 @@ import {
   Sparkles,
   Shield,
   FileAudio,
+  MessageCircle,
 } from 'lucide-react';
 import {
   fetchAdminUserGroups,
@@ -49,6 +50,30 @@ const PRESET_COLORS = [
   { label: 'Rosa / Relacionamentos', value: '#db2777' },
   { label: 'Índigo / Finanças', value: '#4f46e5' },
   { label: 'Ardósia / Geral', value: '#475569' },
+];
+
+const CALL_BACK_TEMPLATES = [
+  {
+    id: 'evolucao',
+    label: 'Chamar Usuário de Volta (Evolução)',
+    title: 'Sentimos sua falta na Mentoria ISAAC',
+    content:
+      'Olá, {nome}! Tudo bem com você?\n\nPassando com carinho para lembrar que o seu espaço confidencial de clareza e evolução pessoal com o ISAAC está esperando por você.\n\nSempre que quiser organizar os pensamentos, destravar decisões ou retomar sua caminhada, entre aqui:\nhttps://isaac.lynxems.com.br/',
+  },
+  {
+    id: 'reflexao',
+    label: 'Retomar Reflexão Pendente',
+    title: 'Vamos continuar sua jornada de clareza?',
+    content:
+      'Olá, {nome}! Como têm sido os seus dias?\n\nÀs vezes a rotina aperta e deixamos nossas próprias questões em segundo plano. O ISAAC guardou o contexto das suas reflexões para você continuar de onde parou, sem pressa e sem julgamentos.\n\nQuando tiver 5 minutinhos hoje, retome sua conversa:\nhttps://isaac.lynxems.com.br/',
+  },
+  {
+    id: 'acolhimento',
+    label: 'Convite Leve & Acolhedor',
+    title: 'Um momento de pausa e escuta para você',
+    content:
+      'Oi, {nome}! Espero que esteja bem.\n\nReserve um instante hoje para respirar fundo e cuidar da sua mente. O ISAAC está disponível agora em texto e voz para caminhar ao seu lado no que estiver pesando ou pedindo direção.\n\nAcesse sua mentoria aqui:\nhttps://isaac.lynxems.com.br/',
+  },
 ];
 
 export default function AdminUserGroups({ allUsers = [], currentUser }) {
@@ -83,8 +108,9 @@ export default function AdminUserGroups({ allUsers = [], currentUser }) {
 
   // Estado do Disparo de Comunicados (Broadcast de Texto / Áudio)
   const [selectedTargetGroupIds, setSelectedTargetGroupIds] = useState([]);
-  const [broadcastTitle, setBroadcastTitle] = useState('');
-  const [broadcastContent, setBroadcastContent] = useState('');
+  const [broadcastTitle, setBroadcastTitle] = useState(CALL_BACK_TEMPLATES[0].title);
+  const [broadcastContent, setBroadcastContent] = useState(CALL_BACK_TEMPLATES[0].content);
+  const [sendWhatsapp, setSendWhatsapp] = useState(true);
   const [audioUrl, setAudioUrl] = useState('');
   const [audioFile, setAudioFile] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -384,11 +410,10 @@ export default function AdminUserGroups({ allUsers = [], currentUser }) {
         audio_url: finalAudioUrl || null,
         target_group_ids: selectedTargetGroupIds,
         sender_id: currentUser?.id || null,
+        send_whatsapp: sendWhatsapp,
       });
 
       showToast(res.message || 'Comunicado disparado com sucesso!');
-      setBroadcastTitle('');
-      setBroadcastContent('');
       setAudioFile(null);
       setAudioUrl('');
       setSelectedTargetGroupIds([]);
@@ -727,6 +752,51 @@ export default function AdminUserGroups({ allUsers = [], currentUser }) {
               )}
             </div>
 
+            {/* MODELOS PRONTOS: CHAMAR USUÁRIO DE VOLTA PARA O ISAAC */}
+            <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/25 border border-emerald-200/80 dark:border-emerald-800/50 space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Mensagens Prontas: Chamar o Usuário de Volta para o ISAAC
+                </span>
+                <span className="text-[11px] text-stone-500 dark:text-stone-400">
+                  Use <code className="px-1 py-0.5 rounded bg-white/80 dark:bg-stone-800 text-emerald-700 dark:text-emerald-300">{'{nome}'}</code> para personalizar com o nome de cada usuário
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {CALL_BACK_TEMPLATES.map((tpl) => {
+                  const isActiveTpl = broadcastTitle === tpl.title && broadcastContent === tpl.content;
+                  return (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => {
+                        setBroadcastTitle(tpl.title);
+                        setBroadcastContent(tpl.content);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer ${
+                        isActiveTpl
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                          : 'bg-white dark:bg-stone-900 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100/60 dark:hover:bg-emerald-950/60'
+                      }`}
+                    >
+                      {tpl.label}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBroadcastTitle('');
+                    setBroadcastContent('');
+                  }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 transition cursor-pointer"
+                >
+                  Limpar para Escrever Livre
+                </button>
+              </div>
+            </div>
+
             {/* Título do Comunicado */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5">
@@ -735,7 +805,7 @@ export default function AdminUserGroups({ allUsers = [], currentUser }) {
               <input
                 type="text"
                 required
-                placeholder="Ex: Palavra de Encorajamento para a Semana"
+                placeholder="Ex: Sentimos sua falta na Mentoria ISAAC"
                 value={broadcastTitle}
                 onChange={(e) => setBroadcastTitle(e.target.value)}
                 className="w-full px-4 py-2.5 bg-stone-50 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-stone-900 dark:text-white"
@@ -748,13 +818,34 @@ export default function AdminUserGroups({ allUsers = [], currentUser }) {
                 Conteúdo em Texto
               </label>
               <textarea
-                rows={3}
-                placeholder="Digite a mensagem que os usuários receberão em seus murais e notificações..."
+                rows={5}
+                placeholder="Digite a mensagem que os usuários receberão no Mural do App e no WhatsApp..."
                 value={broadcastContent}
                 onChange={(e) => setBroadcastContent(e.target.value)}
                 className="w-full px-4 py-2.5 bg-stone-50 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-stone-900 dark:text-white"
               />
             </div>
+
+            {/* OPÇÃO DE ENTREGA TAMBÉM NO WHATSAPP (EVOLUTION API) */}
+            <label className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/50 flex items-center justify-between gap-4 cursor-pointer">
+              <div className="flex items-start gap-3">
+                <MessageCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="block text-xs font-bold text-stone-900 dark:text-white">
+                    Enviar também pelo WhatsApp dos membros (Evolution API)
+                  </span>
+                  <span className="block text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+                    Além do Mural/Sino do App, entrega no WhatsApp cadastrado com proteção anti-banimento (intervalo aleatório e respeito ao opt-out).
+                  </span>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={sendWhatsapp}
+                onChange={(e) => setSendWhatsapp(e.target.checked)}
+                className="w-4 h-4 accent-emerald-600 rounded shrink-0"
+              />
+            </label>
 
             {/* GRAVAÇÃO / UPLOAD DE ÁUDIO */}
             <div className="p-5 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 space-y-4">

@@ -6,6 +6,15 @@ import {
   runDailyInactivityFollowUp,
   sendTestFollowUpToPhone,
 } from '../services/evolutionService.js';
+import {
+  getOutreachDashboardOverview,
+  syncEvolutionContactsToDatabase,
+  createOrScheduleOutreachCampaign,
+  updateCampaignControlStatus,
+  sendDirectOutreachPreview,
+  updateOutreachSafetyConfig,
+  processOutreachQueueTick,
+} from '../services/evolutionOutreachService.js';
 
 const router = express.Router();
 
@@ -85,6 +94,98 @@ router.post('/admin/whatsapp/send-test', async (req, res) => {
     res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ error: 'Erro ao enviar mensagem de teste no WhatsApp.', details: err.message });
+  }
+});
+
+// ============================================================================
+// 3. LISTA DE CONTATOS EVOLUTION + AGENDAMENTO ANTI-BAN + CONTROLE DE ENVIOS
+// ============================================================================
+router.get('/admin/whatsapp/outreach/overview', async (req, res) => {
+  try {
+    const overview = await getOutreachDashboardOverview({
+      search: req.query.search || '',
+      filter: req.query.filter || 'all',
+      limit: req.query.limit || 250,
+    });
+    res.status(200).json(overview);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao carregar painel de contatos e envios WhatsApp.', details: err.message });
+  }
+});
+
+router.post('/admin/whatsapp/outreach/sync-contacts', async (req, res) => {
+  try {
+    const summary = await syncEvolutionContactsToDatabase();
+    res.status(200).json(summary);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao sincronizar contatos da Evolution API.', details: err.message });
+  }
+});
+
+router.post('/admin/whatsapp/outreach/campaigns', async (req, res) => {
+  try {
+    const result = await createOrScheduleOutreachCampaign({
+      ...(req.body || {}),
+      createdBy: req.user?.id || null,
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Erro ao programar campanha de envio WhatsApp.' });
+  }
+});
+
+router.post('/admin/whatsapp/outreach/campaigns/:id/control', async (req, res) => {
+  try {
+    const action = String(req.body?.action || '').trim();
+    if (!['pause', 'resume', 'cancel'].includes(action)) {
+      return res.status(400).json({ error: 'Ação inválida. Use pause, resume ou cancel.' });
+    }
+    const result = await updateCampaignControlStatus(req.params.id, action);
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao atualizar controle da campanha.', details: err.message });
+  }
+});
+
+router.post('/admin/whatsapp/outreach/send-preview', async (req, res) => {
+  try {
+    const result = await sendDirectOutreachPreview({
+      phone: req.body?.phone || '31995574906',
+      flowType: req.body?.flowType || 'unregistered_invite_image',
+      customImageUrl: req.body?.customImageUrl || '',
+      customTemplate: req.body?.customTemplate || '',
+      createdBy: req.user?.id || null,
+    });
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Erro ao disparar prévia controlada.' });
+  }
+});
+
+router.post('/admin/whatsapp/outreach/process-now', async (req, res) => {
+  try {
+    const result = await processOutreachQueueTick({ bypassCooldown: Boolean(req.body?.bypassCooldown) });
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao processar fila de envios.', details: err.message });
+  }
+});
+
+router.put('/admin/whatsapp/outreach/safety', async (req, res) => {
+  try {
+    if (req.user?.role !== 'master') {
+      return res.status(403).json({ error: 'Apenas o SuperAdmin (master) pode alterar a Trava de Segurança.' });
+    }
+    const updated = await updateOutreachSafetyConfig({
+      restrictedMode: req.body?.restrictedMode,
+      allowedPhones: req.body?.allowedPhones,
+      dailyLimit: req.body?.dailyLimit,
+      cooldownHours: req.body?.cooldownHours,
+      updatedBy: req.user?.id || null,
+    });
+    res.status(200).json(updated);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao salvar Trava de Segurança.', details: err.message });
   }
 });
 

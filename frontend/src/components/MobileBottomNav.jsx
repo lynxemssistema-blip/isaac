@@ -1,11 +1,12 @@
 import React from 'react';
-import { Home, MessageSquareHeart, User, Sliders, Shield, Compass } from 'lucide-react';
+import { Home, MessageSquareHeart, User, Sliders, Shield, Compass, CreditCard } from 'lucide-react';
 
 export default function MobileBottomNav({
   activeTab,
   onNavigate,
   onOpenProfile,
   onOpenSettings,
+  onOpenPlans,
   user,
   profile,
   systemSettings,
@@ -90,6 +91,20 @@ export default function MobileBottomNav({
               <Compass className="w-5 h-5 stroke-[1.85]" />
             </div>
             <span className="text-[10px] font-sans font-medium tracking-tight mt-0.5 leading-none">Incômodo</span>
+          </button>
+        )}
+
+        {/* PLANOS (GRÁTIS & PAGO WHATSAPP) */}
+        {onOpenPlans && (
+          <button
+            type="button"
+            onClick={onOpenPlans}
+            className="flex flex-col items-center justify-center py-1 px-2 rounded-2xl transition-all duration-200 active:scale-95 min-w-[52px] min-h-[46px] text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300"
+          >
+            <div className="p-1.5 rounded-xl transition-all duration-200 bg-emerald-500/10 hover:bg-emerald-500/20">
+              <CreditCard className="w-5 h-5 stroke-[1.85]" />
+            </div>
+            <span className="text-[10px] font-sans font-semibold tracking-tight mt-0.5 leading-none">Planos</span>
           </button>
         )}
 

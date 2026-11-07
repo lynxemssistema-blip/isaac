@@ -127,10 +127,22 @@ export default function App() {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [systemSettings, setSystemSettings] = useState(null);
 
+  const normalizeGuideName = (val) => {
+    const clean = String(val || '').trim();
+    if (!clean || /^izaque$/i.test(clean)) return 'Isaac';
+    return clean;
+  };
+
   // Estado do Onboarding do Guia
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [guideName, setGuideName] = useState(() => {
-    return localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac';
+    const raw = localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac';
+    const normalized = normalizeGuideName(raw);
+    if (raw !== normalized) {
+      localStorage.setItem('isaac_guide_name', normalized);
+      localStorage.setItem('izaque_guide_name', normalized);
+    }
+    return normalized;
   });
 
   // Carregar perfil do usuário em public.izaque_profiles
@@ -154,8 +166,10 @@ export default function App() {
         if (data.preferences && typeof data.preferences === 'object') {
           const p = data.preferences;
           if (p.guide_name) {
-            localStorage.setItem('izaque_guide_name', p.guide_name);
-            setGuideName(p.guide_name);
+            const safeGuide = normalizeGuideName(p.guide_name);
+            localStorage.setItem('isaac_guide_name', safeGuide);
+            localStorage.setItem('izaque_guide_name', safeGuide);
+            setGuideName(safeGuide);
           }
           if (p.ambient_track) localStorage.setItem('izaque_ambient_track', p.ambient_track);
           if (p.ambient_volume !== undefined) localStorage.setItem('izaque_ambient_volume', p.ambient_volume.toString());
@@ -587,6 +601,7 @@ export default function App() {
         {activeTab === 'landing' && (
           <LandingPage
             onStartChat={handleStartChat}
+            onOpenPlans={() => setIsWhatsappPlanOpen(true)}
             user={user}
             systemSettings={systemSettings}
             onOpenTopic={handleNavigateTopic}
@@ -716,13 +731,17 @@ export default function App() {
           />
         )}
 
-        {user && isWhatsappPlanOpen && (
+        {isWhatsappPlanOpen && (
           <WhatsappPlanModal
             isOpen={isWhatsappPlanOpen}
             onClose={() => setIsWhatsappPlanOpen(false)}
             user={user}
             profile={profile}
             onProfileUpdated={(updated) => setProfile(updated)}
+            onOpenAuth={() => {
+              setIsWhatsappPlanOpen(false);
+              openAuthModal('login', '');
+            }}
           />
         )}
 
@@ -768,6 +787,7 @@ export default function App() {
           }
         }}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenPlans={() => setIsWhatsappPlanOpen(true)}
         user={user}
         profile={profile}
         systemSettings={systemSettings}

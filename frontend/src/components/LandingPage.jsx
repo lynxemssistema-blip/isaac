@@ -25,11 +25,18 @@ import {
   Globe,
   MessageSquare,
   HelpCircle,
+  MessageCircle,
+  Mic,
+  CreditCard,
+  X,
+  ExternalLink,
 } from 'lucide-react';
 import { fetchPublicCreator } from '../services/api';
 import { HOME_FAQS, CORE_TOPICS_PREVIEW } from '../data/seoContent';
 
-export default function LandingPage({ onStartChat, user, systemSettings, onOpenTopic }) {
+const OFFICIAL_ASAAS_MONTHLY_URL = 'https://www.asaas.com/000/c/ak85n2ouw2z6j6xv';
+
+export default function LandingPage({ onStartChat, onOpenPlans, user, systemSettings, onOpenTopic }) {
   const [creator, setCreator] = useState(null);
 
   useEffect(() => {
@@ -84,6 +91,14 @@ export default function LandingPage({ onStartChat, user, systemSettings, onOpenT
             <span>{user ? 'Acessar Minha Mentoria' : 'Conversar com Isaac'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
+
+          <a
+            href="#planos"
+            className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl bg-emerald-50/90 dark:bg-emerald-950/50 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 border border-emerald-300/80 dark:border-emerald-700/60 text-emerald-900 dark:text-emerald-200 font-medium text-sm transition flex items-center justify-center gap-2 shadow-sm active:scale-95"
+          >
+            <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <span>Ver Planos (Grátis &amp; WhatsApp)</span>
+          </a>
 
           <a
             href="#quem-e-isaac"
@@ -541,6 +556,183 @@ export default function LandingPage({ onStartChat, user, systemSettings, onOpenT
         </div>
       </section>
 
+      {/* 4.6 PLANOS DA MENTORIA ISAAC — CARD GRÁTIS VS CARD PAGO + OPÇÃO DE PAGAMENTO ASAAS */}
+      <section id="planos" className="py-20 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto scroll-mt-12">
+        <div className="space-y-12">
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800/40 text-xs font-serif text-emerald-800 dark:text-emerald-300">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Planos Transparentes • Escolha Como Caminhar</span>
+            </div>
+            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-serif font-normal text-stone-900 dark:text-stone-50 tracking-tight">
+              Plano Gratuito vs Plano Pago no WhatsApp
+            </h2>
+            <p className="text-xs sm:text-base text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
+              O acesso completo ao App Web é <strong>100% gratuito e livre de cobranças</strong>. Se você desejar conversar com o Agente Orquestrador ISAAC também pelo seu <strong>WhatsApp (em texto e áudio)</strong>, ative o plano mensal.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 items-stretch">
+            {/* CARD 1: PLANO GRATUITO (LIVRE, SEM ASAAS) */}
+            <div className="p-6 sm:p-8 rounded-3xl sm:rounded-4xl bg-white dark:bg-slate-800/85 border border-stone-200 dark:border-slate-700 shadow-md flex flex-col justify-between gap-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-lg sm:text-xl font-serif font-semibold text-stone-900 dark:text-stone-100">
+                    Plano Gratuito
+                  </span>
+                  <span className="px-3 py-1 rounded-full text-[11px] font-semibold bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                    Sempre Livre • Sem Asaas
+                  </span>
+                </div>
+
+                <div>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-3xl sm:text-4xl font-serif font-bold text-stone-900 dark:text-stone-50">
+                      R$ 0,00
+                    </span>
+                    <span className="text-xs sm:text-sm text-stone-500 dark:text-stone-400 font-serif">
+                      / gratuito para sempre
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 font-serif">
+                    Sem cartão de crédito e sem qualquer cadastro financeiro.
+                  </p>
+                </div>
+
+                <div className="pt-3 border-t border-stone-100 dark:border-slate-700/70">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-400 mb-3">
+                    O que está incluso no Plano Gratuito:
+                  </p>
+                  <ul className="space-y-2.5 text-xs sm:text-sm text-stone-700 dark:text-stone-200 font-serif">
+                    <li className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                      <span>Conversas ilimitadas em <strong>Texto e Voz</strong> dentro do App Web</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                      <span>Agente Orquestrador <strong>ISAAC</strong> + todos os Mentores Especialistas</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                      <span>Memória evolutiva de longo prazo (RAG) e Conversas Direcionadas</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                      <span><strong>Laboratório do Incômodo Criativo</strong> completo</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                      <span>Frequências sonoras relaxantes (432Hz, Chuva, Lareira)</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-stone-400 dark:text-stone-500 pt-2 border-t border-stone-100 dark:border-slate-700/60">
+                      <X className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>Não inclui atendimento com o agente pelo WhatsApp</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onStartChat}
+                className="w-full py-3.5 px-6 rounded-2xl bg-stone-900 hover:bg-stone-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-medium text-xs sm:text-sm tracking-wide transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+              >
+                <span>{user ? 'Continuar no App Gratuito' : 'Começar Agora no Plano Gratuito'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* CARD 2: PLANO PAGO — ISAAC NO WHATSAPP (R$ 14,99 / VENCIMENTO MENSAL VIA ASAAS) */}
+            <div className="p-6 sm:p-8 rounded-3xl sm:rounded-4xl bg-gradient-to-b from-emerald-50/95 via-white to-teal-50/60 dark:from-emerald-950/45 dark:via-slate-800/95 dark:to-slate-800/90 border-2 border-emerald-500/80 dark:border-emerald-500/60 shadow-xl flex flex-col justify-between gap-6 relative">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-lg sm:text-xl font-serif font-semibold text-emerald-950 dark:text-emerald-200 flex items-center gap-2">
+                    <MessageCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    Plano Pago • ISAAC no WhatsApp
+                  </span>
+                  <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-600 text-white shadow-xs">
+                    Mais Completo
+                  </span>
+                </div>
+
+                <div>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-3xl sm:text-4xl font-serif font-bold text-emerald-900 dark:text-emerald-300">
+                      R$ 14,99
+                    </span>
+                    <span className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 font-serif">
+                      / vencimento mensal
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-600 dark:text-stone-300 mt-1 font-serif">
+                    Pagamento seguro via <strong>Asaas</strong> (PIX, Cartão de Crédito ou Boleto). Cancele quando quiser.
+                  </p>
+                </div>
+
+                <div className="pt-3 border-t border-emerald-200/70 dark:border-emerald-800/50">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 mb-3">
+                    O que está incluso no Plano Pago:
+                  </p>
+                  <ul className="space-y-2.5 text-xs sm:text-sm text-stone-800 dark:text-stone-100 font-serif">
+                    <li className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <span><strong>Tudo do Plano Gratuito</strong> 100% liberado no App Web</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <span><strong>Conversa pelo WhatsApp em Texto</strong> com o Agente Orquestrador ISAAC</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <Mic className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <span><strong>Envie e receba Áudios no WhatsApp</strong> com voz neural realista</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <span>Reconhecimento automático pelo seu número de telefone</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <span>Sincronização imediata da conversa no mesmo chat do App</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <span>Lembretes acolhedores de evolução (com opção de pausar quando quiser)</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="space-y-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onOpenPlans) {
+                      onOpenPlans();
+                    } else {
+                      window.open(OFFICIAL_ASAAS_MONTHLY_URL, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                  className="w-full py-3.5 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm tracking-wide shadow-lg shadow-emerald-600/25 transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span>Assinar Plano Pago — R$ 14,99/mês (PIX ou Cartão)</span>
+                </button>
+
+                <a
+                  href={OFFICIAL_ASAAS_MONTHLY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2.5 px-4 rounded-xl border border-emerald-600/40 bg-white/80 dark:bg-slate-900/60 hover:bg-emerald-50 dark:hover:bg-slate-900 text-emerald-800 dark:text-emerald-300 font-medium text-xs transition flex items-center justify-center gap-1.5"
+                >
+                  <span>Ir direto para o Painel de Pagamento Asaas</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* 4.8 PERGUNTAS FREQUENTES (AEO — RESPOSTAS DIRETAS E CITÁVEIS) */}
       <section id="perguntas-frequentes" className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto scroll-mt-12">
         <div className="space-y-10">
@@ -622,6 +814,9 @@ export default function LandingPage({ onStartChat, user, systemSettings, onOpenT
           </a>
           <a href="#trilhas-de-clareza" className="hover:text-teal-700 dark:hover:text-teal-400 transition">
             Trilhas de Clareza
+          </a>
+          <a href="#planos" className="hover:text-teal-700 dark:hover:text-teal-400 transition font-semibold text-emerald-700 dark:text-emerald-400">
+            Planos (Grátis &amp; Pago)
           </a>
           <a href="#perguntas-frequentes" className="hover:text-teal-700 dark:hover:text-teal-400 transition">
             Perguntas Frequentes

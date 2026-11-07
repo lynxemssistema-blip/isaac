@@ -10,6 +10,11 @@ import {
 } from '../services/emailService.js';
 import { getCached, setCached, invalidateCache } from '../utils/memoryCache.js';
 import { invalidateAuthCache } from '../middlewares/authMiddleware.js';
+import {
+  sendWhatsAppTextSafe,
+  resolveWhatsAppJid,
+  isEvolutionEnabledInDatabase,
+} from '../services/evolutionService.js';
 
 /**
  * Controller Administrativo (Exclusivo para Super Admin / Master)
@@ -1246,6 +1251,7 @@ export async function sendGroupBroadcast(req, res) {
       audio_url = null,
       target_group_ids = [],
       sender_id = null,
+      send_whatsapp = false,
     } = req.body;
 
     if (!title || !title.trim()) {
@@ -1292,20 +1298,37 @@ export async function sendGroupBroadcast(req, res) {
 
     if (broadcastError) throw broadcastError;
 
-    // 3. Criar notificações individuais In-App apenas para contas reais do app (auth.users)
-    const { data: realAppUsers } = await supabaseAdmin
-      .from('izaque_profiles')
-      .select('id')
-      .in('id', uniqueUserIds);
+    const personalizeText = (rawText, fullName) => {
+      const firstName = String(fullName || '')
+        .trim()
+        .split(/\s+/)[0];
+      const safeName = firstName
+        ? firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase()
+        : 'amigo(a)';
+      return String(rawText || '').replace(/\{nome\}/gi, safeName);
+    };
 
-    const realAppUserIds = (realAppUsers || []).map((u) => u.id);
+    // 3. Carrega contas reais do app (izaque_profiles) e fichas (/inscricao)
+    const [realAppUsersRes, inscUsersRes] = await Promise.all([
+      supabaseAdmin
+        .from('izaque_profiles')
+        .select('id, full_name, phone, whatsapp_jid, whatsapp_opt_out, is_active')
+        .in('id', uniqueUserIds),
+      supabaseAdmin
+        .from('izaque_inscriptions')
+        .select('id, full_name, phone, is_active')
+        .in('id', uniqueUserIds),
+    ]);
 
-    if (realAppUserIds.length > 0) {
-      const notificationsToInsert = realAppUserIds.map((uId) => ({
-        user_id: uId,
+    const realAppUsers = realAppUsersRes.data || [];
+    const inscUsers = inscUsersRes.data || [];
+
+    if (realAppUsers.length > 0) {
+      const notificationsToInsert = realAppUsers.map((u) => ({
+        user_id: u.id,
         broadcast_id: broadcast.id,
-        title: title.trim(),
-        content: content ? content.trim() : '',
+        title: personalizeText(title.trim(), u.full_name),
+        content: content ? personalizeText(content.trim(), u.full_name) : '',
         audio_url: audio_url || null,
         is_read: false,
       }));
@@ -1317,11 +1340,61 @@ export async function sendGroupBroadcast(req, res) {
       if (notifError) throw notifError;
     }
 
+    // 4. Se solicitado envio também no WhatsApp (Evolution API com proteção Anti-Ban 280ms-450ms e respeito ao opt-out)
+    let whatsappQueuedCount = 0;
+    if (send_whatsapp) {
+      const evoEnabled = await isEvolutionEnabledInDatabase();
+      if (evoEnabled) {
+        const eligibleWhatsappTargets = [
+          ...realAppUsers.filter(
+            (u) => u.is_active !== false && !u.whatsapp_opt_out && (u.whatsapp_jid || u.phone)
+          ),
+          ...inscUsers.filter((i) => i.is_active !== false && i.phone),
+        ];
+
+        whatsappQueuedCount = eligibleWhatsappTargets.length;
+
+        if (eligibleWhatsappTargets.length > 0) {
+          setImmediate(async () => {
+            for (const target of eligibleWhatsappTargets) {
+              try {
+                const jidInfo = await resolveWhatsAppJid(target.whatsapp_jid || target.phone);
+                if (!jidInfo?.exists || !jidInfo?.jid) continue;
+
+                const personalTitle = personalizeText(title.trim(), target.full_name);
+                const personalBody = content
+                  ? personalizeText(content.trim(), target.full_name)
+                  : '';
+                let fullWhatsappMsg = personalBody
+                  ? `*${personalTitle}*\n\n${personalBody}`
+                  : `*${personalTitle}*\n\nAcesse seu espaço de mentoria em https://isaac.lynxems.com.br/`;
+
+                if (audio_url) {
+                  fullWhatsappMsg += `\n\n🎧 Ouça também a mensagem de voz preparada para você: ${audio_url}`;
+                }
+
+                await sendWhatsAppTextSafe({
+                  jidOrNumber: jidInfo.jid,
+                  text: fullWhatsappMsg,
+                });
+              } catch (wErr) {
+                console.warn('⚠️ [Group Broadcast WhatsApp] Aviso no envio individual:', wErr.message);
+              }
+            }
+          });
+        }
+      }
+    }
+
     res.status(201).json({
       success: true,
       broadcastId: broadcast.id,
       deliveredUsersCount: uniqueUserIds.length,
-      message: `Comunicado enviado com sucesso para ${uniqueUserIds.length} usuário(s)!`,
+      whatsappQueuedCount,
+      message:
+        whatsappQueuedCount > 0
+          ? `Comunicado enviado para ${uniqueUserIds.length} membro(s) no App e disparado com proteção Anti-Ban para ${whatsappQueuedCount} WhatsApp(s)!`
+          : `Comunicado enviado com sucesso para ${uniqueUserIds.length} usuário(s)!`,
     });
   } catch (error) {
     console.error('❌ Erro no envio de comunicado para grupos:', error);

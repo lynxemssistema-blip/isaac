@@ -70,6 +70,7 @@ import AdminCreativeTroubles from './AdminCreativeTroubles';
 import AdminSystemSettings from './AdminSystemSettings';
 import AdminPdfCampaigns from './AdminPdfCampaigns';
 import AdminAsaasPanel from './AdminAsaasPanel';
+import AdminEvolutionContacts from './AdminEvolutionContacts';
 
 export default function AdminDashboard({ currentUser }) {
   const isSuperAdmin = currentUser?.role === 'master' || currentUser?.email === 'edsonmanoel2012@gmail.com';
@@ -627,6 +628,18 @@ export default function AdminDashboard({ currentUser }) {
             >
               <Users className="w-3.5 h-3.5" />
               Grupos & Disparos
+            </button>
+
+            <button
+              onClick={() => setActiveTab('whatsapp_contacts')}
+              className={`px-3 sm:px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'whatsapp_contacts'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30'
+              }`}
+            >
+              <Phone className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+              <span className="font-semibold">Contatos WhatsApp & Envios</span>
             </button>
 
             <button
@@ -1630,6 +1643,11 @@ export default function AdminDashboard({ currentUser }) {
         {/* ABA 10: GRUPOS DE USUÁRIOS & DISPAROS */}
         {activeTab === 'groups' && (
           <AdminUserGroups allUsers={users} currentUser={currentUser} />
+        )}
+
+        {/* ABA 10.5: CONTATOS WHATSAPP (EVOLUTION) & ENVIOS PROGRAMADOS ANTI-BAN */}
+        {activeTab === 'whatsapp_contacts' && (
+          <AdminEvolutionContacts currentUser={currentUser} />
         )}
 
         {/* ABA 11: GESTÃO E CRONOGRAMA DO PROJETO */}

@@ -12,6 +12,7 @@ import inscriptionRoutes from './routes/inscriptionRoutes.js';
 import evolutionRoutes from './routes/evolutionRoutes.js';
 import asaasRoutes from './routes/asaasRoutes.js';
 import { startEvolutionDailyScheduler } from './services/evolutionService.js';
+import { startEvolutionOutreachScheduler } from './services/evolutionOutreachService.js';
 import { requireAdmin } from './middlewares/authMiddleware.js';
 import { apiGeneralLimiter } from './middlewares/rateLimiters.js';
 import {
@@ -185,6 +186,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🌐 [Modo] ${process.env.NODE_ENV || 'development'}`);
   console.log(`====================================================`);
   startEvolutionDailyScheduler();
+  startEvolutionOutreachScheduler();
 });
 
 process.on('SIGTERM', () => {

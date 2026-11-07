@@ -183,7 +183,8 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
   const canShowAmbient = isSuperAdmin || (systemSettings ? systemSettings.show_ambient_sound_button !== false : true);
 
   const [guideName, setGuideName] = useState(() => {
-    return localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac';
+    const raw = localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac';
+    return /^izaque$/i.test(String(raw).trim()) ? 'Isaac' : raw;
   });
 
   const [reflections, setReflections] = useState([
@@ -268,43 +269,93 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
     : activeAgents.find((a) => a.id === selectedAgentId || a.slug === selectedAgentId);
 
   const currentStarterQuestions = React.useMemo(() => {
-    // 1. Prioridade Máxima: Perguntas do Roteiro da Conversa Direcionada (Superadmin)
+    const pinnedFirstQuestion = {
+      id: 'starter-como-usar-isaac',
+      text: 'Como devo usar o Isaac?',
+      category: 'Como Começar',
+    };
+
+    // 1. Prioridade: Perguntas do Roteiro da Conversa Direcionada (Superadmin)
     if (activeGuidedTopic?.questions && Array.isArray(activeGuidedTopic.questions) && activeGuidedTopic.questions.length > 0) {
-      return activeGuidedTopic.questions.map((q, idx) => ({
-        id: q.id || `guided-q-${idx}`,
-        text: typeof q === 'string' ? q : (q.text || q.question || ''),
-        category: activeGuidedTopic.category || 'Conversa Direcionada',
-        isGuided: true,
-      })).filter((q) => q.text.trim().length > 0);
+      const guidedList = activeGuidedTopic.questions
+        .map((q, idx) => ({
+          id: q.id || `guided-q-${idx}`,
+          text: typeof q === 'string' ? q : (q.text || q.question || ''),
+          category: activeGuidedTopic.category || 'Conversa Direcionada',
+          isGuided: true,
+        }))
+        .filter((q) => q.text.trim().length > 0);
+      return [
+        pinnedFirstQuestion,
+        ...guidedList.filter((q) => q.text.trim().toLowerCase() !== pinnedFirstQuestion.text.toLowerCase()),
+      ];
     }
 
+    let baseList = [];
     if (activeAgent) {
-      return Array.isArray(activeAgent.starter_questions) ? activeAgent.starter_questions : [];
-    }
-    const combined = [];
-    (activeAgents || []).forEach((ag) => {
-      if (Array.isArray(ag.starter_questions)) {
-        ag.starter_questions.slice(0, 2).forEach((q) => {
-          combined.push({
-            ...q,
-            agentName: ag.name,
-            agentId: ag.id,
+      baseList = Array.isArray(activeAgent.starter_questions) ? [...activeAgent.starter_questions] : [];
+    } else {
+      (activeAgents || []).forEach((ag) => {
+        if (Array.isArray(ag.starter_questions)) {
+          ag.starter_questions.slice(0, 2).forEach((q) => {
+            baseList.push({
+              ...q,
+              agentName: ag.name,
+              agentId: ag.id,
+            });
           });
-        });
-      }
-    });
-    return combined;
+        }
+      });
+    }
+
+    const deduplicated = baseList.filter(
+      (q) => String(q?.text || '').trim().toLowerCase() !== pinnedFirstQuestion.text.toLowerCase()
+    );
+
+    return [pinnedFirstQuestion, ...deduplicated];
   }, [activeGuidedTopic, activeAgent, activeAgents]);
+
+  const hasUserInteractedInChat = React.useMemo(
+    () => reflections.some((r) => r.role === 'user'),
+    [reflections]
+  );
+
+  const [showStarterQuestions, setShowStarterQuestions] = useState(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      return false;
+    }
+    return localStorage.getItem('izaque_show_starters') !== 'false';
+  });
+
+  // Regra Mobile: Por padrão ocultas no celular, MAS se for a 1ª interação do usuário com o chat, ficam à mostra;
+  // logo após a 1ª interação, recolhem automaticamente mantendo o botão para ver e usar quando quiser.
+  const prevHasInteractedRef = useRef(false);
+  const mobileInitSessionRef = useRef(null);
+  useEffect(() => {
+    if (loadingHistory) return;
+    const isMobileViewport = typeof window !== 'undefined' ? window.innerWidth < 768 : !isDesktop;
+    if (!isMobileViewport) return;
+
+    const sessionKey = activeSessionId || 'guest';
+    if (mobileInitSessionRef.current !== sessionKey) {
+      mobileInitSessionRef.current = sessionKey;
+      const isVeryFirstInteraction = !hasUserInteractedInChat && sessions.length <= 1;
+      setShowStarterQuestions(isVeryFirstInteraction);
+    } else if (hasUserInteractedInChat && !prevHasInteractedRef.current) {
+      // Assim que ocorre a 1ª interação do usuário, recolhe automaticamente no celular
+      setShowStarterQuestions(false);
+    }
+    prevHasInteractedRef.current = hasUserInteractedInChat;
+  }, [loadingHistory, activeSessionId, hasUserInteractedInChat, sessions.length, isDesktop]);
 
   const handleSelectStarterQuestion = (questionText) => {
     if (!questionText || isReflecting) return;
     setInputVal('');
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setShowStarterQuestions(false);
+    }
     handleSendReflection(null, questionText);
   };
-
-  const [showStarterQuestions, setShowStarterQuestions] = useState(() => {
-    return localStorage.getItem('izaque_show_starters') !== 'false';
-  });
 
   const [starterQuestionIndex, setStarterQuestionIndex] = useState(0);
 
@@ -1897,10 +1948,10 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
                 <button
                   type="button"
                   onClick={() => handleToggleStarterQuestions(true)}
-                  className="text-[11px] font-serif text-teal-700 dark:text-teal-400 hover:underline flex items-center gap-1.5 opacity-85 hover:opacity-100 transition py-0.5"
+                  className="px-3 py-1 rounded-full bg-teal-50/90 dark:bg-teal-950/50 border border-teal-200/80 dark:border-teal-800/60 text-[11px] font-serif font-medium text-teal-800 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
                 >
                   <Sparkles className="w-3 h-3 text-teal-600 dark:text-teal-400" />
-                  <span>Ver perguntas sugeridas de reflexão</span>
+                  <span>Ver perguntas sugeridas</span>
                 </button>
               </div>
             )}

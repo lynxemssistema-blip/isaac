@@ -133,6 +133,17 @@ export default function Navbar({
             </button>
           )}
 
+          {onOpenWhatsappPlan && (
+            <button
+              type="button"
+              onClick={onOpenWhatsappPlan}
+              className="px-4 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 cursor-pointer"
+            >
+              <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              Planos &amp; WhatsApp
+            </button>
+          )}
+
           {isMasterOrAdmin && (
             <button
               onClick={() => setActiveTab('admin')}
@@ -242,12 +253,12 @@ export default function Navbar({
 
           {user ? (
             <div className="flex items-center space-x-1.5 sm:space-x-2">
-              {/* Botão ISAAC no WhatsApp (Plano R$ 14,99 / Status) */}
+              {/* Botão Planos & WhatsApp (R$ 0 Grátis vs R$ 14,99 Pago) */}
               {onOpenWhatsappPlan && (
                 <button
                   type="button"
                   onClick={onOpenWhatsappPlan}
-                  title="Conversar com o ISAAC no WhatsApp (Texto e Áudio)"
+                  title="Ver Planos (Gratuito e Pago R$ 14,99/mês via Asaas)"
                   className={`px-2.5 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 cursor-pointer border ${
                     profile?.role === 'master' ||
                     (profile?.plan_id === 'whatsapp_monthly' && profile?.plan_status === 'active')
@@ -256,7 +267,7 @@ export default function Navbar({
                   }`}
                 >
                   <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span className="hidden sm:inline">WhatsApp</span>
+                  <span className="hidden sm:inline">Planos</span>
                 </button>
               )}
 
@@ -322,13 +333,25 @@ export default function Navbar({
               </button>
             </div>
           ) : (
-            <button
-              onClick={onOpenAuth}
-              className="px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white text-xs font-medium tracking-wide shadow-md shadow-teal-700/20 transition flex items-center gap-1.5 shrink-0"
-            >
-              <Heart className="w-3.5 h-3.5" />
-              <span>Acessar Mentoria</span>
-            </button>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              {onOpenWhatsappPlan && (
+                <button
+                  type="button"
+                  onClick={onOpenWhatsappPlan}
+                  className="px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-medium transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Planos</span>
+                </button>
+              )}
+              <button
+                onClick={onOpenAuth}
+                className="px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white text-xs font-medium tracking-wide shadow-md shadow-teal-700/20 transition flex items-center gap-1.5 shrink-0"
+              >
+                <Heart className="w-3.5 h-3.5" />
+                <span>Acessar Mentoria</span>
+              </button>
+            </div>
           )}
         </div>
       </div>

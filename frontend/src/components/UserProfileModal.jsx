@@ -426,7 +426,7 @@ export default function UserProfileModal({ isOpen, onClose, user, profile, onPro
                 >
                   {profile?.role === 'master' ||
                   String(user?.email || profile?.email || '').trim().toLowerCase() === 'edsonmanoel2012@gmail.com'
-                    ? 'Abrir WhatsApp'
+                    ? 'Ver Planos & Pagamento'
                     : profile?.plan_id === 'whatsapp_monthly' && profile?.plan_status === 'active'
                     ? 'Gerenciar Assinatura'
                     : 'Liberar WhatsApp (R$ 14,99/mês)'}
