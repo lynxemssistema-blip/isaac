@@ -13,6 +13,10 @@ WORKDIR /build/frontend
 # no monólito Docker — sem CORS, sem porta fixa hardcoded
 ARG VITE_BACKEND_URL=""
 ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+ARG VITE_SUPABASE_URL=""
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY=""
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 
 # Cache de dependências do frontend
 COPY frontend/package*.json ./

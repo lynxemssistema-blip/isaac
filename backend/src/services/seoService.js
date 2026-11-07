@@ -1172,6 +1172,20 @@ export async function serveSeoHtml(req, res, distPath) {
     </main>`;
   }
 
+  const publicSupabaseUrl = (process.env.SUPABASE_URL || '').trim();
+  const publicSupabaseAnonKey = (
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    ''
+  ).trim();
+  const runtimeConfigScript =
+    publicSupabaseUrl && publicSupabaseAnonKey
+      ? `<script>window.__ISAAC_ENV__=${safeJsonLd({
+          SUPABASE_URL: publicSupabaseUrl,
+          SUPABASE_ANON_KEY: publicSupabaseAnonKey,
+        })};</script>`
+      : '';
+
   const headBlock = `
     <title>${escapeHtml(pageTitle)}</title>
     <meta name="description" content="${escapeHtml(pageDescription)}" />
@@ -1200,6 +1214,7 @@ export async function serveSeoHtml(req, res, distPath) {
     <meta name="twitter:title" content="${escapeHtml(pageTitle)}" />
     <meta name="twitter:description" content="${escapeHtml(pageDescription)}" />
     <meta name="twitter:image" content="${escapeHtml(ogImageUrl)}" />
+    ${runtimeConfigScript}
     ${
       jsonLdGraph.length > 0
         ? `<script type="application/ld+json">${safeJsonLd({
