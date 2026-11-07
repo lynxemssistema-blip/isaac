@@ -24,10 +24,12 @@ import {
   Award,
   Globe,
   MessageSquare,
+  HelpCircle,
 } from 'lucide-react';
 import { fetchPublicCreator } from '../services/api';
+import { HOME_FAQS, CORE_TOPICS_PREVIEW } from '../data/seoContent';
 
-export default function LandingPage({ onStartChat, user, systemSettings }) {
+export default function LandingPage({ onStartChat, user, systemSettings, onOpenTopic }) {
   const [creator, setCreator] = useState(null);
 
   useEffect(() => {
@@ -141,7 +143,11 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
                   <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-3xl sm:rounded-4xl overflow-hidden border-2 border-teal-700/30 dark:border-teal-500/30 shadow-md bg-stone-100 dark:bg-slate-700 flex items-center justify-center">
                     <img
                       src={creator?.image_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop'}
-                      alt={creator?.name || 'Idealizador do ISAAC'}
+                      alt={creator?.name || 'Idealizador da Mentoria ISAAC'}
+                      width="176"
+                      height="176"
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       onError={(e) => {
                         e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop';
@@ -207,9 +213,9 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
                   <span>Mensagem de Boas-Vindas</span>
                 </div>
 
-                <h4 className="text-xl sm:text-3xl font-serif font-normal text-stone-900 dark:text-stone-50 leading-snug">
+                <h2 className="text-xl sm:text-3xl font-serif font-normal text-stone-900 dark:text-stone-50 leading-snug">
                   Por que este refúgio de clareza foi concebido para você
-                </h4>
+                </h2>
 
                 <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
                   {creator?.bio || 'Empreendedor, mentor de clareza e apaixonado pelo potencial humano. Concebeu o Isaac após anos observando como o excesso de ruído diário, a autocobrança desmedida e a solidão nas decisões travam vidas brilhantes.'}
@@ -429,9 +435,9 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
                 <Shield className="w-7 h-7 stroke-[1.75]" />
               </div>
               <div className="text-center sm:text-left space-y-1">
-                <h4 className="text-base sm:text-lg font-serif font-medium text-stone-900 dark:text-stone-100">
+                <h3 className="text-base sm:text-lg font-serif font-medium text-stone-900 dark:text-stone-100">
                   Nosso Compromisso com a sua Serenidade
-                </h4>
+                </h3>
                 <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
                   Este não é um ambiente de redes sociais, propagandas ou algoritmos de engajamento forçado. Aqui é um refúgio desenhado para devolver a clareza ao seu espírito, honrando sua privacidade como um direito inegociável.
                 </p>
@@ -460,9 +466,9 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
                   1
                 </div>
                 <div>
-                  <h4 className="text-base font-serif font-medium text-stone-900 dark:text-stone-100">
+                  <h3 className="text-base font-serif font-medium text-stone-900 dark:text-stone-100">
                     Sem formulários cansativos
-                  </h4>
+                  </h3>
                   <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif mt-1 leading-relaxed">
                     Você simplesmente abre o espaço e compartilha o que está no seu coração: em texto ou gravando um áudio calmo.
                   </p>
@@ -474,9 +480,9 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
                   2
                 </div>
                 <div>
-                  <h4 className="text-base font-serif font-medium text-stone-900 dark:text-stone-100">
+                  <h3 className="text-base font-serif font-medium text-stone-900 dark:text-stone-100">
                     Reflexão acolhedora e confronto respeitoso
-                  </h4>
+                  </h3>
                   <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif mt-1 leading-relaxed">
                     Isaac não oferece clichês motivacionais vazios. Ele traz perguntas que fazem você enxergar as justificativas automáticas que você vinha contando a si mesmo.
                   </p>
@@ -488,9 +494,9 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
                   3
                 </div>
                 <div>
-                  <h4 className="text-base font-serif font-medium text-stone-900 dark:text-stone-100">
+                  <h3 className="text-base font-serif font-medium text-stone-900 dark:text-stone-100">
                     Personalização com o nome que escolher
-                  </h4>
+                  </h3>
                   <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif mt-1 leading-relaxed">
                     O nome de origem é Isaac, mas você pode chamá-lo de Guia, Mentor ou o nome que trouxer mais clareza ao seu coração.
                   </p>
@@ -500,6 +506,92 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
           </div>
         </section>
       )}
+
+      {/* 4.5 TRILHAS DE CLAREZA & LABORATÓRIO DO INCÔMODO CRIATIVO (SEO & GEO TOPICAL HUB) */}
+      <section id="trilhas-de-clareza" className="py-20 bg-stone-100/60 dark:bg-slate-800/30 border-y border-stone-200/80 dark:border-slate-800 px-4 sm:px-6 lg:px-8 scroll-mt-12">
+        <div className="max-w-6xl mx-auto space-y-12">
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <span className="text-xs font-semibold uppercase tracking-widest text-teal-800 dark:text-teal-400">
+              Caminhos de Aprofundamento
+            </span>
+            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-serif font-normal text-stone-900 dark:text-stone-50 tracking-tight">
+              Temas reais nos quais o Isaac caminha com você
+            </h2>
+            <p className="text-xs sm:text-base text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
+              Da indecisão silenciosa ao exclusivo <strong>Laboratório do Incômodo Criativo</strong>: explore cada trilha temática e descubra como conduzir suas reflexões com método e serenidade.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            {CORE_TOPICS_PREVIEW.map((topic) => (
+              <a
+                key={topic.slug}
+                href={`/temas/${topic.slug}`}
+                onClick={(e) => {
+                  if (!onOpenTopic || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                  e.preventDefault();
+                  onOpenTopic(topic.slug);
+                }}
+                className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 hover:border-teal-600/50 shadow-sm hover:shadow-md transition group flex flex-col justify-between gap-4"
+              >
+                <div className="space-y-2">
+                  <span className="inline-block text-[10px] font-semibold uppercase tracking-wider text-teal-800 dark:text-teal-400">
+                    {topic.category}
+                  </span>
+                  <h3 className="text-base sm:text-lg font-serif font-medium text-stone-900 dark:text-stone-100 group-hover:text-teal-700 dark:group-hover:text-teal-300 transition">
+                    {topic.shortTitle}
+                  </h3>
+                  <p className="text-xs text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
+                    {topic.summary}
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-teal-800 dark:text-teal-400 group-hover:translate-x-0.5 transition-transform">
+                  <span>Explorar trilha</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 4.8 PERGUNTAS FREQUENTES (AEO — RESPOSTAS DIRETAS E CITÁVEIS) */}
+      <section id="perguntas-frequentes" className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto scroll-mt-12">
+        <div className="space-y-10">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200/80 dark:border-teal-800/40 text-xs font-serif text-teal-800 dark:text-teal-300">
+              <HelpCircle className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              <span>Transparência &amp; Clareza</span>
+            </div>
+            <h2 className="text-2xl sm:text-4xl font-serif font-normal text-stone-900 dark:text-stone-50 tracking-tight">
+              Perguntas Frequentes sobre a Mentoria ISAAC
+            </h2>
+            <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
+              Respostas claras sobre funcionamento, privacidade dos seus relatos, recursos de voz e escopo ético.
+            </p>
+          </div>
+
+          <div className="space-y-3.5">
+            {HOME_FAQS.map((faq, idx) => (
+              <details
+                key={idx}
+                open={idx === 0}
+                className="group p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-xs transition"
+              >
+                <summary className="cursor-pointer list-none flex items-center justify-between gap-4 font-serif font-medium text-sm sm:text-base text-stone-900 dark:text-stone-100">
+                  <h3>{faq.question}</h3>
+                  <span className="w-7 h-7 rounded-full bg-stone-100 dark:bg-slate-700/80 flex items-center justify-center text-teal-800 dark:text-teal-300 text-lg leading-none shrink-0 group-open:rotate-45 transition-transform">
+                    +
+                  </span>
+                </summary>
+                <p className="mt-3.5 pt-3.5 border-t border-stone-100 dark:border-slate-700/60 text-xs sm:text-sm font-serif text-stone-600 dark:text-stone-300 leading-relaxed">
+                  {faq.answer}
+                </p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* 5. CONVITE FINAL DE ENTRADA NA MENTORIA */}
       {systemSettings?.show_landing_cta !== false && (
@@ -530,9 +622,28 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
         </section>
       )}
 
-      {/* RODAPÉ DISCRETO */}
-      <footer className="py-8 px-4 border-t border-stone-200/80 dark:border-slate-800 text-center text-xs text-stone-400 dark:text-stone-500 font-serif">
-        <p>Mentoria ISAAC • Espaço de Clareza, Escuta Atenta e Desenvolvimento Pessoal</p>
+      {/* RODAPÉ INSTITUCIONAL & NAVEGAÇÃO SEMÂNTICA */}
+      <footer className="py-10 px-4 border-t border-stone-200/80 dark:border-slate-800 text-center space-y-3 text-xs text-stone-500 dark:text-stone-400 font-serif">
+        <p className="font-medium text-stone-700 dark:text-stone-300">
+          Mentoria ISAAC • Espaço Confidencial de Clareza, Escuta Atenta e Desenvolvimento Pessoal
+        </p>
+        <nav aria-label="Links úteis do rodapé" className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px]">
+          <a href="#quem-e-isaac" className="hover:text-teal-700 dark:hover:text-teal-400 transition">
+            Sobre a Mentoria
+          </a>
+          <a href="#sigilo-seguranca" className="hover:text-teal-700 dark:hover:text-teal-400 transition">
+            Sigilo &amp; Privacidade
+          </a>
+          <a href="#trilhas-de-clareza" className="hover:text-teal-700 dark:hover:text-teal-400 transition">
+            Trilhas de Clareza
+          </a>
+          <a href="#perguntas-frequentes" className="hover:text-teal-700 dark:hover:text-teal-400 transition">
+            Perguntas Frequentes
+          </a>
+          <a href="/inscricao" className="hover:text-teal-700 dark:hover:text-teal-400 transition">
+            Inscrição Oficial
+          </a>
+        </nav>
       </footer>
     </div>
   );

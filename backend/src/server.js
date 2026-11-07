@@ -11,6 +11,15 @@ import pdfCampaignRoutes from './routes/pdfCampaignRoutes.js';
 import inscriptionRoutes from './routes/inscriptionRoutes.js';
 import { requireAdmin } from './middlewares/authMiddleware.js';
 import { apiGeneralLimiter } from './middlewares/rateLimiters.js';
+import {
+  handleRobotsTxt,
+  handleSitemapXml,
+  handleLlmsTxt,
+  handleLlmsFullTxt,
+  handlePublicTopicsList,
+  handlePublicTopicBySlug,
+  serveSeoHtml,
+} from './services/seoService.js';
 
 dotenv.config();
 
@@ -82,8 +91,16 @@ const healthHandler = (req, res) => {
 app.get('/health', healthHandler);
 app.get('/api/health', healthHandler);
 
+// Endpoints Oficiais de SEO Tradicional & SEO para IA (GEO / AEO / LLMO)
+app.get('/robots.txt', handleRobotsTxt);
+app.get('/sitemap.xml', handleSitemapXml);
+app.get('/llms.txt', handleLlmsTxt);
+app.get('/llms-full.txt', handleLlmsFullTxt);
+
 // Rate Limit geral e Barreira Global Zero-Trust para todas as rotas /api/admin/*
 app.use('/api', apiGeneralLimiter);
+app.get('/api/public/topics', handlePublicTopicsList);
+app.get('/api/public/topics/:slug', handlePublicTopicBySlug);
 app.use('/api/admin', requireAdmin);
 
 // Rotas da API
@@ -98,21 +115,32 @@ if (fs.existsSync(distPath)) {
   console.log(`📦 [Static Assets] Servindo frontend a partir de: ${distPath}`);
   app.use(
     express.static(distPath, {
+      index: false, // Permite que '/' passe pelo injetor SSR dinâmico de Meta/JSON-LD/Shell
       setHeaders: (res, filePath) => {
-        if (filePath.endsWith('index.html')) {
-          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        } else if (filePath.includes(`${path.sep}assets${path.sep}`) || filePath.includes('/assets/')) {
+        if (filePath.includes(`${path.sep}assets${path.sep}`) || filePath.includes('/assets/')) {
           res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else if (
+          filePath.endsWith('.jpg') ||
+          filePath.endsWith('.png') ||
+          filePath.endsWith('.svg') ||
+          filePath.endsWith('.webmanifest')
+        ) {
+          res.setHeader('Cache-Control', 'public, max-age=86400');
         }
       },
     })
   );
-  app.get('*', (req, res, next) => {
+  app.get('*', async (req, res, next) => {
     if (req.path.startsWith('/api') || req.path === '/health' || req.path.startsWith('/assets/')) {
       return next();
     }
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.sendFile(path.join(distPath, 'index.html'));
+    try {
+      await serveSeoHtml(req, res, distPath);
+    } catch (seoErr) {
+      console.warn('⚠️ [SEO Fallback] Servindo index.html estático:', seoErr.message);
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.sendFile(path.join(distPath, 'index.html'));
+    }
   });
 } else {
   console.warn(`⚠️ [Static Assets] dist não encontrado em ${distPath}. Em dev, use o Vite (porta 5173).`);

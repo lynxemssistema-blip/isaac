@@ -442,6 +442,7 @@ export async function updateAdminPlan(req, res) {
 
     if (error) throw error;
     invalidateCache('plans:public');
+    invalidateCache('seo:public_snapshot');
 
     console.log(`✅ [Plan Updated] Plano ${id} atualizado pelo Superadmin. Preço: R$ ${data.price}, Chave PIX: ${data.pix_key}`);
     res.status(200).json(data);
@@ -705,6 +706,7 @@ export async function updateAdminCreator(req, res) {
 
     if (error) throw error;
     invalidateCache('creator:public');
+    invalidateCache('seo:public_snapshot');
     res.status(200).json({
       success: true,
       message: 'Perfil do Idealizador atualizado com sucesso!',
@@ -933,6 +935,7 @@ export async function createAdminGuidedConversation(req, res) {
 
     if (error) throw error;
     invalidateCache('guided:public');
+    invalidateCache('seo:public_snapshot');
     res.status(201).json(data);
   } catch (error) {
     console.error('❌ Erro ao criar conversa direcionada:', error);
@@ -980,6 +983,7 @@ export async function updateAdminGuidedConversation(req, res) {
 
     if (error) throw error;
     invalidateCache('guided:public');
+    invalidateCache('seo:public_snapshot');
     res.status(200).json(data);
   } catch (error) {
     console.error('❌ Erro ao atualizar conversa direcionada:', error);
@@ -1001,6 +1005,7 @@ export async function deleteAdminGuidedConversation(req, res) {
 
     if (error) throw error;
     invalidateCache('guided:public');
+    invalidateCache('seo:public_snapshot');
     res.status(200).json({ success: true, message: 'Conversa direcionada removida com sucesso.' });
   } catch (error) {
     console.error('❌ Erro ao excluir conversa direcionada:', error);

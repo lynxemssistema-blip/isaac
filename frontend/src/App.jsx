@@ -21,6 +21,7 @@ const UserProfileModal = lazy(() => import('./components/UserProfileModal'));
 const UserSettingsModal = lazy(() => import('./components/UserSettingsModal'));
 const ResetPasswordModal = lazy(() => import('./components/ResetPasswordModal'));
 const SubscriberFeedbackModal = lazy(() => import('./components/SubscriberFeedbackModal'));
+const TopicLandingPage = lazy(() => import('./components/TopicLandingPage'));
 
 function LazyFallbackLoader() {
   return (
@@ -66,12 +67,23 @@ function parseInscriptionLocation() {
   return false;
 }
 
+function parseTopicLocation() {
+  if (typeof window === 'undefined') return null;
+  const pathname = window.location.pathname || '/';
+  const match = pathname.match(/^\/temas\/([^/?#]+)\/?$/i);
+  if (match) {
+    return { slug: decodeURIComponent(match[1] || '').trim() };
+  }
+  return null;
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [activeTab, setActiveTab] = useState('landing'); // 'landing' | 'chat' | 'admin'
   const [directSignupRoute, setDirectSignupRoute] = useState(() => parseDirectSignupLocation());
   const [isInscriptionRoute, setIsInscriptionRoute] = useState(() => parseInscriptionLocation());
+  const [topicRoute, setTopicRoute] = useState(() => parseTopicLocation());
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState('login');
   const [authInitialEmail, setAuthInitialEmail] = useState('');
@@ -168,10 +180,24 @@ export default function App() {
     const handlePopState = () => {
       setDirectSignupRoute(parseDirectSignupLocation());
       setIsInscriptionRoute(parseInscriptionLocation());
+      setTopicRoute(parseTopicLocation());
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  useEffect(() => {
+    if (directSignupRoute || isInscriptionRoute || topicRoute) return;
+    if (activeTab === 'landing') {
+      document.title = 'Mentoria ISAAC — Clareza Emocional, Escuta Profunda & Transformação 24h';
+    } else if (activeTab === 'chat') {
+      document.title = `${guideName || 'Isaac'} • Espaço de Mentoria — ISAAC`;
+    } else if (activeTab === 'incomodo') {
+      document.title = 'Laboratório do Incômodo Criativo — Mentoria ISAAC';
+    } else if (activeTab === 'admin') {
+      document.title = 'Painel Administrativo — Mentoria ISAAC';
+    }
+  }, [activeTab, guideName, directSignupRoute, isInscriptionRoute, topicRoute]);
 
   useEffect(() => {
     // Carrega Parâmetros Globais do Sistema (Superadmin)
@@ -245,9 +271,12 @@ export default function App() {
       setUser(currentUser);
       if (currentUser) {
         loadUserProfile(currentUser);
-        // Se estiver em link direto de cadastro (/cadastro/...) ou ficha (/inscricao), mantém a página pública visível
-        const onSignupLink = Boolean(parseDirectSignupLocation()) || parseInscriptionLocation();
-        if (!onSignupLink) {
+        // Se estiver em link direto de cadastro (/cadastro/...), ficha (/inscricao) ou trilha (/temas/...), mantém a página pública visível
+        const onPublicRoute =
+          Boolean(parseDirectSignupLocation()) ||
+          parseInscriptionLocation() ||
+          Boolean(parseTopicLocation());
+        if (!onPublicRoute) {
           // REQUISITO: Usuário autenticado já abre direto na página de conversa com ISAAC
           setActiveTab('chat');
         }
@@ -347,12 +376,60 @@ export default function App() {
   };
 
   const handleStartChat = () => {
+    if (topicRoute && typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/');
+      setTopicRoute(null);
+    }
     if (!user) {
       openAuthModal('login', '');
     } else {
       setActiveTab('chat');
     }
   };
+
+  const handleNavigateTopic = (slug) => {
+    if (!slug) return;
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', `/temas/${encodeURIComponent(slug)}`);
+    }
+    setTopicRoute({ slug });
+  };
+
+  const handleBackFromTopic = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/');
+    }
+    setTopicRoute(null);
+    setActiveTab('landing');
+  };
+
+  // PÁGINAS PÚBLICAS DE TRILHAS TEMÁTICAS INDEXÁVEIS (/temas/:slug)
+  if (topicRoute) {
+    return (
+      <Suspense fallback={<LazyFallbackLoader />}>
+        <TopicLandingPage
+          slug={topicRoute.slug}
+          user={user}
+          onStartChat={handleStartChat}
+          onBackToHome={handleBackFromTopic}
+          onNavigateTopic={handleNavigateTopic}
+        />
+        <AuthModal
+          isOpen={isAuthOpen}
+          initialMode={authInitialMode}
+          initialEmail={authInitialEmail}
+          onClose={() => setIsAuthOpen(false)}
+          onSuccess={(loggedUser, savedProfile) => {
+            if (typeof window !== 'undefined') {
+              window.history.replaceState({}, '', '/');
+            }
+            setTopicRoute(null);
+            handleAuthSuccess(loggedUser, savedProfile);
+          }}
+        />
+      </Suspense>
+    );
+  }
 
   // PÁGINA NOVA E INDEPENDENTE DE FICHA DE INSCRIÇÃO SIMPLES (/inscricao)
   if (isInscriptionRoute) {
@@ -480,6 +557,7 @@ export default function App() {
             onStartChat={handleStartChat}
             user={user}
             systemSettings={systemSettings}
+            onOpenTopic={handleNavigateTopic}
           />
         )}
 

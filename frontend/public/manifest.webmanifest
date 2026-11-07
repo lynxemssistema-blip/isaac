@@ -1,0 +1,22 @@
+{
+  "name": "Mentoria ISAAC — Clareza, Escuta & Transformação",
+  "short_name": "ISAAC",
+  "description": "Espaço seguro e confidencial de mentoria reflexiva, escuta profunda sem julgamentos, memória contínua e clareza emocional 24 horas por dia.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#060d1b",
+  "theme_color": "#060d1b",
+  "categories": ["lifestyle", "health", "education", "productivity"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

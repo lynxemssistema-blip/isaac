@@ -124,3 +124,4 @@ BEGIN
     EXECUTE 'CREATE INDEX IF NOT EXISTS idx_izaque_agent_knowledge_embedding_hnsw ON public.izaque_agent_knowledge USING hnsw (embedding vector_cosine_ops)';
   END IF;
 END $$;
+

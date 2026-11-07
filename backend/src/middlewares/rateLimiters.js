@@ -33,3 +33,4 @@ export const authAndMailLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Muitas tentativas em curto intervalo. Por segurança, aguarde 15 minutos.' },
 });
+

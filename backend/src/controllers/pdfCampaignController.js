@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { sendCampaignPdfEmail } from '../services/emailService.js';
+import { invalidateCache } from '../utils/memoryCache.js';
 
 const PDF_BUCKET = 'izaque-pdfs';
 const MAX_PDF_BYTES = 15 * 1024 * 1024; // 15 MB para garantir entrega confiável via anexo SMTP
@@ -123,6 +124,7 @@ export async function getPublicCampaignBySlug(req, res) {
       .maybeSingle();
 
     if (error) throw error;
+    invalidateCache('seo:public_snapshot');
 
     if (!campaign) {
       // Fallback opcional: informa qual é a campanha padrão ativa, se existir
@@ -156,6 +158,7 @@ export async function getPublicDefaultCampaign(req, res) {
       .maybeSingle();
 
     if (error) throw error;
+    invalidateCache('seo:public_snapshot');
     res.status(200).json({ campaign: campaign || null });
   } catch (error) {
     console.error('❌ Erro ao buscar campanha padrão:', error);
@@ -469,6 +472,7 @@ export async function getAdminPdfCampaigns(req, res) {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
+    invalidateCache('seo:public_snapshot');
 
     const { data: deliveries } = await supabaseAdmin
       .from('izaque_pdf_deliveries')
@@ -533,6 +537,7 @@ export async function getAdminPdfDeliveries(req, res) {
 
     const { data: deliveries, error } = await query;
     if (error) throw error;
+    invalidateCache('seo:public_snapshot');
 
     // Enriquece com telefone/cidade/objetivo do perfil quando houver user_id
     const userIds = [...new Set((deliveries || []).map((d) => d.user_id).filter(Boolean))];
@@ -658,6 +663,7 @@ export async function createAdminPdfCampaign(req, res) {
       .single();
 
     if (insertErr) throw insertErr;
+    invalidateCache('seo:public_snapshot');
 
     res.status(201).json(created);
   } catch (error) {
@@ -788,6 +794,7 @@ export async function updateAdminPdfCampaign(req, res) {
       .single();
 
     if (updateErr) throw updateErr;
+    invalidateCache('seo:public_snapshot');
     res.status(200).json(updated);
   } catch (error) {
     console.error('❌ Erro ao atualizar campanha de PDF:', error);
@@ -810,6 +817,7 @@ export async function deleteAdminPdfCampaign(req, res) {
       .eq('id', id);
 
     if (error) throw error;
+    invalidateCache('seo:public_snapshot');
 
     if (current?.pdf_storage_path) {
       supabaseAdmin.storage.from(PDF_BUCKET).remove([current.pdf_storage_path]).catch(() => {});
@@ -838,6 +846,7 @@ export async function testOrResendCampaignPdf(req, res) {
       .maybeSingle();
 
     if (error) throw error;
+    invalidateCache('seo:public_snapshot');
     if (!campaign) {
       return res.status(404).json({ error: 'Campanha de PDF não encontrada.' });
     }
