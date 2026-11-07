@@ -460,7 +460,7 @@ export default function LandingPage({ onStartChat, user, systemSettings, onOpenT
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
               <div className="p-6 rounded-3xl bg-white dark:bg-slate-800/60 border border-stone-200/80 dark:border-slate-700/60 flex items-start gap-4 shadow-sm">
                 <div className="w-8 h-8 rounded-full bg-teal-700/10 dark:bg-teal-500/15 flex items-center justify-center text-teal-800 dark:text-teal-400 font-serif font-semibold shrink-0 mt-0.5">
                   1
@@ -485,20 +485,6 @@ export default function LandingPage({ onStartChat, user, systemSettings, onOpenT
                   </h3>
                   <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif mt-1 leading-relaxed">
                     Isaac não oferece clichês motivacionais vazios. Ele traz perguntas que fazem você enxergar as justificativas automáticas que você vinha contando a si mesmo.
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-6 rounded-3xl bg-white dark:bg-slate-800/60 border border-stone-200/80 dark:border-slate-700/60 flex items-start gap-4 shadow-sm">
-                <div className="w-8 h-8 rounded-full bg-teal-700/10 dark:bg-teal-500/15 flex items-center justify-center text-teal-800 dark:text-teal-400 font-serif font-semibold shrink-0 mt-0.5">
-                  3
-                </div>
-                <div>
-                  <h3 className="text-base font-serif font-medium text-stone-900 dark:text-stone-100">
-                    Personalização com o nome que escolher
-                  </h3>
-                  <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif mt-1 leading-relaxed">
-                    O nome de origem é Isaac, mas você pode chamá-lo de Guia, Mentor ou o nome que trouxer mais clareza ao seu coração.
                   </p>
                 </div>
               </div>

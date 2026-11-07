@@ -577,3 +577,4 @@ REVOKE EXECUTE ON FUNCTION public.izaque_match_memories(vector, float, int, uuid
 REVOKE EXECUTE ON FUNCTION public.izaque_match_agent_knowledge(vector, uuid, float, int) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.izaque_match_memories(vector, float, int, uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.izaque_match_agent_knowledge(vector, uuid, float, int) TO service_role;
+

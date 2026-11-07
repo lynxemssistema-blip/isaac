@@ -5,12 +5,12 @@ const runtimeEnv = typeof window !== 'undefined' ? window.__ISAAC_ENV__ : null;
 const supabaseUrl =
   runtimeEnv?.SUPABASE_URL ||
   import.meta.env.VITE_SUPABASE_URL ||
-  'https://ohjuqcrpakswvnoqobiq.supabase.co';
+  'https://supabaseisaac.lynxems.com.br';
 
 const supabaseAnonKey =
   runtimeEnv?.SUPABASE_ANON_KEY ||
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oanVxY3JwYWtzd3Zub3FvYmlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4OTEzNjksImV4cCI6MjA4ODQ2NzM2OX0.PpIwlOOx6UvpQuED6rg4fHwnjrWzfI0FA1gqdzNsmQw';
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzA0MDY3MjAwLCJleHAiOjIyMDg5ODg4MDB9.0e_X50Y4Ymor4-bmZlgaiPbKGwgIaq2J1u4nphJox80';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('⚠️ [Supabase Client] Variáveis SUPABASE_URL ou SUPABASE_ANON_KEY não encontradas.');

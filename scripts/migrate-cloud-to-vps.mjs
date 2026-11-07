@@ -15,7 +15,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '../backend/node_modules/@supabase/supabase-js/dist/index.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -40,7 +40,7 @@ const vpsEnv = parseEnvFile(path.join(rootDir, 'supabase/vps-supabase.env'));
 const SOURCE_URL = process.env.SOURCE_SUPABASE_URL || cloudEnv.SUPABASE_URL;
 const SOURCE_KEY = process.env.SOURCE_SERVICE_ROLE_KEY || cloudEnv.SUPABASE_SERVICE_ROLE_KEY;
 
-const TARGET_URL = process.env.TARGET_SUPABASE_URL || vpsEnv.SUPABASE_PUBLIC_URL || 'https://supabase.lynxems.com.br';
+const TARGET_URL = process.env.TARGET_SUPABASE_URL || vpsEnv.SUPABASE_PUBLIC_URL || 'https://supabaseisaac.lynxems.com.br';
 const TARGET_KEY = process.env.TARGET_SERVICE_ROLE_KEY || vpsEnv.SERVICE_ROLE_KEY;
 
 if (!SOURCE_URL || !SOURCE_KEY || !TARGET_URL || !TARGET_KEY) {
@@ -55,11 +55,18 @@ console.log(`   Destino (VPS):  ${TARGET_URL}\n`);
 const source = createClient(SOURCE_URL, SOURCE_KEY, { auth: { persistSession: false } });
 const target = createClient(TARGET_URL, TARGET_KEY, { auth: { persistSession: false } });
 
+const referencedStorageObjects = new Set();
+
 function rewriteStorageUrls(row) {
   if (!row || typeof row !== 'object') return row;
   const copy = { ...row };
+  const publicPrefix = `${SOURCE_URL}/storage/v1/object/public/`;
   for (const [k, v] of Object.entries(copy)) {
     if (typeof v === 'string' && v.includes(SOURCE_URL)) {
+      if (v.startsWith(publicPrefix)) {
+        const rest = v.slice(publicPrefix.length).split('?')[0];
+        if (rest.includes('/')) referencedStorageObjects.add(rest);
+      }
       copy[k] = v.split(SOURCE_URL).join(TARGET_URL);
     }
   }
@@ -84,15 +91,29 @@ async function fetchAllRows(client, table) {
   return all;
 }
 
-// 1. Descobrir todos os UUIDs de usuários que pertencem ao ISAAC
+// 1. Descobrir todos os UUIDs de usuários que pertencem ao ISAAC (em qualquer tabela com FK para auth.users/profiles)
 const profileRows = await fetchAllRows(source, 'izaque_profiles');
 const sessionRows = await fetchAllRows(source, 'izaque_chat_sessions');
 const memoryRows = await fetchAllRows(source, 'izaque_user_memories');
+const subRows = await fetchAllRows(source, 'izaque_subscriptions');
+const termsRows = await fetchAllRows(source, 'izaque_terms_acceptances');
+const feedbackRows = await fetchAllRows(source, 'izaque_feedbacks');
+const memberRows = await fetchAllRows(source, 'izaque_user_group_members');
+const notifRows = await fetchAllRows(source, 'izaque_user_notifications');
+const broadcastRows = await fetchAllRows(source, 'izaque_group_broadcasts');
+const troubleRows = await fetchAllRows(source, 'izaque_creative_troubles');
 
 const isaacUserIds = new Set([
   ...profileRows.map((r) => r.id),
   ...sessionRows.map((r) => r.user_id),
   ...memoryRows.map((r) => r.user_id),
+  ...subRows.map((r) => r.user_id),
+  ...termsRows.map((r) => r.user_id),
+  ...feedbackRows.map((r) => r.user_id),
+  ...memberRows.map((r) => r.user_id),
+  ...notifRows.map((r) => r.user_id),
+  ...broadcastRows.map((r) => r.sent_by),
+  ...troubleRows.map((r) => r.user_id),
 ].filter(Boolean));
 
 console.log(`👤 Usuários exclusivos do ISAAC identificados: ${isaacUserIds.size}`);
@@ -207,8 +228,41 @@ async function migrateBucketFolder(bucketName, prefix = '') {
   return count;
 }
 
-console.log('\n📦 Migrando arquivos de Storage (izaque-pdfs)...');
+console.log('\n📦 Migrando arquivos de Storage (izaque-pdfs + mídias referenciadas)...');
 const pdfCount = await migrateBucketFolder('izaque-pdfs');
 console.log(`✅ Arquivos migrados em izaque-pdfs: ${pdfCount}`);
 
+let refCount = 0;
+for (const entry of referencedStorageObjects) {
+  const slashIdx = entry.indexOf('/');
+  const bucketName = entry.slice(0, slashIdx);
+  const objectPath = entry.slice(slashIdx + 1);
+  if (bucketName === 'izaque-pdfs') continue;
+  const { data: blob, error: dlErr } = await source.storage.from(bucketName).download(objectPath);
+  if (dlErr || !blob) {
+    console.warn(`   ⚠️ Falha ao baixar ${entry}: ${dlErr?.message}`);
+    continue;
+  }
+  const buf = Buffer.from(await blob.arrayBuffer());
+  const contentType = objectPath.endsWith('.png')
+    ? 'image/png'
+    : objectPath.endsWith('.webp')
+      ? 'image/webp'
+      : objectPath.endsWith('.jpg') || objectPath.endsWith('.jpeg')
+        ? 'image/jpeg'
+        : blob.type || 'application/octet-stream';
+  const { error: upErr } = await target.storage.from(bucketName).upload(objectPath, buf, {
+    contentType,
+    upsert: true,
+  });
+  if (!upErr) {
+    refCount++;
+    console.log(`✅ Mídia migrada: ${bucketName}/${objectPath}`);
+  } else {
+    console.warn(`   ⚠️ Falha ao subir ${entry}: ${upErr.message}`);
+  }
+}
+console.log(`✅ Mídias referenciadas migradas: ${refCount}`);
+
 console.log('\n🎉 MIGRAÇÃO CONCLUÍDA! Agora atualize SUPABASE_URL, SUPABASE_ANON_KEY e SUPABASE_SERVICE_ROLE_KEY no app issac do Easypanel!');
+
