@@ -569,13 +569,13 @@ export default function AdminCreativeTroubles({ currentUser }) {
                 </div>
               </div>
 
-              {/* SEÇÃO 5: DIAGNÓSTICO DO AGENTE ORQUESTRADOR IZAQUE / THIAGO */}
+              {/* SEÇÃO 5: DIAGNÓSTICO DO AGENTE ORQUESTRADOR ISAAC / THIAGO */}
               {selectedTrouble.ai_diagnosis && (
                 <div className="p-5 rounded-2xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/60 dark:border-teal-900/50 space-y-3">
                   <div className="flex items-center gap-2 text-teal-800 dark:text-teal-300">
                     <Sparkles className="w-4 h-4" />
                     <span className="text-[11px] font-bold uppercase tracking-wider">
-                      Resumo & Direcionamento do Agente Izaque
+                      Resumo & Direcionamento do Agente Isaac
                     </span>
                   </div>
 

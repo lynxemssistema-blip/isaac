@@ -76,7 +76,7 @@ export default function App() {
   // Estado do Onboarding do Guia
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [guideName, setGuideName] = useState(() => {
-    return localStorage.getItem('izaque_guide_name') || 'Izaque';
+    return localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac';
   });
 
   // Carregar perfil do usuário em public.izaque_profiles
@@ -234,7 +234,7 @@ export default function App() {
         // Se estiver em link direto de cadastro (/cadastro/...) ou ficha (/inscricao), mantém a página pública visível
         const onSignupLink = Boolean(parseDirectSignupLocation()) || parseInscriptionLocation();
         if (!onSignupLink) {
-          // REQUISITO: Usuário autenticado já abre direto na página de conversa com IZAQUE
+          // REQUISITO: Usuário autenticado já abre direto na página de conversa com ISAAC
           setActiveTab('chat');
           // Verifica se é o primeiro acesso para exibir o onboarding
           const completed = localStorage.getItem('izaque_onboarding_completed');

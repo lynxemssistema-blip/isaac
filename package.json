@@ -1,9 +1,9 @@
 {
-  "name": "mentoria-izaque",
+  "name": "mentoria-isaac",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Mentoria IZAQUE - Orquestrador Hermes & Frontend Vite",
+  "description": "Mentoria ISAAC - Orquestrador Hermes & Frontend Vite",
   "scripts": {
     "dev": "node start-dev.js",
     "dev:all": "node start-dev.js",

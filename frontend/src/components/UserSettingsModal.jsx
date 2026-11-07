@@ -28,7 +28,7 @@ import { humanVoiceService, GEMINI_VOICES } from '../services/voiceService';
 import { updateUserProfile, fetchVoiceAudio } from '../services/api';
 import { THEMES, applyAppTheme, saveAppTheme, getCurrentTheme } from '../services/themeService';
 
-const GUIDE_NAME_SUGGESTIONS = ['Izaque', 'Mentor', 'Guia', 'Hermes', 'Sophia', 'Conselheiro'];
+const GUIDE_NAME_SUGGESTIONS = ['Isaac', 'Mentor', 'Guia', 'Hermes', 'Sophia', 'Conselheiro'];
 
 export default function UserSettingsModal({
   isOpen,
@@ -39,7 +39,7 @@ export default function UserSettingsModal({
   onProfileUpdated,
 }) {
   const [guideName, setGuideName] = useState(() => {
-    return localStorage.getItem('izaque_guide_name') || 'Izaque';
+    return localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac';
   });
 
   const [ambientTrack, setAmbientTrack] = useState(() => {
@@ -273,7 +273,7 @@ export default function UserSettingsModal({
 
   const handleSaveAll = async () => {
     setIsSaving(true);
-    const finalGuideName = guideName.trim() || 'Izaque';
+    const finalGuideName = guideName.trim() || 'Isaac';
 
     // Monta o objeto universal de preferências
     const newPreferences = {
@@ -411,7 +411,7 @@ export default function UserSettingsModal({
                 value={guideName}
                 onChange={(e) => setGuideName(e.target.value)}
                 maxLength={24}
-                placeholder="Ex: Izaque, Sophia, Hermes..."
+                placeholder="Ex: Isaac, Sophia, Hermes..."
                 className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-slate-800/90 border border-stone-300 dark:border-slate-700 text-sm font-medium text-stone-800 dark:text-stone-100 placeholder-stone-400 outline-none focus:border-teal-700 dark:focus:border-teal-400 transition"
               />
               <span className="absolute right-3.5 top-3.5 text-[11px] font-mono text-stone-400">

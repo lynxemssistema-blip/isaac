@@ -62,7 +62,7 @@ export async function analyzeFactSocratic(req, res) {
       return res.status(400).json({ error: 'Descrição inicial é obrigatória.' });
     }
 
-    const systemPrompt = `Você é IZAQUE, o mentor e orquestrador do app, aplicando a metodologia do Incômodo Criativo do mentor Thiago Prata.
+    const systemPrompt = `Você é ISAAC, o mentor e orquestrador do app, aplicando a metodologia do Incômodo Criativo do mentor Thiago Prata.
 Sua missão nesta etapa é CIRÚRGICA: ajudar o usuário a separar o FATO CONCRETO das interpretações, suposições ou julgamentos emocionais.
 A regra metodológica é:
 - Registrar apenas aquilo que se percebe (ações, dados, fatos concretos observáveis por uma câmera).
@@ -151,7 +151,7 @@ export async function generateDiagnosis(req, res) {
       quadrantAdvice = 'Situação com variáveis equilibradas que exige clareza de causas antes de tomar medidas bruscas. Aprofunde em hipóteses concretas.';
     }
 
-    const systemPrompt = `Você é IZAQUE, o orquestrador e mentor do app, aplicando a metodologia do "Incômodo Criativo" criada pelo mentor Thiago Prata e na escala de consciência do Dr. David Hawkins.
+    const systemPrompt = `Você é ISAAC, o orquestrador e mentor do app, aplicando a metodologia do "Incômodo Criativo" criada pelo mentor Thiago Prata e na escala de consciência do Dr. David Hawkins.
 Sua missão é gerar um DIAGNÓSTICO PROFUNDO, ACOLHEDOR E CIRÚRGICO para o usuário transformar esse incômodo em alavanca.
 
 Diretrizes da Metodologia:
@@ -482,7 +482,7 @@ export async function updateAdminMentorNotes(req, res) {
 }
 
 /**
- * 10. Mentoria Guiada Dinâmica via Chat (Agente Izaque / Thiago Prata)
+ * 10. Mentoria Guiada Dinâmica via Chat (Agente Isaac / Thiago Prata)
  * Conduz o usuário dinamicamente pelas 5 etapas do Incômodo Criativo com opções interativas
  * POST /api/creative-troubles/chat-step
  */
@@ -501,7 +501,7 @@ export async function handleChatStep(req, res) {
     if (step === 'welcome') {
       return res.status(200).json({
         nextStep: 'fact',
-        agentMessage: `Olá! Sou IZAQUE. Seja muito bem-vindo ao Laboratório do Incômodo Criativo.\n\nAqui nós não vamos apenas desabafar: vamos dissecar cirurgicamente o que está acontecendo e transformar esse incômodo em alavanca de crescimento, guiados pela metodologia do mentor Thiago Prata.\n\nPara começarmos: **o que tem te incomodado ultimamente?** Pode me contar por áudio ou texto, focando no fato que aconteceu.`,
+        agentMessage: `Olá! Sou ISAAC. Seja muito bem-vindo ao Laboratório do Incômodo Criativo.\n\nAqui nós não vamos apenas desabafar: vamos dissecar cirurgicamente o que está acontecendo e transformar esse incômodo em alavanca de crescimento, guiados pela metodologia do mentor Thiago Prata.\n\nPara começarmos: **o que tem te incomodado ultimamente?** Pode me contar por áudio ou texto, focando no fato que aconteceu.`,
         suggestedOptions: [
           'Um atrito com sócio ou no ambiente de trabalho',
           'Um desafio de vendas, clientes ou financeiro',
@@ -514,7 +514,7 @@ export async function handleChatStep(req, res) {
 
     // 2. FATO CONCRETO -> POSTURA
     if (step === 'fact') {
-      const systemPrompt = `Você é IZAQUE, mentor de mentalidade e lucidez socrática aplicando a metodologia do Incômodo Criativo do mentor Thiago Prata.
+      const systemPrompt = `Você é ISAAC, mentor de mentalidade e lucidez socrática aplicando a metodologia do Incômodo Criativo do mentor Thiago Prata.
 O usuário respondeu à pergunta sobre o que está incomodando ele com o seguinte relato (que pode ser fala transcrita ou texto):
 "${userMessage}"
 
@@ -568,7 +568,7 @@ Responda ESTRITAMENTE em formato JSON:
 
     // 3. POSTURA -> GATILHO
     if (step === 'posture') {
-      const systemPrompt = `Você é IZAQUE, mentor socrático. O usuário está na etapa de identificar sua Postura (de 1 a 10 no método Thiago Prata):
+      const systemPrompt = `Você é ISAAC, mentor socrático. O usuário está na etapa de identificar sua Postura (de 1 a 10 no método Thiago Prata):
 1: Reclamar | 2: Justificar | 3: Reconhecer | 4: Investigar | 5: Analisar | 6: Decidir | 7: Propor | 8: Experimentar | 9: Adaptar | 10: Consolidar.
 Fato observado: "${data.fact_description}"
 Resposta do usuário: "${userMessage}"
@@ -633,7 +633,7 @@ Responda em JSON:
 
     // 4. GATILHO -> ESCALA HAWKINS
     if (step === 'trigger') {
-      const systemPrompt = `Você é IZAQUE. O usuário está identificando o GATILHO de origem do incômodo.
+      const systemPrompt = `Você é ISAAC. O usuário está identificando o GATILHO de origem do incômodo.
 Fato: "${data.fact_description}" | Postura: [${data.posture_level}]
 Fala do usuário: "${userMessage}"
 
@@ -687,7 +687,7 @@ Responda em JSON:
 
     // 5. ESCALA HAWKINS -> MATRIZ IRRI (INTENSIDADE)
     if (step === 'hawkins') {
-      const systemPrompt = `Você é IZAQUE. O usuário expressou a emoção interna sentida diante do incômodo.
+      const systemPrompt = `Você é ISAAC. O usuário expressou a emoção interna sentida diante do incômodo.
 Fala do usuário: "${userMessage}"
 
 Tarefa:
@@ -990,20 +990,20 @@ export async function generateCrossAnalysis(req, res) {
 
     const reactivePercentage = Math.round((reactiveCount / total) * 100);
 
-    const systemPrompt = `Você é IZAQUE, orquestrador de mentalidade de alta performance e mestre na metodologia do Incômodo Criativo do mentor Thiago Prata e David Hawkins.
+    const systemPrompt = `Você é ISAAC, orquestrador de mentalidade de alta performance e mestre na metodologia do Incômodo Criativo do mentor Thiago Prata e David Hawkins.
 Analise o CRUZAMENTO DE DADOS de múltiplos incômodos criativos deste usuário.
 Sua missão é identificar os PADRÕES INCONSCIENTES REPETITIVOS dele:
 1. Padrão Central: onde ele tende a se travar ou entrar em reatividade nas diferentes esferas.
 2. Ralo de Energia: onde ele está drenando força vital inutilmente.
 3. Alavanca Mestra: a mudança de postura ou consciência que destravará múltiplos problemas de uma só vez.
-4. Conselho Cirúrgico do Mentor Izaque em tom humano, lúcido e acolhedor.
+4. Conselho Cirúrgico do Mentor Isaac em tom humano, lúcido e acolhedor.
 
 Responda ESTRITAMENTE em formato JSON:
 {
   "corePattern": "Descrição clínica do padrão repetitivo identificado através dos múltiplos incômodos.",
   "energyDrain": "O principal ralo de energia e tempo detectado no cruzamento.",
   "masterLever": "A alavanca mestra de postura e consciência que produzirá efeito dominó positivo.",
-  "mentorInsight": "Mensagem cirúrgica e inspiradora do mentor Izaque em 3 a 4 frases profundas."
+  "mentorInsight": "Mensagem cirúrgica e inspiradora do mentor Isaac em 3 a 4 frases profundas."
 }`;
 
     const userPrompt = `

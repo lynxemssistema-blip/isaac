@@ -1,7 +1,7 @@
 {
-  "name": "izaque-api",
+  "name": "isaac-api",
   "version": "1.0.0",
-  "description": "IZAQUE API - Backend Orchestrator com RAG e Memória de Longo Prazo",
+  "description": "ISAAC API - Backend Orchestrator com RAG e Memória de Longo Prazo",
   "main": "src/server.js",
   "type": "module",
   "scripts": {

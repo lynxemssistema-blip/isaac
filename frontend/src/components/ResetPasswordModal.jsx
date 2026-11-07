@@ -146,7 +146,7 @@ export default function ResetPasswordModal({ isOpen, onClose, tokenHash, onOpenF
             Definir Nova Senha
           </h2>
           <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 font-serif">
-            Crie sua nova credencial segura para acessar a mentoria IZAQUE
+            Crie sua nova credencial segura para acessar a mentoria ISAAC
           </p>
         </div>
 

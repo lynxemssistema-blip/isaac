@@ -267,7 +267,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
   const [chatCompleted, setChatCompleted] = useState(false);
   const chatScrollRef = useRef(null);
 
-  // Reprodução de Voz Humanizada Conectada às Configurações do Izaque
+  // Reprodução de Voz Humanizada Conectada às Configurações do Isaac
   const audioElementRef = useRef(null);
   const [activeVoiceMessageId, setActiveVoiceMessageId] = useState(null);
   const [loadingVoiceId, setLoadingVoiceId] = useState(null);
@@ -791,7 +791,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
               <div>
                 <div className="flex items-center gap-1.5">
                   <span className="font-bold text-xs sm:text-sm text-stone-900 dark:text-stone-100">
-                    Mentor IZAQUE
+                    Mentor ISAAC
                   </span>
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="text-[10px] text-stone-400 font-medium">Orquestrador Metodológico</span>
@@ -917,7 +917,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
             {isAgentTyping && (
               <div className="flex items-center gap-2 p-3 rounded-2xl bg-stone-100 dark:bg-slate-800 text-stone-500 text-xs w-max animate-pulse">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
-                <span>Mentor IZAQUE está refletindo...</span>
+                <span>Mentor ISAAC está refletindo...</span>
               </div>
             )}
           </div>
@@ -1080,7 +1080,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
                     ) : (
                       <Sparkles className="w-3.5 h-3.5" />
                     )}
-                    Descontaminar Fato com Izaque
+                    Descontaminar Fato com Isaac
                   </button>
                 </div>
 
@@ -1098,7 +1098,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
                 <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-900/50 space-y-3">
                   <div className="flex items-center gap-2 text-teal-800 dark:text-teal-300 text-xs font-bold">
                     <Sparkles className="w-4 h-4" />
-                    Espelho Socrático do Mentor Izaque
+                    Espelho Socrático do Mentor Isaac
                   </div>
 
                   <div className="text-xs text-stone-700 dark:text-slate-300">
@@ -1531,7 +1531,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
           )}
 
           {/* ======================================================== */}
-          {/* ETAPA 5: SÍNTESE, DIAGNÓSTICO DO IZAQUE & COMPROMISSO */}
+          {/* ETAPA 5: SÍNTESE, DIAGNÓSTICO DO ISAAC & COMPROMISSO */}
           {/* ======================================================== */}
           {currentStep === 5 && (
             <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 shadow-xs space-y-6 animate-in fade-in">
@@ -1580,14 +1580,14 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
                 />
               </div>
 
-              {/* BOTÃO GERAR DIAGNÓSTICO COM IZAQUE */}
+              {/* BOTÃO GERAR DIAGNÓSTICO COM ISAAC */}
               <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-900/50 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-bold text-teal-900 dark:text-teal-200">
                     Pronto para o Choque de Lucidez?
                   </div>
                   <div className="text-[11px] text-teal-700 dark:text-teal-400">
-                    O Izaque vai cruzar a Matriz IRRI, o nível de Postura e a escala Hawkins.
+                    O Isaac vai cruzar a Matriz IRRI, o nível de Postura e a escala Hawkins.
                   </div>
                 </div>
 
@@ -1612,7 +1612,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 text-teal-800 dark:text-teal-300 font-bold text-sm">
                       <Sparkles className="w-5 h-5" />
-                      Dossiê da Virada (Orquestração Izaque)
+                      Dossiê da Virada (Orquestração Isaac)
                     </div>
 
                     <button
@@ -1915,7 +1915,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
                       <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/30 border border-teal-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="space-y-1">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">
-                            Direcionamento do Mentor Izaque
+                            Direcionamento do Mentor Isaac
                           </span>
                           <p className="text-xs text-stone-800 dark:text-stone-200 font-serif italic leading-relaxed">
                             "{crossAnalysis.analysis.mentorInsight}"
@@ -2064,7 +2064,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
 
                       {tr.ai_diagnosis?.quadrant && (
                         <div className="p-3 rounded-2xl bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-900/50 text-xs text-teal-900 dark:text-teal-300">
-                          <strong>Direcionamento Izaque:</strong> {tr.ai_diagnosis.quadrant} —{' '}
+                          <strong>Direcionamento Isaac:</strong> {tr.ai_diagnosis.quadrant} —{' '}
                           {tr.ai_diagnosis.quadrantAdvice}
                         </div>
                       )}

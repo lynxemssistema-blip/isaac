@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Compass, Feather, Heart, ArrowRight, Sparkles, Check } from 'lucide-react';
 
-const SUGGESTIONS = ['Izaque', 'Guia', 'Mentor', 'Hermes', 'Sophia', 'Conselheiro'];
+const SUGGESTIONS = ['Isaac', 'Guia', 'Mentor', 'Hermes', 'Sophia', 'Conselheiro'];
 
 export default function WelcomeOnboarding({ userName = 'Viajante', onComplete }) {
-  const [guideName, setGuideName] = useState('Izaque');
+  const [guideName, setGuideName] = useState('Isaac');
   const [customName, setCustomName] = useState('');
   const [isCustom, setIsCustom] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -16,11 +16,13 @@ export default function WelcomeOnboarding({ userName = 'Viajante', onComplete })
   };
 
   const handleConfirm = () => {
-    const finalName = (isCustom ? customName.trim() : guideName.trim()) || 'Izaque';
+    const finalName = (isCustom ? customName.trim() : guideName.trim()) || 'Isaac';
     setIsSaving(true);
 
     // Salva localmente e no estado
+    localStorage.setItem('isaac_guide_name', finalName);
     localStorage.setItem('izaque_guide_name', finalName);
+    localStorage.setItem('isaac_onboarding_completed', 'true');
     localStorage.setItem('izaque_onboarding_completed', 'true');
 
     setTimeout(() => {
@@ -64,7 +66,7 @@ export default function WelcomeOnboarding({ userName = 'Viajante', onComplete })
               Olá, {userName}.
             </h2>
             <p className="text-base sm:text-lg text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
-              Eu serei o seu guia nesta jornada de clareza e desatamento de nós emocionais. Meu nome de origem é <strong className="font-semibold text-teal-800 dark:text-teal-300">Izaque</strong>, mas você pode me chamar como preferir.
+              Eu serei o seu guia nesta jornada de clareza e desatamento de nós emocionais. Meu nome de origem é <strong className="font-semibold text-teal-800 dark:text-teal-300">Isaac</strong>, mas você pode me chamar como preferir.
             </p>
             <p className="text-sm text-stone-500 dark:text-stone-400">
               Como você gostaria de me chamar nos nossos momentos de conversa?

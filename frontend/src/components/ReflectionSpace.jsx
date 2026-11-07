@@ -62,7 +62,7 @@ import UserSettingsModal from './UserSettingsModal';
  * Indicador de Reflexão Humanizado
  * Substitui o loading mecânico por um momento de escuta atenta e compassiva
  */
-function ReflectingIndicator({ guideName = 'Izaque' }) {
+function ReflectingIndicator({ guideName = 'Isaac' }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -179,7 +179,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
   const canShowAmbient = systemSettings ? systemSettings.show_ambient_sound_button !== false : true;
 
   const [guideName, setGuideName] = useState(() => {
-    return localStorage.getItem('izaque_guide_name') || 'Izaque';
+    return localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac';
   });
 
   const [reflections, setReflections] = useState([
@@ -1685,7 +1685,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-serif font-medium">{isUser ? 'Você' : guideName}</span>
-                    {!isUser && item.agentUsed?.name && item.agentUsed.slug !== 'izaque-master' && (
+                    {!isUser && item.agentUsed?.name && item.agentUsed.slug !== 'izaque-master' && item.agentUsed.slug !== 'isaac-master' && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/40 font-serif flex items-center gap-1">
                         {item.agentUsed.slug === 'pastor-joao-biblico' ? '📖 ' : item.agentUsed.slug === 'mentor-financeiro' ? '💰 ' : item.agentUsed.slug === 'mentora-lideranca' ? '👥 ' : '🌿 '}
                         {item.agentUsed.name.split(' - ')[0]}

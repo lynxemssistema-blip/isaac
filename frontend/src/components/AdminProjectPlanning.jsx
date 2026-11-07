@@ -391,7 +391,7 @@ export default function AdminProjectPlanning({ currentUser }) {
       <div className="py-20 flex flex-col items-center justify-center space-y-4 text-center">
         <div className="w-10 h-10 border-3 border-teal-700/30 border-t-teal-700 rounded-full animate-spin" />
         <p className="text-sm font-serif text-stone-600 dark:text-stone-400">
-          Carregando governança e cronograma do projeto IZAQUE...
+          Carregando governança e cronograma do projeto ISAAC...
         </p>
       </div>
     );

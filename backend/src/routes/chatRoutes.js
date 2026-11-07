@@ -61,7 +61,7 @@ router.post('/subscription/pix-order', createPixOrder);
 router.post('/subscription/feedback', sendSubscriberFeedback);
 router.get('/subscription/status/:userId', getUserSubscriptionStatus);
 
-// Rota do Perfil Público do Idealizador do IZAQUE
+// Rota do Perfil Público do Idealizador do ISAAC
 router.get('/creator', getPublicCreator);
 
 export default router;

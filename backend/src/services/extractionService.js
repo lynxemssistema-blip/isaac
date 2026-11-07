@@ -19,7 +19,7 @@ export async function extractAndSaveMemoryAsync(userId, userMessage, assistantRe
       }
 
       const extractionPrompt = `
-Você é um observador psicológico sênior e guardião de memória contínua do sistema "IZAQUE".
+Você é um observador psicológico sênior e guardião de memória contínua do sistema "ISAAC".
 Sua missão essencial é analisar a fala do usuário (especialmente quando responde a perguntas de condução dos mentores) e extrair FATOS DURADOUROS, APRENDIZADOS, VIVÊNCIAS E GATILHOS para aprimorar e personalizar permanentemente o conhecimento do agente sobre este usuário.
 
 Critérios para extrair e registrar na memória permanente:

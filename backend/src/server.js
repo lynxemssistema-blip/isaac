@@ -46,7 +46,7 @@ app.use(morgan('dev'));
 const healthHandler = (req, res) => {
   res.status(200).json({
     status: 'online',
-    service: 'IZAQUE API - Backend Orchestrator',
+    service: 'ISAAC API - Backend Orchestrator',
     timestamp: new Date().toISOString(),
     env: process.env.NODE_ENV || 'development',
     frontendMounted: fs.existsSync(distPath),
@@ -87,13 +87,13 @@ if (fs.existsSync(distPath)) {
 
 // Fallback para rotas de API inexistentes
 app.use((req, res) => {
-  res.status(404).json({ error: 'Rota não encontrada no servidor IZAQUE API.' });
+  res.status(404).json({ error: 'Rota não encontrada no servidor ISAAC API.' });
 });
 
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error('🔥 [Unhandled Error]', err);
-  res.status(500).json({ error: 'Erro interno no servidor IZAQUE API.' });
+  res.status(500).json({ error: 'Erro interno no servidor ISAAC API.' });
 });
 
 // Proteções contra crash do processo em produção
@@ -107,7 +107,7 @@ process.on('uncaughtException', (err) => {
 
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`====================================================`);
-  console.log(`🚀 [IZAQUE API] Servidor ativo na porta ${PORT}`);
+  console.log(`🚀 [ISAAC API] Servidor ativo na porta ${PORT}`);
   console.log(`🧠 [RAG Memory] Pronto para gerenciar memórias com Supabase e Gemini`);
   console.log(`📡 [Health Check] Acesse http://localhost:${PORT}/health`);
   console.log(`🌐 [Modo] ${process.env.NODE_ENV || 'development'}`);
@@ -115,7 +115,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 });
 
 process.on('SIGTERM', () => {
-  console.log('🛑 [SIGTERM] Encerrando servidor IZAQUE API com graça...');
+  console.log('🛑 [SIGTERM] Encerrando servidor ISAAC API com graça...');
   server.close(() => {
     console.log('✅ Servidor finalizado com sucesso.');
     process.exit(0);

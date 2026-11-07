@@ -25,7 +25,7 @@ router.post('/creative-troubles/chat-step', handleChatStep);
 // Cruzamento metodológico e raio-x de múltiplos incômodos
 router.get('/creative-troubles/cross-analysis', generateCrossAnalysis);
 
-// Descontaminação socrática do fato (IA Izaque / Thiago Prata)
+// Descontaminação socrática do fato (IA Isaac / Thiago Prata)
 router.post('/creative-troubles/analyze-fact', analyzeFactSocratic);
 
 // Geração de diagnóstico clínico e quadrante IRRI

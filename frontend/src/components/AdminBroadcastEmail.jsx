@@ -372,7 +372,7 @@ export default function AdminBroadcastEmail({ currentUser }) {
           </button>
           <button
             type="button"
-            onClick={() => handleGenerateDraft('Apresentação do plano IZAQUE Pro, suporte à sobriedade e reflexões diárias')}
+            onClick={() => handleGenerateDraft('Apresentação do plano ISAAC Pro, suporte à sobriedade e reflexões diárias')}
             disabled={isGenerating}
             className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-700 text-[11px] text-stone-700 dark:text-stone-300 hover:border-teal-500 transition"
           >
@@ -453,7 +453,7 @@ export default function AdminBroadcastEmail({ currentUser }) {
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="Ex: 🌿 Uma carta de presença, novos mentores e o seu espaço no IZAQUE"
+                placeholder="Ex: 🌿 Uma carta de presença, novos mentores e o seu espaço no ISAAC"
                 className="w-full p-3 rounded-xl bg-stone-50 dark:bg-slate-900 border border-stone-300/80 dark:border-slate-700 text-xs font-serif font-medium text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-teal-600"
               />
             </div>
@@ -503,7 +503,7 @@ export default function AdminBroadcastEmail({ currentUser }) {
           <div className="border border-stone-200 dark:border-slate-700 rounded-2xl overflow-hidden bg-stone-100 dark:bg-slate-950 p-4 sm:p-8">
             <div className="max-w-[620px] mx-auto bg-[#faf9f6] text-[#292524] rounded-3xl p-6 sm:p-10 border border-[#e7e5e4] shadow-sm font-sans">
               <div className="text-center mb-6">
-                <h1 className="text-2xl font-serif font-bold text-[#0f766e] tracking-tight">IZAQUE</h1>
+                <h1 className="text-2xl font-serif font-bold text-[#0f766e] tracking-tight">ISAAC</h1>
                 <p className="text-xs text-[#78716c] italic mt-1">
                   Espaço de Clareza, Acolhimento & Reconstrução de Vida
                 </p>
@@ -533,7 +533,7 @@ export default function AdminBroadcastEmail({ currentUser }) {
                     Equipe Lynx EMS
                   </p>
                   <p className="text-xs text-[#64748b] mt-0.5 mb-0">
-                    Tecnologia com Alma & Mentoria IZAQUE
+                    Tecnologia com Alma & Mentoria ISAAC
                   </p>
                   <p className="text-xs text-[#0f766e] mt-1 mb-0 font-medium">
                     suporte@lynxems.com.br
@@ -542,7 +542,7 @@ export default function AdminBroadcastEmail({ currentUser }) {
               </div>
 
               <div className="text-center mt-6 text-[11px] text-[#a8a29e]">
-                Você está recebendo este comunicado porque faz parte do refúgio <strong>IZAQUE</strong>.<br />
+                Você está recebendo este comunicado porque faz parte do refúgio <strong>ISAAC</strong>.<br />
                 © {new Date().getFullYear()} Lynx EMS. Todos os direitos reservados.
               </div>
             </div>

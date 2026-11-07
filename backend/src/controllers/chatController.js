@@ -29,12 +29,12 @@ export async function getActiveAgents(req, res) {
  * de acordo com o contexto e intenção da conversa do usuário.
  */
 async function resolveAgent(agentId, userMessage, allAgents, history = []) {
-  const masterAgent = allAgents?.find(a => a.slug === 'izaque-master') || {
+  const masterAgent = allAgents?.find(a => a.slug === 'izaque-master' || a.slug === 'isaac-master') || {
     id: 'default',
-    name: 'IZAQUE - Arquiteto da Mentalidade',
-    slug: 'izaque-master',
+    name: 'ISAAC - Arquiteto da Mentalidade',
+    slug: 'isaac-master',
     type: 'mindset',
-    system_prompt: 'Você é IZAQUE, mentor de alta performance especialista em reprogramação de mentalidade, identificação de bloqueios emocionais e superação de autossabotagem.',
+    system_prompt: 'Você é ISAAC, mentor de alta performance especialista em reprogramação de mentalidade, identificação de bloqueios emocionais e superação de autossabotagem.',
     temperature: 0.70,
   };
 
@@ -63,7 +63,7 @@ async function resolveAgent(agentId, userMessage, allAgents, history = []) {
   if (isSobrietyIntent) {
     const sobrietyAgent = allAgents?.find(a => a.slug === 'renato-sobriedade' || a.type === 'sobriedade');
     if (sobrietyAgent) {
-      console.log(`🧭 [IZAQUE Router] Intenção de sobriedade/alcoolismo detectada -> Direcionado para: "${sobrietyAgent.name}"`);
+      console.log(`🧭 [ISAAC Router] Intenção de sobriedade/alcoolismo detectada -> Direcionado para: "${sobrietyAgent.name}"`);
       return sobrietyAgent;
     }
   }
@@ -82,7 +82,7 @@ async function resolveAgent(agentId, userMessage, allAgents, history = []) {
   if (isBiblicalIntent) {
     const biblicalAgent = allAgents?.find(a => a.slug === 'pastor-joao-biblico' || a.type === 'espiritualidade');
     if (biblicalAgent) {
-      console.log(`🧭 [IZAQUE Router] Intenção bíblica/espiritual detectada -> Direcionado para: "${biblicalAgent.name}"`);
+      console.log(`🧭 [ISAAC Router] Intenção bíblica/espiritual detectada -> Direcionado para: "${biblicalAgent.name}"`);
       return biblicalAgent;
     }
   }
@@ -100,7 +100,7 @@ async function resolveAgent(agentId, userMessage, allAgents, history = []) {
   if (isFinanceIntent) {
     const financeAgent = allAgents?.find(a => a.slug === 'mentor-financeiro' || a.type === 'financeiro');
     if (financeAgent) {
-      console.log(`🧭 [IZAQUE Router] Intenção financeira detectada -> Direcionado para: "${financeAgent.name}"`);
+      console.log(`🧭 [ISAAC Router] Intenção financeira detectada -> Direcionado para: "${financeAgent.name}"`);
       return financeAgent;
     }
   }
@@ -118,7 +118,7 @@ async function resolveAgent(agentId, userMessage, allAgents, history = []) {
   if (isLeadershipIntent) {
     const leadershipAgent = allAgents?.find(a => a.slug === 'mentora-lideranca' || a.type === 'lideranca');
     if (leadershipAgent) {
-      console.log(`🧭 [IZAQUE Router] Intenção de liderança detectada -> Direcionado para: "${leadershipAgent.name}"`);
+      console.log(`🧭 [ISAAC Router] Intenção de liderança detectada -> Direcionado para: "${leadershipAgent.name}"`);
       return leadershipAgent;
     }
   }
@@ -136,7 +136,7 @@ async function resolveAgent(agentId, userMessage, allAgents, history = []) {
   if (isBurnoutIntent) {
     const burnoutAgent = allAgents?.find(a => a.slug === 'dra-sofia-burnout' || a.type === 'burnout');
     if (burnoutAgent) {
-      console.log(`🧭 [IZAQUE Router] Intenção de burnout/limites detectada -> Direcionado para: "${burnoutAgent.name}"`);
+      console.log(`🧭 [ISAAC Router] Intenção de burnout/limites detectada -> Direcionado para: "${burnoutAgent.name}"`);
       return burnoutAgent;
     }
   }
@@ -154,7 +154,7 @@ async function resolveAgent(agentId, userMessage, allAgents, history = []) {
   if (isGriefIntent) {
     const griefAgent = allAgents?.find(a => a.slug === 'clara-luto-recomeco' || a.type === 'luto');
     if (griefAgent) {
-      console.log(`🧭 [IZAQUE Router] Intenção de luto/término detectada -> Direcionado para: "${griefAgent.name}"`);
+      console.log(`🧭 [ISAAC Router] Intenção de luto/término detectada -> Direcionado para: "${griefAgent.name}"`);
       return griefAgent;
     }
   }
@@ -171,7 +171,7 @@ async function resolveAgent(agentId, userMessage, allAgents, history = []) {
   if (isStoicIntent) {
     const stoicAgent = allAgents?.find(a => a.slug === 'marco-aurelio-estoico' || a.type === 'estoicismo');
     if (stoicAgent) {
-      console.log(`🧭 [IZAQUE Router] Intenção estoica detectada -> Direcionado para: "${stoicAgent.name}"`);
+      console.log(`🧭 [ISAAC Router] Intenção estoica detectada -> Direcionado para: "${stoicAgent.name}"`);
       return stoicAgent;
     }
   }
@@ -189,7 +189,7 @@ async function resolveAgent(agentId, userMessage, allAgents, history = []) {
   if (isCourageIntent) {
     const courageAgent = allAgents?.find(a => a.slug === 'caleb-coragem' || a.type === 'coragem');
     if (courageAgent) {
-      console.log(`🧭 [IZAQUE Router] Intenção de coragem/impostor detectada -> Direcionado para: "${courageAgent.name}"`);
+      console.log(`🧭 [ISAAC Router] Intenção de coragem/impostor detectada -> Direcionado para: "${courageAgent.name}"`);
       return courageAgent;
     }
   }
@@ -203,7 +203,7 @@ async function resolveAgent(agentId, userMessage, allAgents, history = []) {
         .join('\n');
 
       const routerPrompt = `
-Você é o Orquestrador Central da Mentoria "IZAQUE".
+Você é o Orquestrador Central da Mentoria "ISAAC".
 Sua função é analisar a mensagem do usuário e o contexto da conversa para decidir qual Especialista é o mais indicado para responder e acolher o desabafo.
 
 ESPECIALISTAS DA MENTORIA:
@@ -232,7 +232,7 @@ DIRETRIZES:
 - Se envolver perda, luto, término, morte, separação: selecione a especialista em luto e recomeço.
 - Se envolver ansiedade com o incontrolável, estoicismo, controle emocional: selecione o mentor estoico.
 - Se envolver síndrome do impostor, medo de avançar, insegurança profissional: selecione o mentor de coragem.
-- Se for geral, autossabotagem, desabafo emocional amplo: selecione o IZAQUE Master (${masterAgent.id}).
+- Se for geral, autossabotagem, desabafo emocional amplo: selecione o ISAAC Master (${masterAgent.id}).
 
 Retorne EXCLUSIVAMENTE o ID ou Slug do especialista escolhido. Não inclua explicações ou texto extra.`;
 
@@ -263,11 +263,11 @@ Retorne EXCLUSIVAMENTE o ID ou Slug do especialista escolhido. Não inclua expli
       }
 
       if (autoPicked) {
-        console.log(`🧭 [IZAQUE Router] Direcionado via IA para: "${autoPicked.name}" (${autoPicked.slug})`);
+        console.log(`🧭 [ISAAC Router] Direcionado via IA para: "${autoPicked.name}" (${autoPicked.slug})`);
         return autoPicked;
       }
     } catch (err) {
-      console.warn('⚠️ Falha no auto-roteamento via IA, usando IZAQUE Master:', err.message);
+      console.warn('⚠️ Falha no auto-roteamento via IA, usando ISAAC Master:', err.message);
     }
   }
 
@@ -399,7 +399,7 @@ ${creativeTroublesText}
 
 ${guidedInstruction}
 
-DIRETRIZES DO IZAQUE (OTIMIZADO PARA FALA HUMANA E ACOLHIMENTO):
+DIRETRIZES DO ISAAC (OTIMIZADO PARA FALA HUMANA E ACOLHIMENTO):
 1. Sua resposta será lida em voz alta por uma voz humana empática. NUNCA use listas com marcadores (* ou -), tópicos enumerados, emojis ou formatação Markdown excessiva.
 2. Escreva de forma conversacional, em parágrafos curtos, calorosos e fluidos.
 3. USE RETICÊNCIAS (...) estrategicamente para forçar pausas respiratórias e dramáticas na fala. Aja como um mentor com voz mansa e acolhedora.
@@ -687,7 +687,7 @@ export async function handleChatMessage(req, res) {
     });
 
   } catch (error) {
-    console.error('❌ [IZAQUE Chat] Erro ao processar mensagem:');
+    console.error('❌ [ISAAC Chat] Erro ao processar mensagem:');
     console.error('   message:', error.message);
     console.error('   status:', error.status);
     console.error('   stack:', error.stack?.split('\n')[1]);
@@ -724,7 +724,7 @@ export async function handleAudioChatMessage(req, res) {
       return res.status(200).json({
         transcription: '[Áudio inaudível]',
         reply: 'Não consegui compreender nitidamente o que você disse no áudio. Pode gravar novamente ou digitar a sua mensagem?',
-        agentUsed: { name: 'IZAQUE - Arquiteto da Mentalidade', type: 'mindset' },
+        agentUsed: { name: 'ISAAC - Arquiteto da Mentalidade', type: 'mindset' },
         memoriesUsed: [],
         knowledgeUsed: [],
         timestamp: new Date().toISOString(),

@@ -81,7 +81,7 @@ export default function SubscriberFeedbackModal({ isOpen, onClose, user, profile
             Suporte Oficial Lynx
           </h2>
           <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 font-serif leading-relaxed">
-            Canal direto para envio de sugestões, relatos ou dúvidas para a equipe responsável pelo IZAQUE.
+            Canal direto para envio de sugestões, relatos ou dúvidas para a equipe responsável pelo ISAAC.
           </p>
         </div>
 

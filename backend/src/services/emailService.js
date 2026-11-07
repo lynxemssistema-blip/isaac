@@ -51,23 +51,23 @@ export function getEmailTransporter() {
  */
 export async function sendTestEmail(toEmail) {
   const transporter = getEmailTransporter();
-  const fromAddress = `"IZAQUE - Suporte & Mentoria" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
+  const fromAddress = `"ISAAC - Suporte & Mentoria" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
 
   const mailOptions = {
     from: fromAddress,
     to: toEmail,
-    subject: '🌿 Teste de Conexão - Suporte IZAQUE',
+    subject: '🌿 Teste de Conexão - Suporte ISAAC',
     html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #faf9f6; padding: 32px; border-radius: 24px; border: 1px solid #e7e5e4; color: #292524;">
         <div style="text-align: center; margin-bottom: 24px;">
-          <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 600;">IZAQUE</h1>
+          <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 600;">ISAAC</h1>
           <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Espaço de Clareza & Mentoria de Vida</p>
         </div>
 
         <div style="background-color: #ffffff; padding: 28px; border-radius: 20px; border: 1px solid #f5f5f4; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
           <h2 style="font-size: 18px; color: #1c1917; margin-top: 0;">✅ Teste de E-mail de Suporte Concluído</h2>
           <p style="font-size: 14px; line-height: 1.6; color: #44403c;">
-            Olá! Este é um e-mail de teste para validar o canal de suporte oficial do <strong>IZAQUE</strong>.
+            Olá! Este é um e-mail de teste para validar o canal de suporte oficial do <strong>ISAAC</strong>.
           </p>
           <p style="font-size: 14px; line-height: 1.6; color: #44403c;">
             O servidor SMTP da Hostinger (<code>smtp.hostinger.com:465</code>) está conectado com sucesso e pronto para envio das recuperações de senha e suporte dos usuários.
@@ -81,7 +81,7 @@ export async function sendTestEmail(toEmail) {
         </div>
 
         <div style="text-align: center; margin-top: 24px; font-size: 11px; color: #a8a29e;">
-          © ${new Date().getFullYear()} IZAQUE Mentoria. Todos os direitos reservados.
+          © ${new Date().getFullYear()} ISAAC Mentoria. Todos os direitos reservados.
         </div>
       </div>
     `,
@@ -97,25 +97,25 @@ export async function sendTestEmail(toEmail) {
  */
 export async function sendPasswordResetEmail({ toEmail, name, resetLink }) {
   const transporter = getEmailTransporter();
-  const fromAddress = `"IZAQUE - Suporte & Mentoria" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
+  const fromAddress = `"ISAAC - Suporte & Mentoria" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
 
   const displayName = name ? name.split(' ')[0] : 'Viajante';
 
   const mailOptions = {
     from: fromAddress,
     to: toEmail,
-    subject: '🔑 Recuperação de Acesso ao seu Refúgio - IZAQUE',
+    subject: '🔑 Recuperação de Acesso ao seu Refúgio - ISAAC',
     html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #faf9f6; padding: 32px; border-radius: 24px; border: 1px solid #e7e5e4; color: #292524;">
         <div style="text-align: center; margin-bottom: 24px;">
-          <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 600;">IZAQUE</h1>
+          <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 600;">ISAAC</h1>
           <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Espaço de Clareza & Mentoria de Vida</p>
         </div>
 
         <div style="background-color: #ffffff; padding: 32px; border-radius: 20px; border: 1px solid #f5f5f4; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
           <h2 style="font-size: 18px; color: #1c1917; margin-top: 0;">Olá, ${displayName}</h2>
           <p style="font-size: 14px; line-height: 1.6; color: #44403c;">
-            Recebemos uma solicitação para redefinir a sua senha de acesso ao seu refúgio pessoal no <strong>IZAQUE</strong>.
+            Recebemos uma solicitação para redefinir a sua senha de acesso ao seu refúgio pessoal no <strong>ISAAC</strong>.
           </p>
           <p style="font-size: 14px; line-height: 1.6; color: #44403c;">
             Para criar sua nova senha com segurança, clique no botão abaixo:
@@ -155,18 +155,18 @@ export async function sendPasswordResetEmail({ toEmail, name, resetLink }) {
 export async function sendSubscriptionOrderNotification({ toEmail, userName, planName, price, pixKey }) {
   try {
     const transporter = getEmailTransporter();
-    const fromAddress = `"IZAQUE - Suporte & Assinaturas" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
+    const fromAddress = `"ISAAC - Suporte & Assinaturas" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
     const formattedPrice = Number(price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
     // 1. E-mail de confirmação para o Usuário
     await transporter.sendMail({
       from: fromAddress,
       to: toEmail,
-      subject: '🌿 Recebemos sua solicitação de assinatura - IZAQUE',
+      subject: '🌿 Recebemos sua solicitação de assinatura - ISAAC',
       html: `
         <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #faf9f6; padding: 32px; border-radius: 24px; border: 1px solid #e7e5e4; color: #292524;">
           <div style="text-align: center; margin-bottom: 24px;">
-            <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 600;">IZAQUE</h1>
+            <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 600;">ISAAC</h1>
             <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Espaço de Clareza & Mentoria de Vida</p>
           </div>
 
@@ -212,7 +212,7 @@ export async function sendSubscriptionOrderNotification({ toEmail, userName, pla
             <li><strong>Valor:</strong> ${formattedPrice}</li>
             <li><strong>Data:</strong> ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</li>
           </ul>
-          <p>Acesse o <a href="https://izaque.lynxems.com.br">Painel de Gestão IZAQUE</a> para conferir e aprovar.</p>
+          <p>Acesse o <a href="https://isaac.lynxems.com.br">Painel de Gestão ISAAC</a> para conferir e aprovar.</p>
         </div>
       `,
     });
@@ -227,16 +227,16 @@ export async function sendSubscriptionOrderNotification({ toEmail, userName, pla
 export async function sendSubscriptionApprovedNotification({ toEmail, userName, planName }) {
   try {
     const transporter = getEmailTransporter();
-    const fromAddress = `"IZAQUE - Suporte & Mentoria" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
+    const fromAddress = `"ISAAC - Suporte & Mentoria" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
 
     await transporter.sendMail({
       from: fromAddress,
       to: toEmail,
-      subject: '✨ Seu refúgio ilimitado foi ativado! - IZAQUE',
+      subject: '✨ Seu refúgio ilimitado foi ativado! - ISAAC',
       html: `
         <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #faf9f6; padding: 32px; border-radius: 24px; border: 1px solid #e7e5e4; color: #292524;">
           <div style="text-align: center; margin-bottom: 24px;">
-            <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 600;">IZAQUE</h1>
+            <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 600;">ISAAC</h1>
             <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Espaço de Clareza & Mentoria de Vida</p>
           </div>
 
@@ -253,8 +253,8 @@ export async function sendSubscriptionApprovedNotification({ toEmail, userName, 
             </p>
 
             <div style="margin: 32px 0;">
-              <a href="https://izaque.lynxems.com.br" style="background-color: #0f766e; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 16px; font-weight: 600; font-size: 14px; display: inline-block;">
-                Acessar a Mentoria IZAQUE
+              <a href="https://isaac.lynxems.com.br" style="background-color: #0f766e; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 16px; font-weight: 600; font-size: 14px; display: inline-block;">
+                Acessar a Mentoria ISAAC
               </a>
             </div>
           </div>
@@ -286,14 +286,14 @@ export async function sendFeedbackToSupport({ fromEmail, userName, userPlan, typ
 
   // 1. Envia para a equipe de suporte
   const info = await transporter.sendMail({
-    from: `"IZAQUE Assinantes" <${supportEmail}>`,
+    from: `"ISAAC Assinantes" <${supportEmail}>`,
     replyTo: fromEmail,
     to: supportEmail,
     subject: `[${typeLabel}] ${subject || 'Sem Assunto'} - ${userName} (${fromEmail})`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8fafc; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0;">
         <div style="background-color: #ffffff; padding: 24px; border-radius: 12px;">
-          <h2 style="color: #0f766e; margin-top: 0;">Nova mensagem de cliente do IZAQUE</h2>
+          <h2 style="color: #0f766e; margin-top: 0;">Nova mensagem de cliente do ISAAC</h2>
           <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 20px;">
             <tr><td style="padding: 6px 0; color: #64748b;"><strong>Tipo:</strong></td><td style="color: #0f172a;">${typeLabel}</td></tr>
             <tr><td style="padding: 6px 0; color: #64748b;"><strong>Nome:</strong></td><td style="color: #0f172a;">${userName || 'Não informado'}</td></tr>
@@ -315,7 +315,7 @@ ${message}
     await transporter.sendMail({
       from: `"Suporte Lynx EMS" <${supportEmail}>`,
       to: fromEmail,
-      subject: `🌿 Recebemos sua mensagem: "${subject}" - Suporte IZAQUE`,
+      subject: `🌿 Recebemos sua mensagem: "${subject}" - Suporte ISAAC`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #faf9f6; padding: 24px; border-radius: 16px; border: 1px solid #e7e5e4;">
           <div style="background-color: #ffffff; padding: 24px; border-radius: 12px;">
@@ -346,7 +346,7 @@ ${message}
 export async function generateBroadcastEmailDraft({ topic, targetAudience = 'all', extraPrompt = '' }) {
   const modelsToTry = [CHAT_MODEL, ...(FALLBACK_CHAT_MODELS || [])].filter((m, i, arr) => arr.indexOf(m) === i);
 
-  const defaultTopic = `Novidades e melhorias recentes no aplicativo IZAQUE:
+  const defaultTopic = `Novidades e melhorias recentes no aplicativo ISAAC:
 1. Chegada de 4 novos mentores especialistas para acolher sua jornada:
    - Marco Aurélio (Resiliência & Serenidade Estoica para lidar com o que não podemos controlar)
    - Clara (Travessia do Luto, Términos Difíceis e Reconstrução Existencial)
@@ -358,15 +358,15 @@ export async function generateBroadcastEmailDraft({ topic, targetAudience = 'all
 
   const chosenTopic = (topic && topic.trim().length > 0) ? topic.trim() : defaultTopic;
 
-  const prompt = `Você é o redator sênior de comunicação e acolhimento humano da Mentoria IZAQUE e da Equipe Lynx EMS.
-Sua missão é escrever um e-mail oficial de novidades para os usuários cadastrados no aplicativo IZAQUE.
+  const prompt = `Você é o redator sênior de comunicação e acolhimento humano da Mentoria ISAAC e da Equipe Lynx EMS.
+Sua missão é escrever um e-mail oficial de novidades para os usuários cadastrados no aplicativo ISAAC.
 
 DIRETRIZES ESSENCIAIS DE COMUNICAÇÃO:
 1. SEJA DETALHISTA: Explique com riqueza de detalhes cada novidade, o propósito ético de cada melhoria e como isso acolhe o usuário na prática.
 2. EXTREMAMENTE EDUCADO E POLIDO: Trate o usuário com reverência, elegância, respeito e gentileza.
 3. HUMANIZADO AO MÁXIMO: O tom NÃO pode parecer marketing frio, spam de vendas ou anúncio superficial. Deve parecer uma carta de acolhimento escrita com carinho e presença viva.
 4. PERSONALIZAÇÃO: Use a tag {{nome}} no início para saudação individual (ex: "Olá, {{nome}}...").
-5. ASSINATURA OBRIGATÓRIA: O texto deve concluir homenageando a jornada do usuário e preparando a assinatura da "Equipe Lynx EMS & Mentoria IZAQUE".
+5. ASSINATURA OBRIGATÓRIA: O texto deve concluir homenageando a jornada do usuário e preparando a assinatura da "Equipe Lynx EMS & Mentoria ISAAC".
 
 NOVIDADES A COMUNICAR:
 ${chosenTopic}
@@ -413,9 +413,9 @@ RETORNE EXCLUSIVAMENTE UM OBJETO JSON VÁLIDO (sem fences markdown extras fora d
 }
 
 /**
- * Envelopa o conteúdo no layout HTML oficial do IZAQUE com a assinatura da Equipe Lynx EMS
+ * Envelopa o conteúdo no layout HTML oficial do ISAAC com a assinatura da Equipe Lynx EMS
  */
-export function renderBroadcastEmailHtml({ contentHtml, userName, appUrl = 'https://izaque.lynxems.com.br', callToActionText = 'Acessar o IZAQUE' }) {
+export function renderBroadcastEmailHtml({ contentHtml, userName, appUrl = 'https://isaac.lynxems.com.br', callToActionText = 'Acessar o ISAAC' }) {
   const safeName = userName ? userName.split(' ')[0] : 'Viajante';
   const personalizedContent = (contentHtml || '')
     .replace(/\{\{nome\}\}/gi, safeName)
@@ -425,7 +425,7 @@ export function renderBroadcastEmailHtml({ contentHtml, userName, appUrl = 'http
     <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 620px; margin: 0 auto; background-color: #faf9f6; padding: 36px 20px; border-radius: 28px; border: 1px solid #e7e5e4; color: #292524; line-height: 1.65;">
       <!-- CABEÇALHO -->
       <div style="text-align: center; margin-bottom: 28px;">
-        <h1 style="color: #0f766e; font-size: 28px; margin: 0; font-weight: 600; letter-spacing: -0.5px;">IZAQUE</h1>
+        <h1 style="color: #0f766e; font-size: 28px; margin: 0; font-weight: 600; letter-spacing: -0.5px;">ISAAC</h1>
         <p style="color: #78716c; font-size: 13px; margin-top: 4px; font-style: italic;">Espaço de Clareza, Acolhimento & Reconstrução de Vida</p>
       </div>
 
@@ -446,7 +446,7 @@ export function renderBroadcastEmailHtml({ contentHtml, userName, appUrl = 'http
         <div style="margin-top: 36px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
           <p style="margin: 0; font-size: 14px; font-weight: 600; color: #0f766e;">Com respeito, admiração e carinho pela sua caminhada,</p>
           <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 700; color: #0f172a;">Equipe Lynx EMS</p>
-          <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Tecnologia com Alma & Mentoria IZAQUE</p>
+          <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Tecnologia com Alma & Mentoria ISAAC</p>
           <p style="margin: 6px 0 0 0; font-size: 12px;">
             <a href="mailto:suporte@lynxems.com.br" style="color: #0f766e; text-decoration: none; font-weight: 500;">suporte@lynxems.com.br</a>
           </p>
@@ -455,7 +455,7 @@ export function renderBroadcastEmailHtml({ contentHtml, userName, appUrl = 'http
 
       <!-- RODAPÉ -->
       <div style="text-align: center; margin-top: 24px; font-size: 11px; color: #a8a29e;">
-        Você está recebendo este comunicado porque faz parte do refúgio <strong>IZAQUE</strong>.<br>
+        Você está recebendo este comunicado porque faz parte do refúgio <strong>ISAAC</strong>.<br>
         © ${new Date().getFullYear()} Lynx EMS. Todos os direitos reservados.
       </div>
     </div>
@@ -473,8 +473,8 @@ export async function sendBroadcastEmail({
   testEmail = null,
 }) {
   const transporter = getEmailTransporter();
-  const fromAddress = `"Equipe Lynx EMS - IZAQUE" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
-  const appUrl = (process.env.APP_URL || 'https://izaque.lynxems.com.br').replace(/\/$/, '');
+  const fromAddress = `"Equipe Lynx EMS - ISAAC" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
+  const appUrl = (process.env.APP_URL || 'https://isaac.lynxems.com.br').replace(/\/$/, '');
 
   // 1. Modo de Teste
   if (targetAudience === 'test') {
@@ -606,7 +606,7 @@ export async function sendBroadcastEmail({
 }
 
 /**
- * Envia e-mail de cobrança / lembrete de atividade do Projeto IZAQUE
+ * Envia e-mail de cobrança / lembrete de atividade do Projeto ISAAC
  */
 export async function sendTaskReminderEmail({
   recipientEmail,
@@ -620,7 +620,7 @@ export async function sendTaskReminderEmail({
   isDueToday = false,
 }) {
   const transporter = getEmailTransporter();
-  const fromAddress = `"Gestão de Projetos IZAQUE" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
+  const fromAddress = `"Gestão de Projetos ISAAC" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
 
   const priorityLabels = {
     critical: '🔴 Crítica',
@@ -649,7 +649,7 @@ export async function sendTaskReminderEmail({
     html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #faf9f6; padding: 32px 20px; border-radius: 24px; border: 1px solid #e7e5e4; color: #292524;">
         <div style="text-align: center; margin-bottom: 24px;">
-          <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 700; letter-spacing: -0.5px;">IZAQUE</h1>
+          <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 700; letter-spacing: -0.5px;">ISAAC</h1>
           <p style="color: #78716c; font-size: 13px; margin-top: 4px; font-weight: 500;">Governança & Cronograma de Entregas</p>
         </div>
 
@@ -662,7 +662,7 @@ export async function sendTaskReminderEmail({
 
           <h2 style="font-size: 18px; color: #1c1917; margin-top: 0; margin-bottom: 8px;">Olá, ${recipientName || 'Colega de Equipe'}!</h2>
           <p style="font-size: 14px; line-height: 1.6; color: #57534e; margin-bottom: 20px;">
-            Este é um aviso automático do sistema de acompanhamento do Projeto IZAQUE sobre uma atividade sob sua responsabilidade:
+            Este é um aviso automático do sistema de acompanhamento do Projeto ISAAC sobre uma atividade sob sua responsabilidade:
           </p>
 
           <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; margin-bottom: 20px;">
@@ -700,7 +700,7 @@ export async function sendTaskReminderEmail({
         </div>
 
         <div style="text-align: center; margin-top: 24px; font-size: 11px; color: #a8a29e;">
-          © ${new Date().getFullYear()} Gestão do Projeto IZAQUE. Sistema Automatizado de Cronograma.
+          © ${new Date().getFullYear()} Gestão do Projeto ISAAC. Sistema Automatizado de Cronograma.
         </div>
       </div>
     `,
@@ -722,7 +722,7 @@ export async function sendTaskCompletedEmail({
   milestoneTitle = 'Fase Geral',
 }) {
   const transporter = getEmailTransporter();
-  const fromAddress = `"Gestão de Projetos IZAQUE" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
+  const fromAddress = `"Gestão de Projetos ISAAC" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
 
   const formattedDate = completedDate
     ? new Date(completedDate).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
@@ -735,7 +735,7 @@ export async function sendTaskCompletedEmail({
     html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #faf9f6; padding: 32px 20px; border-radius: 24px; border: 1px solid #e7e5e4; color: #292524;">
         <div style="text-align: center; margin-bottom: 24px;">
-          <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 700; letter-spacing: -0.5px;">IZAQUE</h1>
+          <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 700; letter-spacing: -0.5px;">ISAAC</h1>
           <p style="color: #78716c; font-size: 13px; margin-top: 4px; font-weight: 500;">Governança & Cronograma de Entregas</p>
         </div>
 
@@ -772,7 +772,7 @@ export async function sendTaskCompletedEmail({
         </div>
 
         <div style="text-align: center; margin-top: 24px; font-size: 11px; color: #a8a29e;">
-          © ${new Date().getFullYear()} Gestão do Projeto IZAQUE. Sistema Automatizado de Cronograma.
+          © ${new Date().getFullYear()} Gestão do Projeto ISAAC. Sistema Automatizado de Cronograma.
         </div>
       </div>
     `,
@@ -800,10 +800,10 @@ export async function sendCampaignPdfEmail({
   appUrl,
 }) {
   const transporter = getEmailTransporter();
-  const fromAddress = `"IZAQUE - Clareza & Mentoria" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
+  const fromAddress = `"ISAAC - Clareza & Mentoria" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
 
   const firstName = recipientName ? recipientName.trim().split(/\s+/)[0] : 'Viajante';
-  const safeAppUrl = appUrl || process.env.FRONTEND_URL || 'https://izaque.lynxems.com.br';
+  const safeAppUrl = appUrl || process.env.FRONTEND_URL || 'https://isaac.lynxems.com.br';
 
   const interpolate = (str = '') =>
     str
@@ -812,10 +812,10 @@ export async function sendCampaignPdfEmail({
       .replace(/\{\{\s*titulo\s*\}\}/gi, campaignTitle || 'Material Exclusivo');
 
   const resolvedSubject = interpolate(
-    emailSubject || `📄 Seu material chegou: ${campaignTitle || 'Guia Exclusivo IZAQUE'}`
+    emailSubject || `📄 Seu material chegou: ${campaignTitle || 'Guia Exclusivo ISAAC'}`
   );
 
-  const defaultBody = `Olá, ${firstName}!\n\nQue alegria receber você no ecossistema IZAQUE.\n\nConforme prometido, anexamos neste e-mail o seu material "${campaignTitle || 'Guia Exclusivo'}" em formato PDF para você ler e guardar com tranquilidade.\n\nAproveite também para acessar sua área de mentoria e iniciar suas conversas de clareza quando desejar.`;
+  const defaultBody = `Olá, ${firstName}!\n\nQue alegria receber você no ecossistema ISAAC.\n\nConforme prometido, anexamos neste e-mail o seu material "${campaignTitle || 'Guia Exclusivo'}" em formato PDF para você ler e guardar com tranquilidade.\n\nAproveite também para acessar sua área de mentoria e iniciar suas conversas de clareza quando desejar.`;
 
   const rawBody = emailBody && emailBody.trim() ? interpolate(emailBody.trim()) : defaultBody;
   const formattedBodyHtml = rawBody
@@ -833,7 +833,7 @@ export async function sendCampaignPdfEmail({
   const attachments = [];
   if (pdfBuffer) {
     attachments.push({
-      filename: pdfFileName || 'material-izaque.pdf',
+      filename: pdfFileName || 'material-isaac.pdf',
       content: pdfBuffer,
       contentType: 'application/pdf',
     });
@@ -847,7 +847,7 @@ export async function sendCampaignPdfEmail({
     html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #faf9f6; padding: 32px 20px; border-radius: 24px; border: 1px solid #e7e5e4; color: #292524;">
         <div style="text-align: center; margin-bottom: 24px;">
-          <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 700; letter-spacing: -0.5px;">IZAQUE</h1>
+          <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 700; letter-spacing: -0.5px;">ISAAC</h1>
           <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Espaço de Clareza, Escuta &amp; Transformação</p>
         </div>
 
@@ -869,7 +869,7 @@ export async function sendCampaignPdfEmail({
                 : ''
             }
             <a href="${safeAppUrl}" target="_blank" rel="noopener noreferrer" style="background-color: #f5f5f4; color: #1c1917; border: 1px solid #d6d3d1; text-decoration: none; padding: 13px 24px; border-radius: 14px; font-weight: 600; font-size: 14px; display: inline-block; margin: 6px;">
-              Entrar no App IZAQUE
+              Entrar no App ISAAC
             </a>
           </div>
         </div>

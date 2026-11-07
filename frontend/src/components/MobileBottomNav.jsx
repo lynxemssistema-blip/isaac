@@ -11,7 +11,7 @@ export default function MobileBottomNav({
   systemSettings,
 }) {
   const isMasterOrAdmin = profile?.role === 'master' || profile?.role === 'admin';
-  const guideName = localStorage.getItem('izaque_guide_name') || 'IZAQUE';
+  const guideName = localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'ISAAC';
 
   return (
     <nav
@@ -40,7 +40,7 @@ export default function MobileBottomNav({
           <span className="text-[10px] font-serif mt-0.5">Início</span>
         </button>
 
-        {/* SESSÃO DE CHAT COM IZAQUE */}
+        {/* SESSÃO DE CHAT COM ISAAC */}
         <button
           type="button"
           onClick={() => onNavigate('chat')}

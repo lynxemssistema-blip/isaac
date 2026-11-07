@@ -161,7 +161,7 @@ export default function UserProfileModal({ isOpen, onClose, user, profile, onPro
             Meu Perfil Completo
           </h2>
           <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 font-serif">
-            Personalize como o IZAQUE e os mentores acolhem e se comunicam com você
+            Personalize como o ISAAC e os mentores acolhem e se comunicam com você
           </p>
         </div>
 

@@ -1,5 +1,5 @@
 # ========================================================
-# Dockerfile Multi-Stage para Easypanel (IZAQUE Monólito)
+# Dockerfile Multi-Stage para Easypanel (ISAAC Monólito)
 # Constrói o Frontend React (Vite) e executa o Backend Node.js
 # Servindo tudo na mesma porta (3001) sem problemas de CORS ou SSL
 # ========================================================

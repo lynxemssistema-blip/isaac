@@ -52,7 +52,7 @@ export default function AdminSystemSettings({ currentUser }) {
     show_landing_cta: true,
     // Padrões Herdados da conta do Edson
     default_theme: 'gold',
-    default_guide_name: 'Izaque',
+    default_guide_name: 'Isaac',
     default_ambient_track: '432hz',
     default_ambient_volume: 0.20,
     default_ambient_enabled: false,
@@ -135,7 +135,7 @@ export default function AdminSystemSettings({ currentUser }) {
       show_landing_steps: true,
       show_landing_cta: true,
       default_theme: 'gold',
-      default_guide_name: 'Izaque',
+      default_guide_name: 'Isaac',
       default_ambient_track: '432hz',
       default_ambient_volume: 0.20,
       default_ambient_enabled: false,
@@ -174,7 +174,7 @@ export default function AdminSystemSettings({ currentUser }) {
               </span>
             </div>
             <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 max-w-2xl leading-relaxed">
-              Configure a visibilidade de seções na Página Inicial, controles na sessão do Izaque, módulo Incômodo Criativo e defina os estilos e ajustes padrão herdados da conta de Edson Manoel.
+              Configure a visibilidade de seções na Página Inicial, controles na sessão do Isaac, módulo Incômodo Criativo e defina os estilos e ajustes padrão herdados da conta de Edson Manoel.
             </p>
           </div>
         </div>
@@ -326,7 +326,7 @@ export default function AdminSystemSettings({ currentUser }) {
                 </div>
                 <div>
                   <h4 className="text-xs font-semibold text-stone-800 dark:text-stone-100 flex items-center gap-2">
-                    Proposta da Mentoria (Quem é Izaque & 3 Pilares)
+                    Proposta da Mentoria (Quem é Isaac & 3 Pilares)
                     <span className={`text-[10px] font-normal px-2 py-0.2 rounded-full ${
                       settings.show_landing_features
                         ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60'
@@ -531,7 +531,7 @@ export default function AdminSystemSettings({ currentUser }) {
                   Visibilidade na Sessão (Controles do Cabeçalho)
                 </h3>
                 <p className="text-xs text-stone-400">
-                  Defina quais botões aparecem no topo da conversa de reflexão com o Izaque.
+                  Defina quais botões aparecem no topo da conversa de reflexão com o Isaac.
                 </p>
               </div>
             </div>
@@ -762,7 +762,7 @@ export default function AdminSystemSettings({ currentUser }) {
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, default_guide_name: e.target.value }))
                   }
-                  placeholder="Izaque"
+                  placeholder="Isaac"
                   className="w-full text-xs p-2.5 rounded-xl bg-stone-50 dark:bg-slate-900/60 border border-stone-200 dark:border-slate-700 text-stone-800 dark:text-stone-100 focus:outline-none focus:border-amber-500"
                 />
               </div>

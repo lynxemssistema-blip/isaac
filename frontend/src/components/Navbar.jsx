@@ -19,7 +19,7 @@ export default function Navbar({
 }) {
   const isMasterOrAdmin = profile?.role === 'master' || profile?.role === 'admin';
   const [guideName, setGuideName] = useState(() => {
-    return localStorage.getItem('izaque_guide_name') || 'Izaque';
+    return localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac';
   });
 
   const [currentTheme, setCurrentTheme] = useState(() => getCurrentTheme());
@@ -36,7 +36,7 @@ export default function Navbar({
   // Atualiza o nome caso mude
   useEffect(() => {
     const handleStorage = () => {
-      setGuideName(localStorage.getItem('izaque_guide_name') || 'Izaque');
+      setGuideName(localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac');
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);

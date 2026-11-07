@@ -9,7 +9,7 @@ const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL && import.meta.env.VITE_BA
  * Metodologia: Mentor Thiago Prata / David Hawkins
  */
 
-// 0. Passo do Chat Guiado Interativo (IA Izaque / Thiago Prata)
+// 0. Passo do Chat Guiado Interativo (IA Isaac / Thiago Prata)
 export async function sendCreativeTroubleChatStep({ step, userMessage, history, currentData }) {
   try {
     const res = await fetch(`${BACKEND_URL}/api/creative-troubles/chat-step`, {

@@ -45,7 +45,7 @@ export async function handleForgotPassword(req, res) {
       throw new Error('Não foi possível gerar o token de recuperação.');
     }
 
-    // Link direto apontando para o app IZAQUE (izaque.lynxems.com.br)
+    // Link direto apontando para o app ISAAC
     // Evita o redirecionamento padrão do Supabase que apontava para lynxems.com.br
     const resetLink = `${appUrl}/?token_hash=${hashedToken}&type=recovery`;
 

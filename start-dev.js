@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 console.log('====================================================');
-console.log('🌿 [Mentoria IZAQUE] Iniciando Backend Hermes & Frontend...');
+console.log('🌿 [Mentoria ISAAC] Iniciando Backend Hermes & Frontend...');
 console.log('📡 Backend:  http://localhost:3001');
 console.log('💻 Frontend: http://localhost:5173');
 console.log('====================================================\n');
@@ -40,7 +40,7 @@ const frontend = spawn(npmCmd, ['run', 'dev'], {
 });
 
 function cleanup() {
-  console.log('\n🛑 Encerrando Mentoria IZAQUE...');
+  console.log('\n🛑 Encerrando Mentoria ISAAC...');
   try { backendProcess?.kill(); } catch {}
   try { frontend?.kill(); } catch {}
   process.exit(0);

@@ -221,7 +221,7 @@ export async function createAdminAgent(req, res) {
       .single();
 
     if (error) throw error;
-    console.log(`🤖 [IZAQUE Multi-Agent] Novo especialista criado: "${data.name}" (${data.slug})`);
+    console.log(`🤖 [ISAAC Multi-Agent] Novo especialista criado: "${data.name}" (${data.slug})`);
     res.status(201).json(data);
   } catch (error) {
     console.error('❌ Erro ao criar agente:', error);
@@ -229,7 +229,7 @@ export async function createAdminAgent(req, res) {
   }
 }
 
-// 8. Excluir Agente Especialista (exceto izaque-master)
+// 8. Excluir Agente Especialista (exceto izaque-master / isaac-master)
 export async function deleteAdminAgent(req, res) {
   try {
     const { id } = req.params;
@@ -241,8 +241,8 @@ export async function deleteAdminAgent(req, res) {
       .eq('id', id)
       .single();
 
-    if (agent?.slug === 'izaque-master') {
-      return res.status(400).json({ error: 'O Agente Mestre IZAQUE não pode ser excluído.' });
+    if (agent?.slug === 'izaque-master' || agent?.slug === 'isaac-master') {
+      return res.status(400).json({ error: 'O Agente Mestre ISAAC não pode ser excluído.' });
     }
 
     const { error } = await supabaseAdmin
@@ -643,7 +643,7 @@ export async function getAdminFeedbacks(req, res) {
   }
 }
 
-// 20. Obter perfil do Idealizador do IZAQUE
+// 20. Obter perfil do Idealizador do ISAAC
 export async function getAdminCreator(req, res) {
   try {
     const { data, error } = await supabaseAdmin
@@ -681,7 +681,7 @@ export async function updateAdminCreator(req, res) {
       .upsert({
         id: 'main',
         name: name || 'Edson Manoel',
-        title: title || 'Idealizador & Criador do IZAQUE',
+        title: title || 'Idealizador & Criador do ISAAC',
         bio: bio || '',
         story: story || '',
         quote: quote || '',
@@ -722,7 +722,7 @@ export async function generateBroadcastDraftController(req, res) {
       extraPrompt,
     });
 
-    const appUrl = (process.env.APP_URL || 'https://izaque.lynxems.com.br').replace(/\/$/, '');
+    const appUrl = (process.env.APP_URL || 'https://isaac.lynxems.com.br').replace(/\/$/, '');
     const previewHtml = renderBroadcastEmailHtml({
       contentHtml: draft.bodyHtml,
       userName: 'Viajante',
@@ -1395,7 +1395,7 @@ export async function markAllNotificationsAsRead(req, res) {
 
 /**
  * ============================================================================
- * GESTÃO E CRONOGRAMA DO PROJETO IZAQUE (MEMBROS, MARCOS, TAREFAS E COBRANÇAS)
+ * GESTÃO E CRONOGRAMA DO PROJETO ISAAC (MEMBROS, MARCOS, TAREFAS E COBRANÇAS)
  * ============================================================================
  */
 
@@ -1771,7 +1771,7 @@ export async function updateProjectTask(req, res) {
           recipientEmail: recipient,
           taskTitle: updatedTask.title,
           taskDescription: updatedTask.description,
-          memberName: updatedTask.member?.name || 'Equipe IZAQUE',
+          memberName: updatedTask.member?.name || 'Equipe ISAAC',
           completedDate: updatedTask.completed_at,
           milestoneTitle: updatedTask.milestone?.title || 'Fase Geral',
         });
@@ -2067,7 +2067,7 @@ export async function getSystemSettings(req, res) {
       show_landing_steps: true,
       show_landing_cta: true,
       default_theme: 'gold',
-      default_guide_name: 'Izaque',
+      default_guide_name: 'Isaac',
       default_ambient_track: '432hz',
       default_ambient_volume: 0.20,
       default_ambient_enabled: false,
@@ -2101,7 +2101,7 @@ export async function getSystemSettings(req, res) {
       show_landing_steps: true,
       show_landing_cta: true,
       default_theme: 'gold',
-      default_guide_name: 'Izaque',
+      default_guide_name: 'Isaac',
       default_ambient_track: '432hz',
       default_ambient_volume: 0.20,
       default_ambient_enabled: false,
@@ -2153,7 +2153,7 @@ export async function updateSystemSettings(req, res) {
       show_landing_steps: show_landing_steps !== undefined ? Boolean(show_landing_steps) : true,
       show_landing_cta: show_landing_cta !== undefined ? Boolean(show_landing_cta) : true,
       default_theme: default_theme || 'gold',
-      default_guide_name: default_guide_name || 'Izaque',
+      default_guide_name: default_guide_name || 'Isaac',
       default_ambient_track: default_ambient_track || '432hz',
       default_ambient_volume: default_ambient_volume !== undefined ? Number(default_ambient_volume) : 0.20,
       default_ambient_enabled: default_ambient_enabled !== undefined ? Boolean(default_ambient_enabled) : false,

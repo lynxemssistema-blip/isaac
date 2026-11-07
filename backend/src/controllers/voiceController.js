@@ -63,7 +63,7 @@ export function pcmToWav(pcmBuffer, sampleRate = 24000, numChannels = 1, bitsPer
 /**
  * Síntese de Voz Nativa com Modelos Oficiais Gemini TTS
  * Utiliza as vozes neurais expressivas:
- * - Charon: Tom masculino profundo, maduro e reflexivo (Padrão IZAQUE)
+ * - Charon: Tom masculino profundo, maduro e reflexivo (Padrão ISAAC)
  * - Aoede: Tom feminino calmo, sereno e acolhedor
  * - Kore: Tom firme e confortante
  * - Puck: Tom vibrante e expressivo

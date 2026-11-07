@@ -119,10 +119,10 @@ export default function AdminDashboard({ currentUser }) {
   const [featuresText, setFeaturesText] = useState('');
   const [savingPlan, setSavingPlan] = useState(false);
 
-  // Perfil do Idealizador do Izaque
+  // Perfil do Idealizador do Isaac
   const [creatorData, setCreatorData] = useState({
     name: 'Edson Manoel',
-    title: 'Idealizador & Criador do IZAQUE',
+    title: 'Idealizador & Criador do ISAAC',
     bio: '',
     story: '',
     quote: '',
@@ -675,7 +675,7 @@ export default function AdminDashboard({ currentUser }) {
               }`}
             >
               <Award className="w-3.5 h-3.5" />
-              Idealizador do IZAQUE
+              Idealizador do ISAAC
             </button>
 
             <button
@@ -1433,7 +1433,7 @@ export default function AdminDashboard({ currentUser }) {
           </div>
         )}
 
-        {/* ABA: IDEALIZADOR DO IZAQUE (CONFIGURAÇÃO & APRESENTAÇÃO) */}
+        {/* ABA: IDEALIZADOR DO ISAAC (CONFIGURAÇÃO & APRESENTAÇÃO) */}
         {activeTab === 'creator' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* FORMULÁRIO DE EDIÇÃO */}
@@ -1490,7 +1490,7 @@ export default function AdminDashboard({ currentUser }) {
                       type="text"
                       value={creatorData.title || ''}
                       onChange={(e) => setCreatorData({ ...creatorData, title: e.target.value })}
-                      placeholder="Ex: Idealizador & Criador do IZAQUE"
+                      placeholder="Ex: Idealizador & Criador do ISAAC"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-900 text-xs text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-teal-600"
                     />
                   </div>
@@ -1575,7 +1575,7 @@ export default function AdminDashboard({ currentUser }) {
 
                 <div>
                   <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
-                    Por que criei o IZAQUE (Propósito & Trajetória)
+                    Por que criei o ISAAC (Propósito & Trajetória)
                   </label>
                   <textarea
                     rows={4}
@@ -1679,7 +1679,7 @@ export default function AdminDashboard({ currentUser }) {
                     {creatorData.name || 'Edson Manoel'}
                   </h4>
                   <p className="text-[11px] text-teal-800 dark:text-teal-400 font-serif">
-                    {creatorData.title || 'Idealizador & Criador do IZAQUE'}
+                    {creatorData.title || 'Idealizador & Criador do ISAAC'}
                   </p>
                 </div>
 
@@ -1788,7 +1788,7 @@ export default function AdminDashboard({ currentUser }) {
                     <div className="text-xs text-stone-400 mt-0.5">Identificador: {ag.slug}</div>
                   </div>
 
-                  {ag.slug !== 'izaque-master' && (
+                  {ag.slug !== 'izaque-master' && ag.slug !== 'isaac-master' && (
                     <button
                       onClick={async (e) => {
                         e.stopPropagation();

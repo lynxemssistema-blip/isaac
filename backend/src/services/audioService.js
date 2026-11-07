@@ -18,7 +18,7 @@ export async function transcribeAudioWithGemini(audioBase64, mimeType = 'audio/w
   };
 
   const prompt = `
-Você é o transcritor de áudio do sistema "IZAQUE".
+Você é o transcritor de áudio do sistema "ISAAC".
 Sua função é ouvir atentamente este áudio em português e transcrever com máxima precisão palavra por palavra o desabafo ou pergunta do usuário.
 
 REGRAS:

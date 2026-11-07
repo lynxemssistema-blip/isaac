@@ -186,7 +186,7 @@ export default function DirectSignupPage({
           if (typeof window !== 'undefined') window.__izaqueSignupFlowActive = false;
           setAlreadyRegisteredPrompt(true);
           setExistingEmail(email.trim().toLowerCase());
-          setErrorMsg('Este e-mail já possui cadastro no IZAQUE.');
+          setErrorMsg('Este e-mail já possui cadastro no ISAAC.');
           setSubmitting(false);
           return;
         }
@@ -197,7 +197,7 @@ export default function DirectSignupPage({
         if (typeof window !== 'undefined') window.__izaqueSignupFlowActive = false;
         setAlreadyRegisteredPrompt(true);
         setExistingEmail(email.trim().toLowerCase());
-        setErrorMsg('Este e-mail já possui cadastro no IZAQUE.');
+        setErrorMsg('Este e-mail já possui cadastro no ISAAC.');
         setSubmitting(false);
         return;
       }
@@ -329,8 +329,8 @@ export default function DirectSignupPage({
             </h1>
             <p className="text-xs sm:text-sm text-stone-500 dark:text-stone-400 font-serif leading-relaxed">
               {completionData.mode === 'new_signup'
-                ? 'Seu acesso ao ecossistema de mentoria IZAQUE já está liberado.'
-                : 'Identificamos sua conta no IZAQUE e já disparamos o seu material.'}
+                ? 'Seu acesso ao ecossistema de mentoria ISAAC já está liberado.'
+                : 'Identificamos sua conta no ISAAC e já disparamos o seu material.'}
             </p>
           </div>
 
@@ -405,14 +405,14 @@ export default function DirectSignupPage({
           )}
 
           <h1 className="text-2xl sm:text-3xl font-serif font-medium tracking-tight text-stone-900 dark:text-stone-50">
-            {campaign?.title || 'Criar Seu Acesso no IZAQUE'}
+            {campaign?.title || 'Criar Seu Acesso no ISAAC'}
           </h1>
 
           <p className="text-xs sm:text-sm text-stone-500 dark:text-stone-400 font-serif leading-relaxed max-w-md mx-auto">
             {campaign?.subtitle ||
               (campaign
                 ? 'Conclua seu cadastro abaixo para liberar seu acesso ao app e receber gratuitamente este material em PDF no seu e-mail.'
-                : 'Preencha seus dados abaixo para iniciar sua jornada de clareza, escuta e transformação no IZAQUE.')}
+                : 'Preencha seus dados abaixo para iniciar sua jornada de clareza, escuta e transformação no ISAAC.')}
           </p>
         </div>
 
@@ -729,13 +729,13 @@ export default function DirectSignupPage({
           /* MODO 2: JÁ TENHO CONTA, APENAS ENVIE O PDF */
           <form onSubmit={handleExistingSubmit} className="space-y-4">
             <div className="p-4 rounded-2xl bg-stone-50 dark:bg-slate-800/60 border border-stone-200/80 dark:border-slate-700/60 text-xs text-stone-600 dark:text-stone-300 leading-relaxed">
-              Se você já criou sua conta no <strong>IZAQUE</strong> anteriormente, basta informar seu e-mail cadastrado abaixo e enviaremos o arquivo{' '}
+              Se você já criou sua conta no <strong>ISAAC</strong> anteriormente, basta informar seu e-mail cadastrado abaixo e enviaremos o arquivo{' '}
               <strong>{campaign?.title || 'em PDF'}</strong> diretamente para sua caixa de entrada.
             </div>
 
             <div>
               <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1.5">
-                E-mail da Sua Conta no IZAQUE *
+                E-mail da Sua Conta no ISAAC *
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />

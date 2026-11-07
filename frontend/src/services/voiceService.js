@@ -7,7 +7,7 @@
 import { cleanTextForSpeech } from './api';
 
 export const GEMINI_VOICES = [
-  { id: 'Charon', name: 'Charon (Mentor Izaque)', gender: 'male', description: 'Voz masculina profunda, reflexiva e madura' },
+  { id: 'Charon', name: 'Charon (Mentor Isaac)', gender: 'male', description: 'Voz masculina profunda, reflexiva e madura' },
   { id: 'Aoede', name: 'Aoede (Mentora Acolhedora)', gender: 'female', description: 'Voz feminina suave, serena e confortante' },
   { id: 'Kore', name: 'Kore (Encorajadora)', gender: 'female', description: 'Voz feminina firme, clara e segura' },
   { id: 'Puck', name: 'Puck (Dinâmica)', gender: 'neutral', description: 'Voz expressiva, leve e conversacional' },
@@ -126,13 +126,13 @@ class HumanVoiceService {
     }
 
     return {
-      voiceEngine: localStorage.getItem('izaque_voice_engine') || 'gemini', // 'gemini' | 'browser'
-      geminiVoice: localStorage.getItem('izaque_gemini_voice') || 'Charon',
-      voiceURI: localStorage.getItem('izaque_voice_uri') || '',
-      gender: localStorage.getItem('izaque_voice_gender') || 'auto', // 'auto' | 'male' | 'female' | 'custom'
-      rate: parseFloat(localStorage.getItem('izaque_voice_rate') || '0.90'),
-      pitch: parseFloat(localStorage.getItem('izaque_voice_pitch') || '0.95'),
-      preferBrowser: localStorage.getItem('izaque_voice_prefer_browser') === 'true',
+      voiceEngine: localStorage.getItem('isaac_voice_engine') || localStorage.getItem('izaque_voice_engine') || 'gemini', // 'gemini' | 'browser'
+      geminiVoice: localStorage.getItem('isaac_gemini_voice') || localStorage.getItem('izaque_gemini_voice') || 'Charon',
+      voiceURI: localStorage.getItem('isaac_voice_uri') || localStorage.getItem('izaque_voice_uri') || '',
+      gender: localStorage.getItem('isaac_voice_gender') || localStorage.getItem('izaque_voice_gender') || 'auto', // 'auto' | 'male' | 'female' | 'custom'
+      rate: parseFloat(localStorage.getItem('isaac_voice_rate') || localStorage.getItem('izaque_voice_rate') || '0.90'),
+      pitch: parseFloat(localStorage.getItem('isaac_voice_pitch') || localStorage.getItem('izaque_voice_pitch') || '0.95'),
+      preferBrowser: (localStorage.getItem('isaac_voice_prefer_browser') || localStorage.getItem('izaque_voice_prefer_browser')) === 'true',
     };
   }
 
@@ -142,14 +142,34 @@ class HumanVoiceService {
   saveSettings({ voiceEngine, geminiVoice, voiceURI, gender, rate, pitch, preferBrowser }) {
     if (typeof window === 'undefined') return;
 
-    if (voiceEngine !== undefined) localStorage.setItem('izaque_voice_engine', voiceEngine);
-    if (geminiVoice !== undefined) localStorage.setItem('izaque_gemini_voice', geminiVoice);
-    if (voiceURI !== undefined) localStorage.setItem('izaque_voice_uri', voiceURI);
-    if (gender !== undefined) localStorage.setItem('izaque_voice_gender', gender);
-    if (rate !== undefined) localStorage.setItem('izaque_voice_rate', rate.toString());
-    if (pitch !== undefined) localStorage.setItem('izaque_voice_pitch', pitch.toString());
+    if (voiceEngine !== undefined) {
+      localStorage.setItem('isaac_voice_engine', voiceEngine);
+      localStorage.setItem('izaque_voice_engine', voiceEngine);
+    }
+    if (geminiVoice !== undefined) {
+      localStorage.setItem('isaac_gemini_voice', geminiVoice);
+      localStorage.setItem('izaque_gemini_voice', geminiVoice);
+    }
+    if (voiceURI !== undefined) {
+      localStorage.setItem('isaac_voice_uri', voiceURI);
+      localStorage.setItem('izaque_voice_uri', voiceURI);
+    }
+    if (gender !== undefined) {
+      localStorage.setItem('isaac_voice_gender', gender);
+      localStorage.setItem('izaque_voice_gender', gender);
+    }
+    if (rate !== undefined) {
+      localStorage.setItem('isaac_voice_rate', rate.toString());
+      localStorage.setItem('izaque_voice_rate', rate.toString());
+    }
+    if (pitch !== undefined) {
+      localStorage.setItem('isaac_voice_pitch', pitch.toString());
+      localStorage.setItem('izaque_voice_pitch', pitch.toString());
+    }
     if (preferBrowser !== undefined) {
-      localStorage.setItem('izaque_voice_prefer_browser', preferBrowser ? 'true' : 'false');
+      const val = preferBrowser ? 'true' : 'false';
+      localStorage.setItem('isaac_voice_prefer_browser', val);
+      localStorage.setItem('izaque_voice_prefer_browser', val);
     }
 
     window.dispatchEvent(new Event('storage'));

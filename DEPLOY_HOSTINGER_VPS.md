@@ -46,8 +46,8 @@ npm install -g pm2
 Crie o diretório da aplicação e clone ou envie os arquivos do backend:
 
 ```bash
-mkdir -p /var/www/izaque-backend
-cd /var/www/izaque-backend
+mkdir -p /var/www/isaac-backend
+cd /var/www/isaac-backend
 ```
 
 Você pode clonar via Git ou enviar via SCP/SFTP. Exemplo com Git:
@@ -94,7 +94,7 @@ Pressione `Ctrl + O`, depois `Enter` para salvar e `Ctrl + X` para sair.
 Inicie a aplicação utilizando o PM2:
 
 ```bash
-pm2 start src/server.js --name "izaque-api"
+pm2 start src/server.js --name "isaac-api"
 ```
 
 Configure o PM2 para reiniciar o serviço automaticamente caso a VPS reinicie:
@@ -107,10 +107,10 @@ pm2 startup
 > Copie e execute o comando gerado pelo `pm2 startup` (se solicitado no terminal).
 
 ### Comandos Úteis do PM2:
-- Ver logs em tempo real: `pm2 logs izaque-api`
+- Ver logs em tempo real: `pm2 logs isaac-api`
 - Status dos processos: `pm2 status`
-- Reiniciar o servidor: `pm2 restart izaque-api`
-- Parar o servidor: `pm2 stop izaque-api`
+- Reiniciar o servidor: `pm2 restart isaac-api`
+- Parar o servidor: `pm2 stop isaac-api`
 
 ---
 

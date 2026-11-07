@@ -69,7 +69,7 @@ export default function AdminHelpGuide() {
               Manual Completo do Superadmin
             </h2>
             <p className="text-xs sm:text-sm text-stone-300 font-serif max-w-3xl leading-relaxed">
-              Documentação técnica e operacional detalhada da Mentoria IZAQUE. Abrange a gestão de usuários e níveis de acesso, sessões com memória unificada, conversas direcionadas com roteiro de perguntas, grupos com classificação N:N, disparos de áudio e texto, mentores especialistas e infraestrutura de produção.
+              Documentação técnica e operacional detalhada da Mentoria ISAAC. Abrange a gestão de usuários e níveis de acesso, sessões com memória unificada, conversas direcionadas com roteiro de perguntas, grupos com classificação N:N, disparos de áudio e texto, mentores especialistas e infraestrutura de produção.
             </p>
           </div>
           <div className="w-16 h-16 rounded-3xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
@@ -136,7 +136,7 @@ export default function AdminHelpGuide() {
         {openSections.users && (
           <div className="p-5 sm:p-6 pt-0 space-y-4 border-t border-stone-100 dark:border-slate-700/60 text-xs sm:text-sm text-stone-700 dark:text-stone-300 font-serif leading-relaxed">
             <p>
-              A Mentoria IZAQUE implementa três papéis de usuário com isolamento garantido por políticas de RLS no PostgreSQL (Supabase):
+              A Mentoria ISAAC implementa três papéis de usuário com isolamento garantido por políticas de RLS no PostgreSQL (Supabase):
             </p>
 
             <div className="grid sm:grid-cols-3 gap-3 my-3">
@@ -200,7 +200,7 @@ export default function AdminHelpGuide() {
         {openSections.memories && (
           <div className="p-5 sm:p-6 pt-0 space-y-4 border-t border-stone-100 dark:border-slate-700/60 text-xs sm:text-sm text-stone-700 dark:text-stone-300 font-serif leading-relaxed">
             <p>
-              O ecossistema IZAQUE possui uma <strong>Arquitetura Cognitiva em Background</strong> com retenção duradoura:
+              O ecossistema ISAAC possui uma <strong>Arquitetura Cognitiva em Background</strong> com retenção duradoura:
             </p>
 
             <ol className="list-decimal pl-5 space-y-2">
@@ -265,7 +265,7 @@ export default function AdminHelpGuide() {
         {openSections.sessions && (
           <div className="p-5 sm:p-6 pt-0 space-y-4 border-t border-stone-100 dark:border-slate-700/60 text-xs sm:text-sm text-stone-700 dark:text-stone-300 font-serif leading-relaxed">
             <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-955/30 border border-emerald-200/80 dark:border-emerald-800/40 text-xs text-emerald-950 dark:text-emerald-200">
-              <strong>Princípio Arquitetural Fundamental:</strong> A separação em sessões/conversas existe <em>estritamente sob a perspectiva do usuário</em> para que ele possa organizar seus desabafos e tópicos (ex.: "Finanças de Janeiro", "Superação de Ansiedade", "Família"). Do ponto de vista dos mentores (Izaque, Renato, Marcus, Helena, Pastor João), a memória é <strong>global, contínua e indivisível</strong>.
+              <strong>Princípio Arquitetural Fundamental:</strong> A separação em sessões/conversas existe <em>estritamente sob a perspectiva do usuário</em> para que ele possa organizar seus desabafos e tópicos (ex.: "Finanças de Janeiro", "Superação de Ansiedade", "Família"). Do ponto de vista dos mentores (Isaac, Renato, Marcus, Helena, Pastor João), a memória é <strong>global, contínua e indivisível</strong>.
             </div>
 
             <div className="space-y-3">
@@ -337,7 +337,7 @@ export default function AdminHelpGuide() {
                   <li><strong>Título do Tema:</strong> Ex.: <em>Superação da Procrastinação & Foco</em>.</li>
                   <li><strong>Descrição Orientadora:</strong> O objetivo ou acolhimento inicial.</li>
                   <li><strong>Categoria:</strong> Foco, Sobriedade, Finanças, Espiritualidade, etc.</li>
-                  <li><strong>Mentor Recomendado:</strong> Seleção do especialista que conduzirá (Renato, Izaque, etc.).</li>
+                  <li><strong>Mentor Recomendado:</strong> Seleção do especialista que conduzirá (Renato, Isaac, etc.).</li>
                   <li><strong>Ícone Visual:</strong> Bússola, Raio, Escudo, Coração, Gráfico, etc.</li>
                 </ul>
               </div>
@@ -544,7 +544,7 @@ export default function AdminHelpGuide() {
             <div className="grid sm:grid-cols-2 gap-3 my-2">
               <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-850 border border-stone-200 dark:border-slate-700">
                 <span className="font-semibold text-stone-900 dark:text-stone-100 text-xs block">
-                  Izaque Master (<code>izaque-master</code>)
+                  Isaac Master (<code>izaque-master</code>)
                 </span>
                 <span className="text-xs text-stone-500 dark:text-stone-400">
                   Mentor principal. Foco em inteligência emocional, foco, superação da procrastinação e decisões estratégicas de vida.
@@ -766,10 +766,10 @@ export default function AdminHelpGuide() {
               <div className="p-3.5 rounded-2xl bg-stone-900 text-stone-100 flex items-center justify-between">
                 <div>
                   <span className="text-stone-500 block text-[10px]"># Repositório Git Principal (Branch main)</span>
-                  <code>https://github.com/lynxemssistema-blip/izaque.git</code>
+                  <code>https://github.com/lynxemssistema-blip/isaac.git</code>
                 </div>
                 <button
-                  onClick={() => copyToClipboard('https://github.com/lynxemssistema-blip/izaque.git', 'repo')}
+                  onClick={() => copyToClipboard('https://github.com/lynxemssistema-blip/isaac.git', 'repo')}
                   className="p-2 text-stone-400 hover:text-white"
                 >
                   {copiedCmd === 'repo' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}

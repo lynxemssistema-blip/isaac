@@ -7,9 +7,9 @@ export default function ChatHermes({ userId }) {
     {
       id: 'welcome',
       role: 'assistant',
-      content: 'Olá. Eu sou o IZAQUE. Estou aqui para mapear seus padrões, quebrar bloqueios emocionais e alinhar sua mentalidade com a sua melhor versão. Sobre o que você tem hesitado ultimamente?',
+      content: 'Olá. Eu sou o ISAAC. Estou aqui para mapear seus padrões, quebrar bloqueios emocionais e alinhar sua mentalidade com a sua melhor versão. Sobre o que você tem hesitado ultimamente?',
       memoriesUsed: [],
-      agentUsed: { name: 'IZAQUE - Arquiteto da Mentalidade', slug: 'izaque-master', type: 'mindset' },
+      agentUsed: { name: 'ISAAC - Arquiteto da Mentalidade', slug: 'isaac-master', type: 'mindset' },
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -128,7 +128,7 @@ export default function ChatHermes({ userId }) {
             </div>
             <div>
               <h1 className="font-semibold text-base tracking-wide flex items-center gap-2">
-                IZAQUE
+                ISAAC
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-indigo-950/80 text-indigo-300 border border-indigo-700/40 rounded-full">
                   Orquestrador
                 </span>
@@ -146,7 +146,7 @@ export default function ChatHermes({ userId }) {
               onChange={(e) => setSelectedAgentId(e.target.value)}
               className="bg-neutral-950 border border-neutral-700/80 text-xs rounded-xl px-3 py-1.5 text-neutral-200 outline-none focus:border-indigo-500 cursor-pointer"
             >
-              <option value="auto">🧠 IZAQUE Maestro (Auto-Roteamento)</option>
+              <option value="auto">🧠 ISAAC Maestro (Auto-Roteamento)</option>
               {activeAgents.map((ag) => (
                 <option key={ag.id} value={ag.id}>
                   {ag.name} ({ag.type})
@@ -163,7 +163,7 @@ export default function ChatHermes({ userId }) {
             onChange={(e) => setSelectedAgentId(e.target.value)}
             className="w-full bg-neutral-950 border border-neutral-800 text-xs rounded-lg px-3 py-1.5 text-neutral-200 outline-none"
           >
-            <option value="auto">🧠 IZAQUE Maestro (Auto-Roteamento)</option>
+            <option value="auto">🧠 ISAAC Maestro (Auto-Roteamento)</option>
             {activeAgents.map((ag) => (
               <option key={ag.id} value={ag.id}>
                 {ag.name} ({ag.type})
@@ -233,7 +233,7 @@ export default function ChatHermes({ userId }) {
             </div>
             <span className="text-xs text-neutral-400 pl-1">
               {selectedAgentId === 'auto'
-                ? 'IZAQUE orquestrando o melhor especialista e recuperando memórias...'
+                ? 'ISAAC orquestrando o melhor especialista e recuperando memórias...'
                 : 'Consultando especialista e memórias de longo prazo...'}
             </span>
           </div>

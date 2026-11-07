@@ -155,7 +155,7 @@ export default function AdminPdfCampaigns({ currentUser }) {
     setSubtitle('');
     setEmailSubject('📄 Olá, {{nome}}! Aqui está o seu material: {{titulo}}');
     setEmailBody(
-      'Olá, {{nome}}!\n\nSeja muito bem-vindo(a) ao IZAQUE.\n\nConforme combinado, anexamos neste e-mail o seu arquivo PDF "{{titulo}}" para você ler e consultar quando desejar.\n\nAproveite também para entrar no aplicativo e iniciar suas conversas de clareza e mentoria!'
+      'Olá, {{nome}}!\n\nSeja muito bem-vindo(a) ao ISAAC.\n\nConforme combinado, anexamos neste e-mail o seu arquivo PDF "{{titulo}}" para você ler e consultar quando desejar.\n\nAproveite também para entrar no aplicativo e iniciar suas conversas de clareza e mentoria!'
     );
     setTargetGroupId('');
     setIsDefault(campaigns.length === 0);
@@ -329,7 +329,7 @@ export default function AdminPdfCampaigns({ currentUser }) {
       setErrorMsg('');
       const res = await sendTestOrManualCampaignPdf(campaign.id, {
         toEmail: testEmail.trim(),
-        recipientName: currentUser?.full_name || 'Admin IZAQUE',
+        recipientName: currentUser?.full_name || 'Admin ISAAC',
         appUrl: baseOrigin,
       });
       showTempFeedback(res.message || `PDF enviado com sucesso para ${testEmail}!`);
@@ -535,7 +535,7 @@ export default function AdminPdfCampaigns({ currentUser }) {
                   type="text"
                   value={subtitle}
                   onChange={(e) => setSubtitle(e.target.value)}
-                  placeholder="Ex.: Faça seu cadastro gratuito no IZAQUE e receba este guia em PDF imediatamente no seu e-mail."
+                  placeholder="Ex.: Faça seu cadastro gratuito no ISAAC e receba este guia em PDF imediatamente no seu e-mail."
                   className="w-full px-4 py-3 rounded-2xl bg-stone-50 dark:bg-slate-900 border border-stone-300 dark:border-slate-700 focus:border-teal-700 text-sm outline-none"
                 />
               </div>

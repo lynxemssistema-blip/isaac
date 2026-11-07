@@ -1,6 +1,6 @@
 /**
  * Serviço de Gerenciamento de Temas Visuais & Tipografia
- * Mentoria IZAQUE — Exclusivo a nível de usuário (Guest, Free, Pro, Master)
+ * Mentoria ISAAC — Exclusivo a nível de usuário (Guest, Free, Pro, Master)
  */
 
 export const THEMES = [
@@ -90,7 +90,7 @@ export function applyAppTheme(themeId) {
  */
 export function getCurrentTheme() {
   if (typeof window === 'undefined') return 'gold';
-  const saved = localStorage.getItem('izaque_app_theme');
+  const saved = localStorage.getItem('isaac_app_theme') || localStorage.getItem('izaque_app_theme');
   return VALID_THEME_IDS.includes(saved) ? saved : 'gold';
 }
 
@@ -101,6 +101,7 @@ export function saveAppTheme(themeId) {
   const targetTheme = VALID_THEME_IDS.includes(themeId) ? themeId : 'emerald';
   applyAppTheme(targetTheme);
   try {
+    localStorage.setItem('isaac_app_theme', targetTheme);
     localStorage.setItem('izaque_app_theme', targetTheme);
     window.dispatchEvent(new CustomEvent('app-theme-changed', { detail: targetTheme }));
   } catch (err) {

@@ -1,5 +1,5 @@
 /**
- * Cliente de API para o Backend Hermes (Orquestrador IZAQUE)
+ * Cliente de API para o Backend Hermes (Orquestrador ISAAC)
  * Nenhuma chave de API de LLM fica exposta no Frontend.
  */
 

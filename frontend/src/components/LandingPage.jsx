@@ -67,9 +67,9 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
           Reencontre sua paz e direção.
         </h1>
 
-        {/* Descrição Apresentando Izaque */}
+        {/* Descrição Apresentando Isaac */}
         <p className="mt-5 sm:mt-6 text-sm sm:text-lg lg:text-xl text-stone-600 dark:text-stone-300 max-w-2xl mx-auto leading-relaxed font-serif">
-          Conheça <strong>Izaque</strong>: um mentor de presença calma e escuta profunda, dedicado a ajudar você a compreender bloqueios emocionais, quebrar ciclos de autossabotagem e reconstruir a confiança no seu caminho.
+          Conheça <strong>Isaac</strong>: um mentor de presença calma e escuta profunda, dedicado a ajudar você a compreender bloqueios emocionais, quebrar ciclos de autossabotagem e reconstruir a confiança no seu caminho.
         </p>
 
         {/* Chamadas para Ação */}
@@ -79,12 +79,12 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
             className="w-full sm:w-auto px-7 sm:px-9 py-3.5 sm:py-4 rounded-2xl bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white font-medium text-sm tracking-wide shadow-xl shadow-teal-700/25 transition-all duration-300 transform active:scale-95 sm:hover:-translate-y-0.5 flex items-center justify-center gap-2.5 sm:gap-3"
           >
             <Feather className="w-4 h-4 stroke-[2]" />
-            <span>{user ? 'Acessar Minha Mentoria' : 'Conversar com Izaque'}</span>
+            <span>{user ? 'Acessar Minha Mentoria' : 'Conversar com Isaac'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
 
           <a
-            href="#quem-e-izaque"
+            href="#quem-e-isaac"
             className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 border border-stone-200 dark:border-slate-700 text-stone-700 dark:text-stone-200 font-medium text-sm transition flex items-center justify-center gap-2 shadow-sm active:scale-95"
           >
             <span>Conhecer a Mentoria</span>
@@ -127,7 +127,7 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
         )}
       </section>
 
-      {/* 1.1 APRESENTAÇÃO DO IDEALIZADOR DO IZAQUE (NO INÍCIO DA PÁGINA) */}
+      {/* 1.1 APRESENTAÇÃO DO IDEALIZADOR DO ISAAC (NO INÍCIO DA PÁGINA) */}
       {systemSettings?.show_landing_creator !== false && (!creator || creator.is_visible !== false) && (
         <section id="idealizador" className="py-14 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto scroll-mt-12">
           <div className="p-6 sm:p-12 rounded-3xl sm:rounded-4xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-lg relative overflow-hidden">
@@ -141,7 +141,7 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
                   <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-3xl sm:rounded-4xl overflow-hidden border-2 border-teal-700/30 dark:border-teal-500/30 shadow-md bg-stone-100 dark:bg-slate-700 flex items-center justify-center">
                     <img
                       src={creator?.image_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop'}
-                      alt={creator?.name || 'Idealizador do IZAQUE'}
+                      alt={creator?.name || 'Idealizador do ISAAC'}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       onError={(e) => {
                         e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop';
@@ -157,7 +157,7 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
                   {creator?.name || 'Edson Manoel'}
                 </h3>
                 <p className="text-xs text-teal-800 dark:text-teal-400 font-serif mt-0.5">
-                  {creator?.title || 'Idealizador & Criador do IZAQUE'}
+                  {creator?.title || 'Idealizador & Criador do ISAAC'}
                 </p>
 
                 {/* Redes Sociais / Links de Contato */}
@@ -212,7 +212,7 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
                 </h4>
 
                 <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
-                  {creator?.bio || 'Empreendedor, mentor de clareza e apaixonado pelo potencial humano. Concebeu o Izaque após anos observando como o excesso de ruído diário, a autocobrança desmedida e a solidão nas decisões travam vidas brilhantes.'}
+                  {creator?.bio || 'Empreendedor, mentor de clareza e apaixonado pelo potencial humano. Concebeu o Isaac após anos observando como o excesso de ruído diário, a autocobrança desmedida e a solidão nas decisões travam vidas brilhantes.'}
                 </p>
 
                 {creator?.story && (
@@ -233,9 +233,9 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
         </section>
       )}
 
-      {/* 2. QUEM É IZAQUE E O QUE ELE FAZ POR VOCÊ */}
+      {/* 2. QUEM É ISAAC E O QUE ELE FAZ POR VOCÊ */}
       {systemSettings?.show_landing_features !== false && (
-        <section id="quem-e-izaque" className="py-20 bg-stone-100/60 dark:bg-slate-800/30 border-y border-stone-200/80 dark:border-slate-800 px-4 sm:px-6 lg:px-8">
+        <section id="quem-e-isaac" className="py-20 bg-stone-100/60 dark:bg-slate-800/30 border-y border-stone-200/80 dark:border-slate-800 px-4 sm:px-6 lg:px-8">
           <div className="max-w-5xl mx-auto space-y-16">
             <div className="text-center max-w-2xl mx-auto space-y-3">
               <span className="text-xs font-semibold uppercase tracking-widest text-teal-800 dark:text-teal-400">
@@ -282,7 +282,7 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
                   Constância & Memória
                 </h3>
                 <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
-                  Izaque recorda suas vitórias e os pontos em que você costuma hesitar, oferecendo uma linha contínua de evolução.
+                  Isaac recorda suas vitórias e os pontos em que você costuma hesitar, oferecendo uma linha contínua de evolução.
                 </p>
               </div>
             </div>
@@ -303,7 +303,7 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
                 O que você fala aqui, <span className="italic font-medium text-teal-800 dark:text-teal-300">fica apenas aqui.</span>
               </h2>
               <p className="text-xs sm:text-base text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
-                No dia a dia, muitas vezes precisamos medir palavras, engolir sentimentos e fingir que temos tudo sob controle. No espaço da mentoria Izaque, a proteção da sua intimidade e a ausência de julgamento são o alicerce de cada conversa.
+                No dia a dia, muitas vezes precisamos medir palavras, engolir sentimentos e fingir que temos tudo sob controle. No espaço da mentoria Isaac, a proteção da sua intimidade e a ausência de julgamento são o alicerce de cada conversa.
               </p>
             </div>
 
@@ -337,7 +337,7 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
                     Zero Julgamento ou Repreensão
                   </h3>
                   <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
-                    Não existem perguntas tolas, erros vergonhosos ou emoções proibidas. Izaque não aponta dedos, não faz palestras moralistas e não rotula você. O foco é compreender suas razões, nunca condená-lo.
+                    Não existem perguntas tolas, erros vergonhosos ou emoções proibidas. Isaac não aponta dedos, não faz palestras moralistas e não rotula você. O foco é compreender suas razões, nunca condená-lo.
                   </p>
                 </div>
                 <div className="mt-5 pt-4 border-t border-stone-100 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-amber-800 dark:text-amber-300 font-medium font-serif">
@@ -394,7 +394,7 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
                     Linha Contínua de Evolução
                   </h3>
                   <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
-                    Chega de recomeçar sua história toda vez que precisa conversar. Izaque conecta o que você superou ontem com o obstáculo de hoje, oferecendo constância e profundidade real ao seu processo.
+                    Chega de recomeçar sua história toda vez que precisa conversar. Isaac conecta o que você superou ontem com o obstáculo de hoje, oferecendo constância e profundidade real ao seu processo.
                   </p>
                 </div>
                 <div className="mt-5 pt-4 border-t border-stone-100 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-amber-800 dark:text-amber-300 font-medium font-serif">
@@ -478,7 +478,7 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
                     Reflexão acolhedora e confronto respeitoso
                   </h4>
                   <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif mt-1 leading-relaxed">
-                    Izaque não oferece clichês motivacionais vazios. Ele traz perguntas que fazem você enxergar as justificativas automáticas que você vinha contando a si mesmo.
+                    Isaac não oferece clichês motivacionais vazios. Ele traz perguntas que fazem você enxergar as justificativas automáticas que você vinha contando a si mesmo.
                   </p>
                 </div>
               </div>
@@ -492,7 +492,7 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
                     Personalização com o nome que escolher
                   </h4>
                   <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif mt-1 leading-relaxed">
-                    O nome de origem é Izaque, mas você pode chamá-lo de Guia, Mentor ou o nome que trouxer mais clareza ao seu coração.
+                    O nome de origem é Isaac, mas você pode chamá-lo de Guia, Mentor ou o nome que trouxer mais clareza ao seu coração.
                   </p>
                 </div>
               </div>
@@ -532,7 +532,7 @@ export default function LandingPage({ onStartChat, user, systemSettings }) {
 
       {/* RODAPÉ DISCRETO */}
       <footer className="py-8 px-4 border-t border-stone-200/80 dark:border-slate-800 text-center text-xs text-stone-400 dark:text-stone-500 font-serif">
-        <p>Mentoria IZAQUE • Espaço de Clareza, Escuta Atenta e Desenvolvimento Pessoal</p>
+        <p>Mentoria ISAAC • Espaço de Clareza, Escuta Atenta e Desenvolvimento Pessoal</p>
       </footer>
     </div>
   );
