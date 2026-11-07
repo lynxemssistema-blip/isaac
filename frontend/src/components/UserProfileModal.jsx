@@ -14,6 +14,7 @@ import {
   MapPin,
   Briefcase,
   Compass,
+  MessageCircle,
 } from 'lucide-react';
 import { updateUserProfile, uploadUserAvatar } from '../services/api';
 import {
@@ -22,7 +23,7 @@ import {
   formatPhoneMask,
 } from './DirectSignupPage';
 
-export default function UserProfileModal({ isOpen, onClose, user, profile, onProfileUpdated }) {
+export default function UserProfileModal({ isOpen, onClose, user, profile, onProfileUpdated, onOpenWhatsappPlan }) {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [birthDate, setBirthDate] = useState('');
@@ -31,6 +32,7 @@ export default function UserProfileModal({ isOpen, onClose, user, profile, onPro
   const [occupation, setOccupation] = useState('');
   const [mainGoal, setMainGoal] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [allowWhatsappReminders, setAllowWhatsappReminders] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState('');
@@ -49,6 +51,7 @@ export default function UserProfileModal({ isOpen, onClose, user, profile, onPro
       setOccupation(profile?.occupation || user?.user_metadata?.occupation || '');
       setMainGoal(profile?.main_goal || user?.user_metadata?.main_goal || '');
       setAvatarUrl(profile?.avatar_url || user?.user_metadata?.avatar_url || '');
+      setAllowWhatsappReminders(profile?.whatsapp_opt_out !== true);
       setFeedbackMsg('');
       setErrorMsg('');
     }
@@ -108,6 +111,7 @@ export default function UserProfileModal({ isOpen, onClose, user, profile, onPro
         occupation: occupation.trim() || null,
         main_goal: mainGoal || null,
         avatar_url: avatarUrl.trim(),
+        whatsapp_opt_out: !allowWhatsappReminders,
       };
 
       await updateUserProfile(user.id, payload);
@@ -368,6 +372,56 @@ export default function UserProfileModal({ isOpen, onClose, user, profile, onPro
                 />
               </div>
             </div>
+          </div>
+
+          {/* PERMISSÃO DE LEMBRETES NO WHATSAPP + PLANO ATUAL */}
+          <div className="p-3.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/25 border border-emerald-200/80 dark:border-emerald-800/50 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs font-semibold text-stone-800 dark:text-stone-100 flex items-center gap-1.5">
+                  <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>Receber lembretes de evolução no WhatsApp</span>
+                </div>
+                <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+                  Você também pode pedir &ldquo;parar&rdquo; a qualquer momento pelo próprio WhatsApp.
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={allowWhatsappReminders}
+                  onChange={(e) => setAllowWhatsappReminders(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-10 h-5 bg-stone-300 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+              </label>
+            </div>
+
+            {onOpenWhatsappPlan && (
+              <div className="pt-2 border-t border-emerald-200/60 dark:border-emerald-800/40 flex items-center justify-between gap-2 text-xs">
+                <span className="text-stone-600 dark:text-stone-300 font-serif">
+                  Plano atual:{' '}
+                  <strong className="text-emerald-800 dark:text-emerald-300">
+                    {profile?.role === 'master' ||
+                    (profile?.plan_id === 'whatsapp_monthly' && profile?.plan_status === 'active')
+                      ? 'ISAAC no WhatsApp (Texto & Áudio)'
+                      : 'Gratuito (App 100% Liberado)'}
+                  </strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenWhatsappPlan();
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold transition shrink-0"
+                >
+                  {profile?.plan_id === 'whatsapp_monthly' && profile?.plan_status === 'active'
+                    ? 'Gerenciar WhatsApp'
+                    : 'Liberar WhatsApp (R$ 14,99)'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* NIVEL / ROLE */}

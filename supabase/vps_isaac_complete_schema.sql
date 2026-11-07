@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.izaque_system_settings (
   show_settings_button boolean DEFAULT true,
   show_ambient_sound_button boolean DEFAULT true,
   show_creative_troubles boolean DEFAULT true,
+  evolution_whatsapp_enabled boolean NOT NULL DEFAULT true,
   show_landing_creator boolean DEFAULT true,
   show_landing_sensations boolean DEFAULT true,
   show_landing_features boolean DEFAULT true,
@@ -549,6 +550,15 @@ BEGIN
     IF NEW.is_active IS DISTINCT FROM OLD.is_active THEN
       NEW.is_active := OLD.is_active;
     END IF;
+    IF NEW.plan_id IS DISTINCT FROM OLD.plan_id THEN
+      NEW.plan_id := OLD.plan_id;
+    END IF;
+    IF NEW.plan_status IS DISTINCT FROM OLD.plan_status THEN
+      NEW.plan_status := OLD.plan_status;
+    END IF;
+    IF NEW.plan_expires_at IS DISTINCT FROM OLD.plan_expires_at THEN
+      NEW.plan_expires_at := OLD.plan_expires_at;
+    END IF;
   END IF;
   RETURN NEW;
 END;
@@ -667,5 +677,40 @@ CREATE TRIGGER on_auth_user_created_izaque
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_izaque_user();
+
+-- ============================================================================
+-- 22. PLANOS OFICIAIS (GRATUITO LIVRE + WHATSAPP R$ 14,99) E GATEWAY ASAAS V3
+-- ============================================================================
+ALTER TABLE public.izaque_profiles
+  ADD COLUMN IF NOT EXISTS cpf_cnpj text,
+  ADD COLUMN IF NOT EXISTS asaas_customer_id text,
+  ADD COLUMN IF NOT EXISTS asaas_subscription_id text;
+
+ALTER TABLE public.izaque_subscriptions
+  ADD COLUMN IF NOT EXISTS asaas_customer_id text,
+  ADD COLUMN IF NOT EXISTS asaas_subscription_id text,
+  ADD COLUMN IF NOT EXISTS asaas_payment_id text,
+  ADD COLUMN IF NOT EXISTS billing_type text DEFAULT 'UNDEFINED',
+  ADD COLUMN IF NOT EXISTS invoice_url text,
+  ADD COLUMN IF NOT EXISTS pix_qr_code_base64 text,
+  ADD COLUMN IF NOT EXISTS pix_copy_paste text,
+  ADD COLUMN IF NOT EXISTS external_reference text;
+
+CREATE INDEX IF NOT EXISTS idx_izaque_profiles_asaas_customer
+  ON public.izaque_profiles(asaas_customer_id)
+  WHERE asaas_customer_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_izaque_profiles_asaas_sub
+  ON public.izaque_profiles(asaas_subscription_id)
+  WHERE asaas_subscription_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_izaque_subscriptions_asaas_sub
+  ON public.izaque_subscriptions(asaas_subscription_id)
+  WHERE asaas_subscription_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_izaque_subscriptions_asaas_payment
+  ON public.izaque_subscriptions(asaas_payment_id)
+  WHERE asaas_payment_id IS NOT NULL;
+
 
 

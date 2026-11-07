@@ -46,6 +46,7 @@ export async function updateProfile(req, res) {
       state,
       occupation,
       main_goal,
+      whatsapp_opt_out,
     } = req.body;
 
     if (!userId) {
@@ -64,6 +65,10 @@ export async function updateProfile(req, res) {
     if (state !== undefined) updatePayload.state = state ? state.trim().toUpperCase() : null;
     if (occupation !== undefined) updatePayload.occupation = occupation ? occupation.trim() : null;
     if (main_goal !== undefined) updatePayload.main_goal = main_goal ? main_goal.trim() : null;
+    if (whatsapp_opt_out !== undefined) {
+      updatePayload.whatsapp_opt_out = Boolean(whatsapp_opt_out);
+      updatePayload.whatsapp_opt_out_at = whatsapp_opt_out ? new Date().toISOString() : null;
+    }
     if (preferences !== undefined) {
       updatePayload.preferences = typeof preferences === 'object' && preferences !== null ? preferences : {};
     }

@@ -56,6 +56,7 @@ import { fetchSystemSettings } from '../services/adminApi';
 import { ambientAudio } from '../services/ambientAudioService';
 import { humanVoiceService } from '../services/voiceService';
 import { THEMES, saveAppTheme, getCurrentTheme } from '../services/themeService';
+import { supabase } from '../services/supabase';
 import UserSettingsModal from './UserSettingsModal';
 
 /**
@@ -453,6 +454,52 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
       isMounted = false;
     };
   }, [user?.id]);
+
+  // Sincronização em tempo real com conversas realizadas pelo WhatsApp (mesma sessão / mesmo chat)
+  useEffect(() => {
+    if (!user?.id || !activeSessionId) return;
+
+    const refreshCurrentSessionSilently = async () => {
+      if (isReflecting) return;
+      try {
+        const latest = await fetchChatHistory(user.id, activeSessionId);
+        if (Array.isArray(latest) && latest.length > 0) {
+          setReflections((prev) => (latest.length >= prev.length ? latest : prev));
+        }
+      } catch {}
+    };
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        refreshCurrentSessionSilently();
+      }
+    };
+
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    const channel = supabase
+      .channel(`sync-whatsapp-chat-${activeSessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'izaque_messages',
+          filter: `session_id=eq.${activeSessionId}`,
+        },
+        () => {
+          refreshCurrentSessionSilently();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, activeSessionId, isReflecting]);
 
   const handleSelectSession = async (sessionId) => {
     if (sessionId === activeSessionId || !user?.id) {

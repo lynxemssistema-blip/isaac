@@ -2,6 +2,7 @@ import express from 'express';
 import {
   processEvolutionWebhookPayload,
   getEvolutionIntegrationStatus,
+  setEvolutionIntegrationEnabled,
   runDailyInactivityFollowUp,
   sendTestFollowUpToPhone,
 } from '../services/evolutionService.js';
@@ -50,6 +51,19 @@ router.get('/admin/whatsapp/status', async (req, res) => {
   }
 });
 
+router.post('/admin/whatsapp/toggle', async (req, res) => {
+  try {
+    if (req.user?.role !== 'master') {
+      return res.status(403).json({ error: 'Apenas o Superadmin (master) pode ativar ou desativar a Evolution API.' });
+    }
+    const enabled = Boolean(req.body?.enabled);
+    const result = await setEvolutionIntegrationEnabled(enabled, req.user?.id || 'superadmin');
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao alterar estado da Evolution API.', details: err.message });
+  }
+});
+
 router.post('/admin/whatsapp/run-daily-check', async (req, res) => {
   try {
     const dryRun = Boolean(req.body?.dryRun);
@@ -74,3 +88,4 @@ router.post('/admin/whatsapp/send-test', async (req, res) => {
 });
 
 export default router;
+

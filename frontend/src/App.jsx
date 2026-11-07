@@ -50,6 +50,7 @@ const UserProfileModal = lazyWithRetry(() => import('./components/UserProfileMod
 const UserSettingsModal = lazyWithRetry(() => import('./components/UserSettingsModal'));
 const ResetPasswordModal = lazyWithRetry(() => import('./components/ResetPasswordModal'));
 const SubscriberFeedbackModal = lazyWithRetry(() => import('./components/SubscriberFeedbackModal'));
+const WhatsappPlanModal = lazyWithRetry(() => import('./components/WhatsappPlanModal'));
 const TopicLandingPage = lazyWithRetry(() => import('./components/TopicLandingPage'));
 
 function LazyFallbackLoader() {
@@ -121,6 +122,7 @@ export default function App() {
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isWhatsappPlanOpen, setIsWhatsappPlanOpen] = useState(false);
   const [isTermsPromptOpen, setIsTermsPromptOpen] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [systemSettings, setSystemSettings] = useState(null);
@@ -575,6 +577,7 @@ export default function App() {
           onOpenProfile={() => setIsProfileOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenFeedback={() => setIsFeedbackOpen(true)}
+          onOpenWhatsappPlan={() => setIsWhatsappPlanOpen(true)}
           systemSettings={systemSettings}
         />
       </div>
@@ -706,6 +709,17 @@ export default function App() {
           <UserProfileModal
             isOpen={isProfileOpen}
             onClose={() => setIsProfileOpen(false)}
+            user={user}
+            profile={profile}
+            onProfileUpdated={(updated) => setProfile(updated)}
+            onOpenWhatsappPlan={() => setIsWhatsappPlanOpen(true)}
+          />
+        )}
+
+        {user && isWhatsappPlanOpen && (
+          <WhatsappPlanModal
+            isOpen={isWhatsappPlanOpen}
+            onClose={() => setIsWhatsappPlanOpen(false)}
             user={user}
             profile={profile}
             onProfileUpdated={(updated) => setProfile(updated)}

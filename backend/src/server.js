@@ -10,6 +10,7 @@ import creativeTroubleRoutes from './routes/creativeTroubleRoutes.js';
 import pdfCampaignRoutes from './routes/pdfCampaignRoutes.js';
 import inscriptionRoutes from './routes/inscriptionRoutes.js';
 import evolutionRoutes from './routes/evolutionRoutes.js';
+import asaasRoutes from './routes/asaasRoutes.js';
 import { startEvolutionDailyScheduler } from './services/evolutionService.js';
 import { requireAdmin } from './middlewares/authMiddleware.js';
 import { apiGeneralLimiter } from './middlewares/rateLimiters.js';
@@ -100,9 +101,11 @@ app.get('/sitemap.xml', handleSitemapXml);
 app.get('/llms.txt', handleLlmsTxt);
 app.get('/llms-full.txt', handleLlmsFullTxt);
 
-// Rate Limit geral (exceto webhook oficial de eventos da Evolution API) e Barreira Global Zero-Trust /api/admin/*
+// Rate Limit geral (exceto webhooks oficiais Evolution API e Asaas) e Barreira Global Zero-Trust /api/admin/*
 app.use('/api', (req, res, next) => {
-  if (req.path.startsWith('/webhooks/evolution')) return next();
+  if (req.path.startsWith('/webhooks/evolution') || req.path.startsWith('/webhooks/asaas')) {
+    return next();
+  }
   return apiGeneralLimiter(req, res, next);
 });
 app.get('/api/public/topics', handlePublicTopicsList);
@@ -111,6 +114,7 @@ app.use('/api/admin', requireAdmin);
 
 // Rotas da API
 app.use('/api', evolutionRoutes);
+app.use('/api', asaasRoutes);
 app.use('/api', chatRoutes);
 app.use('/api', adminRoutes);
 app.use('/api', creativeTroubleRoutes);

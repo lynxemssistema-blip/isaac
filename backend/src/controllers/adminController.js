@@ -2087,6 +2087,7 @@ export async function getSystemSettings(req, res) {
       show_settings_button: true,
       show_ambient_sound_button: true,
       show_creative_troubles: true,
+      evolution_whatsapp_enabled: true,
       show_landing_creator: true,
       show_landing_sensations: true,
       show_landing_features: true,
@@ -2106,6 +2107,8 @@ export async function getSystemSettings(req, res) {
     const normalizedSettings = {
       ...settings,
       show_creative_troubles: settings.show_creative_troubles !== undefined ? settings.show_creative_troubles : true,
+      evolution_whatsapp_enabled:
+        settings.evolution_whatsapp_enabled !== undefined ? settings.evolution_whatsapp_enabled : true,
       show_landing_creator: settings.show_landing_creator !== undefined ? settings.show_landing_creator : true,
       show_landing_sensations: settings.show_landing_sensations !== undefined ? settings.show_landing_sensations : true,
       show_landing_features: settings.show_landing_features !== undefined ? settings.show_landing_features : true,
@@ -2123,6 +2126,7 @@ export async function getSystemSettings(req, res) {
       show_settings_button: true,
       show_ambient_sound_button: true,
       show_creative_troubles: true,
+      evolution_whatsapp_enabled: true,
       show_landing_creator: true,
       show_landing_sensations: true,
       show_landing_features: true,
@@ -2152,6 +2156,7 @@ export async function updateSystemSettings(req, res) {
       show_settings_button,
       show_ambient_sound_button,
       show_creative_troubles,
+      evolution_whatsapp_enabled,
       show_landing_creator,
       show_landing_sensations,
       show_landing_features,
@@ -2175,6 +2180,8 @@ export async function updateSystemSettings(req, res) {
       show_settings_button: show_settings_button !== undefined ? Boolean(show_settings_button) : true,
       show_ambient_sound_button: show_ambient_sound_button !== undefined ? Boolean(show_ambient_sound_button) : true,
       show_creative_troubles: show_creative_troubles !== undefined ? Boolean(show_creative_troubles) : true,
+      evolution_whatsapp_enabled:
+        evolution_whatsapp_enabled !== undefined ? Boolean(evolution_whatsapp_enabled) : true,
       show_landing_creator: show_landing_creator !== undefined ? Boolean(show_landing_creator) : true,
       show_landing_sensations: show_landing_sensations !== undefined ? Boolean(show_landing_sensations) : true,
       show_landing_features: show_landing_features !== undefined ? Boolean(show_landing_features) : true,

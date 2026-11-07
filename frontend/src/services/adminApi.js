@@ -1463,3 +1463,43 @@ export async function deleteAdminInscriptionApi(id) {
   }
   return data;
 }
+
+// ============================================================================
+// CONTROLE SUPERADMIN DA INTEGRAÇÃO EVOLUTION API (WHATSAPP)
+// ============================================================================
+
+export async function fetchAdminEvolutionStatus() {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/whatsapp/status`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao consultar status da Evolution API.');
+  }
+  return data;
+}
+
+export async function toggleAdminEvolutionApi(enabled) {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/whatsapp/toggle`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled: Boolean(enabled) }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao alterar estado da Evolution API.');
+  }
+  return data;
+}
+
+export async function sendAdminEvolutionTest(phone) {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/whatsapp/send-test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao enviar mensagem de teste.');
+  }
+  return data;
+}
+

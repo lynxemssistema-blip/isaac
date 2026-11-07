@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Feather, Shield, Wind, LogOut, Heart, Home, Edit3, Sparkles, LifeBuoy, Sliders, Palette, Compass } from 'lucide-react';
+import { Feather, Shield, Wind, LogOut, Heart, Home, Edit3, Sparkles, LifeBuoy, Sliders, Palette, Compass, MessageCircle } from 'lucide-react';
 import { THEMES, saveAppTheme, getCurrentTheme } from '../services/themeService';
 import { updateUserProfile } from '../services/api';
 import UserNotificationsPopover from './UserNotificationsPopover';
@@ -15,6 +15,7 @@ export default function Navbar({
   onOpenProfile,
   onOpenSettings,
   onOpenFeedback,
+  onOpenWhatsappPlan,
   systemSettings,
 }) {
   const isSuperAdmin =
@@ -241,6 +242,24 @@ export default function Navbar({
 
           {user ? (
             <div className="flex items-center space-x-1.5 sm:space-x-2">
+              {/* Botão ISAAC no WhatsApp (Plano R$ 14,99 / Status) */}
+              {onOpenWhatsappPlan && (
+                <button
+                  type="button"
+                  onClick={onOpenWhatsappPlan}
+                  title="Conversar com o ISAAC no WhatsApp (Texto e Áudio)"
+                  className={`px-2.5 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 cursor-pointer border ${
+                    profile?.role === 'master' ||
+                    (profile?.plan_id === 'whatsapp_monthly' && profile?.plan_status === 'active')
+                      ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs'
+                  }`}
+                >
+                  <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span className="hidden sm:inline">WhatsApp</span>
+                </button>
+              )}
+
               {/* Notificações & Mural de Comunicados (Áudio e Texto) */}
               <UserNotificationsPopover user={user} />
 

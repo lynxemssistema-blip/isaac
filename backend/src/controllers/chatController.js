@@ -292,7 +292,7 @@ Retorne EXCLUSIVAMENTE o ID ou Slug do especialista escolhido. Não inclua expli
 /**
  * Executa a orquestração completa: RAG de memórias, super-prompt e Gemini
  */
-async function processChatMessageCore({ message, userId, agentId, history = [], sessionId = null, guidedConversationId = null }) {
+export async function processChatMessageCore({ message, userId, agentId, history = [], sessionId = null, guidedConversationId = null }) {
   const allActiveAgents = await fetchCachedActiveAgents().catch(() => []);
 
   // Etapa 1 Paralelizada: Roteamento + Embedding (768d) + Conversa Direcionada + Incômodos Criativos Ativos
@@ -553,7 +553,7 @@ async function getGuidedConversationContext(guidedConversationId, sessionId) {
  * Garante que uma mensagem pertença a uma sessão válida do usuário.
  * Se nenhuma sessão for informada, associa à sessão mais recente ou cria uma nova com título contextual.
  */
-async function ensureUserSession(userId, sessionId, firstMessage = '', guidedConversationId = null) {
+export async function ensureUserSession(userId, sessionId, firstMessage = '', guidedConversationId = null) {
   const isUuid = (val) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val || '');
 
   if (isUuid(sessionId)) {

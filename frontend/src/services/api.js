@@ -830,3 +830,41 @@ export async function markAllNotificationsAsRead(userId) {
   return true;
 }
 
+/**
+ * Assinatura Asaas — Plano ISAAC no WhatsApp (R$ 14,99/mês)
+ * (O Plano Gratuito é 100% livre no App e nunca chama o Asaas)
+ */
+export async function createAsaasWhatsappCheckout({ cpfCnpj, phone }) {
+  const res = await authFetch(`${BACKEND_URL}/api/subscriptions/asaas/checkout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cpfCnpj, phone }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Não foi possível gerar a cobrança no Asaas.');
+  }
+  return data;
+}
+
+export async function fetchAsaasWhatsappPlanStatus() {
+  const res = await authFetch(`${BACKEND_URL}/api/subscriptions/asaas/status`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Não foi possível consultar o status da assinatura.');
+  }
+  return data;
+}
+
+export async function cancelAsaasWhatsappSubscription() {
+  const res = await authFetch(`${BACKEND_URL}/api/subscriptions/asaas/cancel`, {
+    method: 'POST',
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Não foi possível cancelar a assinatura.');
+  }
+  return data;
+}
+
+

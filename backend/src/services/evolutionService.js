@@ -1,6 +1,10 @@
 import crypto from 'crypto';
 import { genAI, CHAT_MODEL, FALLBACK_CHAT_MODELS } from '../config/gemini.js';
 import { supabaseAdmin } from '../config/supabase.js';
+import { invalidateCache } from '../utils/memoryCache.js';
+import { processChatMessageCore, ensureUserSession } from '../controllers/chatController.js';
+import { transcribeAudioWithGemini } from './audioService.js';
+import { cleanTextForSpeech, generateGeminiAudio } from '../controllers/voiceController.js';
 
 const DEFAULT_EVO_URL = 'https://evo.lynxems.com.br';
 const DEFAULT_EVO_INSTANCE = 'isaac';
@@ -30,6 +34,79 @@ function getEvoConfig() {
     cronTime: (process.env.EVOLUTION_DAILY_CRON_TIME || DEFAULT_CRON_TIME).trim(),
     enabled: String(process.env.EVOLUTION_FOLLOWUP_ENABLED ?? 'true').toLowerCase() !== 'false',
     appUrl: (process.env.APP_URL || DEFAULT_APP_URL).replace(/\/$/, '') + '/',
+  };
+}
+
+/**
+ * Consulta no banco (izaque_system_settings.evolution_whatsapp_enabled) se o SuperAdmin ativou/desativou a Evolution API
+ */
+export async function isEvolutionEnabledInDatabase() {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('izaque_system_settings')
+      .select('evolution_whatsapp_enabled')
+      .eq('id', 'global')
+      .maybeSingle();
+
+    if (error) return true;
+    if (data && data.evolution_whatsapp_enabled !== undefined && data.evolution_whatsapp_enabled !== null) {
+      return Boolean(data.evolution_whatsapp_enabled);
+    }
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Ativa ou desativa imediatamente a integração Evolution API pelo Painel do SuperAdmin
+ */
+export async function setEvolutionIntegrationEnabled(enabled, updatedBy = null) {
+  const nextValue = Boolean(enabled);
+  const nowIso = new Date().toISOString();
+
+  const { data: existing } = await supabaseAdmin
+    .from('izaque_system_settings')
+    .select('id')
+    .eq('id', 'global')
+    .maybeSingle();
+
+  let data;
+  let error;
+
+  if (existing?.id) {
+    const res = await supabaseAdmin
+      .from('izaque_system_settings')
+      .update({
+        evolution_whatsapp_enabled: nextValue,
+        updated_at: nowIso,
+        updated_by: updatedBy || null,
+      })
+      .eq('id', 'global')
+      .select()
+      .single();
+    data = res.data;
+    error = res.error;
+  } else {
+    const res = await supabaseAdmin
+      .from('izaque_system_settings')
+      .insert({
+        id: 'global',
+        evolution_whatsapp_enabled: nextValue,
+        updated_at: nowIso,
+        updated_by: updatedBy || null,
+      })
+      .select()
+      .single();
+    data = res.data;
+    error = res.error;
+  }
+
+  if (error) throw error;
+  invalidateCache('system:settings');
+  return {
+    evolution_whatsapp_enabled: Boolean(data?.evolution_whatsapp_enabled),
+    updated_at: data?.updated_at || nowIso,
   };
 }
 
@@ -173,6 +250,155 @@ export async function sendWhatsAppTextSafe({ jidOrNumber, text }) {
 }
 
 /**
+ * Envia nota de voz nativa no WhatsApp pela Evolution API com proteções Anti-Ban:
+ * - Jitter variável entre 280ms e 450ms antes do envio
+ * - Presença humana "gravando áudio..." (1800ms a 3200ms)
+ */
+export async function sendWhatsAppAudioSafe({ jidOrNumber, audioBuffer }) {
+  const cfg = getEvoConfig();
+  if (!cfg.apiKey) {
+    throw new Error('EVOLUTION_API_KEY não configurada no servidor.');
+  }
+
+  const interRequestJitterMs = randomBetween(280, 450);
+  await sleep(interRequestJitterMs);
+
+  const recordingPresenceMs = randomBetween(1800, 3200);
+  const audioBase64 = Buffer.isBuffer(audioBuffer) ? audioBuffer.toString('base64') : String(audioBuffer);
+
+  const resp = await fetch(`${cfg.baseUrl}/message/sendWhatsAppAudio/${encodeURIComponent(cfg.instanceName)}`, {
+    method: 'POST',
+    headers: {
+      apikey: cfg.apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      number: jidOrNumber,
+      audio: audioBase64,
+      delay: recordingPresenceMs,
+      encoding: true,
+    }),
+  });
+
+  const bodyText = await resp.text();
+  if (!resp.ok) {
+    throw new Error(`Evolution sendWhatsAppAudio HTTP ${resp.status}: ${bodyText.slice(0, 250)}`);
+  }
+
+  let parsed = {};
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    parsed = { raw: bodyText };
+  }
+
+  return {
+    messageId: parsed?.key?.id || null,
+    remoteJid: parsed?.key?.remoteJid || jidOrNumber,
+    interRequestJitterMs,
+    recordingPresenceMs,
+    raw: parsed,
+  };
+}
+
+/**
+ * Baixa o base64 de uma mensagem de áudio recebida no WhatsApp via Evolution API v2
+ */
+async function fetchIncomingAudioBase64(data = {}) {
+  const cfg = getEvoConfig();
+  const inlineB64 = data?.message?.base64 || data?.base64 || null;
+  const rawMime = data?.message?.audioMessage?.mimetype || 'audio/ogg';
+
+  if (inlineB64) {
+    const clean = String(inlineB64).replace(/^data:[^;]+;base64,/, '');
+    return { base64: clean, mimeType: rawMime };
+  }
+
+  if (!cfg.apiKey || !data?.key?.id) {
+    throw new Error('Chave de mensagem ausente para baixar áudio na Evolution API.');
+  }
+
+  const resp = await fetch(`${cfg.baseUrl}/chat/getBase64FromMediaMessage/${encodeURIComponent(cfg.instanceName)}`, {
+    method: 'POST',
+    headers: {
+      apikey: cfg.apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message: { key: data.key },
+      convertToMp4: false,
+    }),
+  });
+
+  if (!resp.ok) {
+    const errTxt = await resp.text();
+    throw new Error(`Falha ao baixar áudio da Evolution (${resp.status}): ${errTxt.slice(0, 200)}`);
+  }
+
+  const json = await resp.json();
+  const b64 = String(json?.base64 || '').replace(/^data:[^;]+;base64,/, '');
+  if (!b64) {
+    throw new Error('Evolution retornou base64 vazio para o áudio recebido.');
+  }
+
+  return {
+    base64: b64,
+    mimeType: json?.mimetype || rawMime || 'audio/ogg',
+  };
+}
+
+/**
+ * Detecta intenção universal de cancelar ou reativar o envio de mensagens/lembretes no WhatsApp
+ * Funciona para TODOS os usuários (Plano Gratuito ou Pago), em comandos diretos ou linguagem natural,
+ * sem confundir desabafos terapêuticos (ex: "quero parar de beber" ou "quero parar de procrastinar").
+ */
+export function detectWhatsAppPermissionIntent(rawText) {
+  const clean = String(rawText || '').trim();
+  if (!clean) return null;
+  const lower = clean.toLowerCase().replace(/[.!?]+$/g, '').trim();
+
+  // 1. Comandos diretos isolados
+  const exactOptOutCommands = [
+    'parar',
+    'sair',
+    'cancelar',
+    'stop',
+    'descadastrar',
+    'unsubscribe',
+    'parar mensagens',
+    'parar lembretes',
+    'cancelar lembretes',
+    'cancelar mensagens',
+  ];
+  if (exactOptOutCommands.includes(lower)) {
+    return 'opt_out';
+  }
+
+  // 2. Frases naturais pedindo para parar de receber mensagens/lembretes no WhatsApp
+  const naturalOptOutRegex =
+    /(?:n[aã]o\s+quero\s+(?:mais\s+)?receber|par(?:ar|e)\s+de\s+(?:me\s+)?(?:mandar|enviar)\s+(?:mensage[nm]|msg|lembrete|aviso|notifica|zap|whats)|n[aã]o\s+(?:me\s+)?(?:mande|envie)\s+(?:mais\s+)?(?:mensage[nm]|msg|lembrete|aviso|nada)|cancel(?:ar|e)\s+(?:a\s+permiss[aã]o|os?\s+lembretes?|as?\s+mensagens?|a\s+mensagem|notifica[cç][oõ]es)|desativ(?:ar|e)\s+(?:os?\s+lembretes?|as?\s+mensagens?|o\s+envio)|tir(?:ar|e)\s+meu\s+n[uú]mero|remov(?:er|a)\s+meu\s+n[uú]mero|prefiro\s+(?:usar|conversar)\s+s[oó]\s+pelo\s+(?:app|site|aplicativo))/i;
+
+  if (naturalOptOutRegex.test(clean)) {
+    return 'opt_out';
+  }
+
+  // 3. Reativação voluntária explícita pelo próprio usuário
+  const exactOptInCommands = ['voltar', 'reativar', 'ativar lembretes', 'reativar lembretes', 'reativar mensagens'];
+  if (exactOptInCommands.includes(lower)) {
+    return 'opt_in';
+  }
+
+  const naturalOptInRegex =
+    /(?:voltar\s+a\s+receber\s+(?:os?\s+|as?\s+)?(?:lembretes?|mensage[nm])|reativ(?:ar|e)\s+(?:os?\s+|as?\s+)?(?:lembretes?|mensage[nm])|ativar\s+lembretes|pode\s+(?:voltar\s+a\s+)?(?:me\s+)?(?:mandar|enviar)\s+(?:mensage[nm]|msg|lembrete).*?(?:novamente|de\s+novo))/i;
+
+  if (naturalOptInRegex.test(clean)) {
+    return 'opt_in';
+  }
+
+  return null;
+}
+
+/**
  * Extrai primeiro nome amigável como fallback seguro
  */
 function extractFallbackName(fullName) {
@@ -308,6 +534,11 @@ export async function runDailyInactivityFollowUp({ dryRun = false, triggerType =
   const cfg = getEvoConfig();
   if (!cfg.enabled && triggerType === 'daily_cron') {
     return { skipped: true, reason: 'disabled_by_env' };
+  }
+
+  const dbEnabled = await isEvolutionEnabledInDatabase();
+  if (!dbEnabled && !dryRun) {
+    return { skipped: true, reason: 'disabled_by_superadmin' };
   }
 
   isDailyJobRunning = true;
@@ -507,6 +738,13 @@ export async function runDailyInactivityFollowUp({ dryRun = false, triggerType =
  * Envia mensagem de teste real (buscando contexto real do usuário se o telefone existir em izaque_profiles)
  */
 export async function sendTestFollowUpToPhone(rawPhone) {
+  const dbEnabled = await isEvolutionEnabledInDatabase();
+  if (!dbEnabled) {
+    throw new Error(
+      'A função Evolution API está desativada nos Parâmetros Avançados do Superadmin. Ative-a primeiro para enviar mensagens.'
+    );
+  }
+
   const targetKey = extractComparablePhoneKey(rawPhone);
   if (!targetKey) {
     throw new Error('Número de telefone inválido para teste.');
@@ -595,8 +833,27 @@ export async function sendTestFollowUpToPhone(rawPhone) {
   };
 }
 
+// Controle em memória contra reprocessamento de webhooks duplicados e avisos repetidos no plano gratuito
+const processedInboundMessageIds = new Set();
+const noticeCooldownByJid = new Map();
+
+function rememberProcessedMessage(msgId) {
+  if (!msgId) return false;
+  if (processedInboundMessageIds.has(msgId)) return true;
+  processedInboundMessageIds.add(msgId);
+  if (processedInboundMessageIds.size > 1500) {
+    const oldest = processedInboundMessageIds.values().next().value;
+    processedInboundMessageIds.delete(oldest);
+  }
+  return false;
+}
+
 /**
- * Processa eventos recebidos via Webhook da Evolution API (/api/webhooks/evolution e /api/webhooks/evolution/:event)
+ * Processa eventos recebidos via Webhook da Evolution API (/api/webhooks/evolution e /api/webhooks/evolution/:event):
+ * 1. Respeita imediatamente pedidos de cancelamento de lembretes (opt-out) para TODOS os usuários (texto ou áudio).
+ * 2. Para assinantes do Plano WhatsApp (R$ 14,99) e SuperAdmin: processa conversa por Texto e Áudio direto no Agente Orquestrador,
+ *    gravando na mesma sessão ativa de izaque_chat_sessions / izaque_messages como se estivesse no App.
+ * 3. Para usuários do Plano Gratuito: informa gentilmente (com cooldown anti-spam) que o App Web é 100% gratuito e que a conversa via WhatsApp faz parte do Plano de R$ 14,99.
  */
 export async function processEvolutionWebhookPayload(eventParam, body = {}) {
   const eventType = String(body?.event || eventParam || 'unknown').toUpperCase().replace(/-/g, '_');
@@ -605,16 +862,22 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
   const key = data?.key || {};
   const remoteJid = key?.remoteJid || data?.remoteJid || null;
   const fromMe = Boolean(key?.fromMe);
+  const inboundMsgId = key?.id || null;
 
   const messageObj = data?.message || {};
-  const messageText =
+  const isAudioInbound = Boolean(
+    messageObj?.audioMessage ||
+      data?.messageType === 'audioMessage' ||
+      messageObj?.ephemeralMessage?.message?.audioMessage
+  );
+
+  let messageText =
     messageObj?.conversation ||
     messageObj?.extendedTextMessage?.text ||
     messageObj?.ephemeralMessage?.message?.extendedTextMessage?.text ||
     messageObj?.ephemeralMessage?.message?.conversation ||
     null;
 
-  // Sanitiza base64 pesados antes de gravar no banco
   const compactPayload = {
     event: eventType,
     instance: instanceName,
@@ -622,59 +885,268 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
     sender: body?.sender || null,
     key,
     pushName: data?.pushName || null,
-    messageType: data?.messageType || null,
+    messageType: data?.messageType || (isAudioInbound ? 'audioMessage' : null),
     status: data?.status || null,
     messageText: messageText ? String(messageText).slice(0, 2000) : null,
   };
 
-  let matchedUserId = null;
+  const isDirectUserMessage =
+    !fromMe &&
+    eventType.includes('MESSAGES_UPSERT') &&
+    Boolean(remoteJid && remoteJid.endsWith('@s.whatsapp.net')) &&
+    remoteJid !== getEvoConfig().instanceJid;
+
+  let matchedProfile = null;
+
   if (remoteJid && remoteJid.endsWith('@s.whatsapp.net')) {
     const incomingKey = extractComparablePhoneKey(remoteJid);
     if (incomingKey) {
       const { data: profiles } = await supabaseAdmin
         .from('izaque_profiles')
-        .select('id, phone, whatsapp_jid, whatsapp_opt_out')
+        .select('id, full_name, email, role, phone, whatsapp_jid, whatsapp_opt_out, plan_id, plan_status, is_active, preferences')
         .not('phone', 'is', null);
 
-      const matched = (profiles || []).find(
-        (p) => p.whatsapp_jid === remoteJid || extractComparablePhoneKey(p.phone) === incomingKey
-      );
-
-      if (matched) {
-        matchedUserId = matched.id;
-
-        if (!fromMe && eventType.includes('MESSAGES_UPSERT')) {
-          const cleanLower = (messageText || '').trim().toLowerCase();
-          const isOptOut = ['parar', 'sair', 'cancelar', 'stop', 'descadastrar', 'nao quero', 'não quero'].includes(
-            cleanLower
-          );
-
-          const updates = {
-            whatsapp_jid: remoteJid,
-            last_whatsapp_inbound_at: new Date().toISOString(),
-          };
-          if (isOptOut) {
-            updates.whatsapp_opt_out = true;
-            updates.whatsapp_opt_out_at = new Date().toISOString();
-          }
-
-          await supabaseAdmin.from('izaque_profiles').update(updates).eq('id', matched.id);
-        }
-      }
+      matchedProfile =
+        (profiles || []).find(
+          (p) => p.whatsapp_jid === remoteJid || extractComparablePhoneKey(p.phone) === incomingKey
+        ) || null;
     }
   }
 
+  // Registra o evento bruto de auditoria
   await supabaseAdmin.from('izaque_whatsapp_webhook_events').insert({
     event_type: eventType,
     instance_name: instanceName,
     remote_jid: remoteJid,
-    matched_user_id: matchedUserId,
+    matched_user_id: matchedProfile?.id || null,
     from_me: fromMe,
-    message_text: messageText ? String(messageText).slice(0, 2000) : null,
+    message_text: messageText ? String(messageText).slice(0, 2000) : isAudioInbound ? '[Áudio recebido]' : null,
     payload: compactPayload,
   });
 
-  return { eventType, matchedUserId, remoteJid };
+  if (!isDirectUserMessage) {
+    return { eventType, matchedUserId: matchedProfile?.id || null, remoteJid };
+  }
+
+  // Evita duplicidade caso a Evolution reenvie o mesmo messageId
+  if (rememberProcessedMessage(inboundMsgId)) {
+    return { eventType, matchedUserId: matchedProfile?.id || null, remoteJid, duplicateSkipped: true };
+  }
+
+  const evoEnabled = await isEvolutionEnabledInDatabase();
+
+  // Se for áudio de um usuário cadastrado, transcrevemos para detectar opt-out universal OU conversar no Orquestrador
+  if (isAudioInbound && !messageText && matchedProfile) {
+    try {
+      const audioData = await fetchIncomingAudioBase64(data);
+      const transcribed = await transcribeAudioWithGemini(audioData.base64, audioData.mimeType);
+      if (transcribed && transcribed !== '[Áudio inaudível]') {
+        messageText = transcribed;
+      }
+    } catch (audioErr) {
+      console.error('⚠️ [Evolution Audio] Erro ao transcrever áudio recebido:', audioErr.message);
+    }
+  }
+
+  // 1. REGRA UNIVERSAL PARA TODOS OS USUÁRIOS (INDEPENDENTE DO PLANO):
+  // Pedido para parar (ou reativar) o envio de mensagens/lembretes pelo WhatsApp
+  if (matchedProfile && messageText) {
+    const permissionIntent = detectWhatsAppPermissionIntent(messageText);
+
+    if (permissionIntent === 'opt_out') {
+      await supabaseAdmin
+        .from('izaque_profiles')
+        .update({
+          whatsapp_jid: remoteJid,
+          whatsapp_opt_out: true,
+          whatsapp_opt_out_at: new Date().toISOString(),
+          last_whatsapp_inbound_at: new Date().toISOString(),
+        })
+        .eq('id', matchedProfile.id);
+
+      if (evoEnabled) {
+        const firstName = (matchedProfile.full_name || 'amigo(a)').trim().split(/\s+/)[0];
+        const confirmOptOutText = `Perfeitamente compreendido, ${firstName}. Cancelei agora mesmo a permissão de envio de lembretes para o seu WhatsApp, com total respeito ao seu espaço.\n\nSeu acesso ao aplicativo https://isaac.lynxems.com.br/ continua 100% liberado sempre que desejar refletir por lá.`;
+        await sendWhatsAppTextSafe({ jidOrNumber: remoteJid, text: confirmOptOutText }).catch(() => {});
+      }
+
+      return { eventType, matchedUserId: matchedProfile.id, remoteJid, action: 'opt_out_applied' };
+    }
+
+    if (permissionIntent === 'opt_in') {
+      await supabaseAdmin
+        .from('izaque_profiles')
+        .update({
+          whatsapp_jid: remoteJid,
+          whatsapp_opt_out: false,
+          whatsapp_opt_out_at: null,
+          last_whatsapp_inbound_at: new Date().toISOString(),
+        })
+        .eq('id', matchedProfile.id);
+
+      if (evoEnabled) {
+        const firstName = (matchedProfile.full_name || 'amigo(a)').trim().split(/\s+/)[0];
+        await sendWhatsAppTextSafe({
+          jidOrNumber: remoteJid,
+          text: `Combinado, ${firstName}! Reativei seus lembretes de acompanhamento por aqui. Sempre que precisar, estou à disposição.`,
+        }).catch(() => {});
+      }
+
+      return { eventType, matchedUserId: matchedProfile.id, remoteJid, action: 'opt_in_applied' };
+    }
+  }
+
+  // Se o SuperAdmin desativou a função da Evolution API no painel, encerra aqui sem responder no chat
+  if (!evoEnabled) {
+    return { eventType, matchedUserId: matchedProfile?.id || null, remoteJid, skipped: 'disabled_by_superadmin' };
+  }
+
+  // Ignora mensagens vazias (ex: figurinhas, reações sem texto)
+  if (!messageText && !isAudioInbound) {
+    return { eventType, matchedUserId: matchedProfile?.id || null, remoteJid, skipped: 'empty_content' };
+  }
+
+  // 2. Número ainda não vinculado a nenhuma conta em izaque_profiles
+  if (!matchedProfile) {
+    const lastUnknownNotice = noticeCooldownByJid.get(`unknown:${remoteJid}`) || 0;
+    if (Date.now() - lastUnknownNotice > 12 * 60 * 60 * 1000) {
+      noticeCooldownByJid.set(`unknown:${remoteJid}`, Date.now());
+      const appUrl = getEvoConfig().appUrl;
+      await sendWhatsAppTextSafe({
+        jidOrNumber: remoteJid,
+        text: `Olá! Aqui é o *ISAAC*.\n\nAinda não localizei este número vinculado ao seu cadastro. Você pode criar sua conta gratuita e usar toda a mentoria livremente em ${appUrl}\n\nSe já possui conta, basta cadastrar este número em *Meu Perfil* lá no aplicativo!`,
+      }).catch(() => {});
+    }
+    return { eventType, matchedUserId: null, remoteJid, action: 'unregistered_phone_notice' };
+  }
+
+  // Atualiza JID e timestamp da última interação recebida no WhatsApp
+  await supabaseAdmin
+    .from('izaque_profiles')
+    .update({
+      whatsapp_jid: remoteJid,
+      last_whatsapp_inbound_at: new Date().toISOString(),
+    })
+    .eq('id', matchedProfile.id);
+
+  if (matchedProfile.is_active === false && matchedProfile.role !== 'master') {
+    return { eventType, matchedUserId: matchedProfile.id, remoteJid, skipped: 'inactive_account' };
+  }
+
+  // 3. Verifica Plano: Gratuito (R$ 0,00 -> apenas App) vs Plano WhatsApp (R$ 14,99/mês ou SuperAdmin master)
+  const hasWhatsappChatAccess =
+    matchedProfile.role === 'master' ||
+    (matchedProfile.plan_id === 'whatsapp_monthly' && matchedProfile.plan_status === 'active');
+
+  if (!hasWhatsappChatAccess) {
+    const lastFreeNotice = noticeCooldownByJid.get(`free:${remoteJid}`) || 0;
+    if (Date.now() - lastFreeNotice > 12 * 60 * 60 * 1000) {
+      noticeCooldownByJid.set(`free:${remoteJid}`, Date.now());
+      const firstName = (matchedProfile.full_name || 'amigo(a)').trim().split(/\s+/)[0];
+      const appUrl = getEvoConfig().appUrl;
+      await sendWhatsAppTextSafe({
+        jidOrNumber: remoteJid,
+        text: `Olá, ${firstName}! Que bom receber sua mensagem.\n\nNo seu *Plano Gratuito*, você tem tudo 100% liberado para conversar comigo à vontade diretamente pelo aplicativo em ${appUrl}\n\nPara conversar comigo também aqui pelo WhatsApp (por *texto e áudio*, integrado à mesma conversa do app), basta ativar o *Plano ISAAC no WhatsApp (R$ 14,99/mês)* dentro do aplicativo!`,
+      }).catch(() => {});
+    }
+    return { eventType, matchedUserId: matchedProfile.id, remoteJid, action: 'free_plan_notice' };
+  }
+
+  // Se enviou áudio mas a transcrição falhou / ficou inaudível
+  if (!messageText && isAudioInbound) {
+    await sendWhatsAppTextSafe({
+      jidOrNumber: remoteJid,
+      text: 'Não consegui ouvir com clareza o seu áudio agora... Pode gravar novamente ou me escrever em poucas palavras?',
+    }).catch(() => {});
+    return { eventType, matchedUserId: matchedProfile.id, remoteJid, action: 'inaudible_audio' };
+  }
+
+  // 4. CONVERSA UNIFICADA NO MESMO CHAT DO APP (izaque_chat_sessions + izaque_messages + Agente Orquestrador)
+  const sessionId = await ensureUserSession(matchedProfile.id, null, messageText);
+
+  let sessionHistory = [];
+  if (sessionId) {
+    const { data: recentDbMsgs } = await supabaseAdmin
+      .from('izaque_messages')
+      .select('role, content, created_at')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    sessionHistory = (recentDbMsgs || []).reverse();
+  }
+
+  const { reply, selectedAgent } = await processChatMessageCore({
+    message: messageText,
+    userId: matchedProfile.id,
+    agentId: 'auto',
+    history: sessionHistory,
+    sessionId,
+  });
+
+  const wantsAudioReply =
+    isAudioInbound ||
+    /\b(?:manda|mande|envia|envie|responda|responder|fala|fale)\s+(?:um\s+|em\s+|por\s+)?[aá]udio\b/i.test(
+      messageText
+    );
+
+  // Grava imediatamente na mesma sessão de izaque_messages -> aparece em tempo real no App Web!
+  const isAgentUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selectedAgent?.id || '');
+  const safeAgentId = isAgentUuid ? selectedAgent.id : null;
+
+  await supabaseAdmin.from('izaque_messages').insert([
+    {
+      user_id: matchedProfile.id,
+      agent_id: safeAgentId,
+      session_id: sessionId,
+      role: 'user',
+      content: messageText,
+      is_audio: isAudioInbound,
+    },
+    {
+      user_id: matchedProfile.id,
+      agent_id: safeAgentId,
+      session_id: sessionId,
+      role: 'assistant',
+      content: reply,
+      is_audio: wantsAudioReply,
+    },
+  ]);
+
+  // 5. Envia a resposta no WhatsApp (Áudio Neural se o usuário falou por áudio / pediu áudio, ou Texto)
+  if (wantsAudioReply) {
+    try {
+      const preferredVoice = matchedProfile?.preferences?.geminiVoice || 'Charon';
+      const speechClean = cleanTextForSpeech(reply);
+      const ttsResult = await generateGeminiAudio(speechClean, preferredVoice);
+      await sendWhatsAppAudioSafe({
+        jidOrNumber: remoteJid,
+        audioBuffer: ttsResult.buffer,
+      });
+      return {
+        eventType,
+        matchedUserId: matchedProfile.id,
+        remoteJid,
+        sessionId,
+        repliedAs: 'audio',
+      };
+    } catch (ttsErr) {
+      console.warn('⚠️ [Evolution TTS Fallback] Falha ao enviar áudio no WhatsApp, enviando em texto:', ttsErr.message);
+    }
+  }
+
+  await sendWhatsAppTextSafe({
+    jidOrNumber: remoteJid,
+    text: reply,
+  });
+
+  return {
+    eventType,
+    matchedUserId: matchedProfile.id,
+    remoteJid,
+    sessionId,
+    repliedAs: 'text',
+  };
 }
 
 /**
@@ -682,6 +1154,7 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
  */
 export async function getEvolutionIntegrationStatus() {
   const cfg = getEvoConfig();
+  const dbEnabled = await isEvolutionEnabledInDatabase();
   let connectionState = null;
   let webhookConfig = null;
 
@@ -709,7 +1182,9 @@ export async function getEvolutionIntegrationStatus() {
     .limit(15);
 
   return {
-    enabled: cfg.enabled,
+    enabled: Boolean(cfg.enabled && dbEnabled),
+    dbEnabled,
+    envEnabled: cfg.enabled,
     baseUrl: cfg.baseUrl,
     instanceName: cfg.instanceName,
     instanceJid: cfg.instanceJid,
@@ -763,6 +1238,14 @@ export function startEvolutionDailyScheduler() {
       if (lastExecutedDateBrt === dateKey) return;
 
       lastExecutedDateBrt = dateKey;
+      const dbEnabled = await isEvolutionEnabledInDatabase();
+      if (!dbEnabled) {
+        console.log(
+          `⏸️ [Evolution Scheduler] 09:50 BRT (${dateKey}) — função desativada no Painel SuperAdmin. Nenhum envio realizado.`
+        );
+        return;
+      }
+
       console.log(`🌅 [Evolution Scheduler] 09:50 BRT atingido (${dateKey}) — iniciando verificação de interações > 24h...`);
       await runDailyInactivityFollowUp({ dryRun: false, triggerType: 'daily_cron' });
     } catch (err) {
@@ -774,3 +1257,4 @@ export function startEvolutionDailyScheduler() {
     schedulerInterval.unref();
   }
 }
+

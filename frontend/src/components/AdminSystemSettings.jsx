@@ -24,8 +24,16 @@ import {
   Lock,
   ListOrdered,
   Feather,
+  MessageCircle,
+  Send,
 } from 'lucide-react';
-import { fetchSystemSettings, updateSystemSettings } from '../services/adminApi';
+import {
+  fetchSystemSettings,
+  updateSystemSettings,
+  fetchAdminEvolutionStatus,
+  toggleAdminEvolutionApi,
+  sendAdminEvolutionTest,
+} from '../services/adminApi';
 import { THEMES } from '../services/themeService';
 import { GEMINI_VOICES } from '../services/voiceService';
 
@@ -33,6 +41,10 @@ export default function AdminSystemSettings({ currentUser }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
+  const [evoStatus, setEvoStatus] = useState(null);
+  const [togglingEvo, setTogglingEvo] = useState(false);
+  const [testPhone, setTestPhone] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
 
   // Estado dos parâmetros avançados do sistema
   const [settings, setSettings] = useState({
@@ -43,6 +55,7 @@ export default function AdminSystemSettings({ currentUser }) {
     show_ambient_sound_button: true,
     // Módulos
     show_creative_troubles: true,
+    evolution_whatsapp_enabled: true,
     // Visibilidade na Página Inicial (Landing Page)
     show_landing_creator: true,
     show_landing_sensations: true,
@@ -65,13 +78,19 @@ export default function AdminSystemSettings({ currentUser }) {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      const data = await fetchSystemSettings();
+      const [data, evo] = await Promise.all([
+        fetchSystemSettings(),
+        fetchAdminEvolutionStatus().catch(() => null),
+      ]);
+      if (evo) setEvoStatus(evo);
       if (data) {
         setSettings((prev) => ({
           ...prev,
           ...data,
           default_theme: data.default_theme || 'gold',
           show_creative_troubles: data.show_creative_troubles !== undefined ? data.show_creative_troubles : true,
+          evolution_whatsapp_enabled:
+            data.evolution_whatsapp_enabled !== undefined ? data.evolution_whatsapp_enabled : true,
           show_landing_creator: data.show_landing_creator !== undefined ? data.show_landing_creator : true,
           show_landing_sensations: data.show_landing_sensations !== undefined ? data.show_landing_sensations : true,
           show_landing_features: data.show_landing_features !== undefined ? data.show_landing_features : true,
@@ -97,6 +116,44 @@ export default function AdminSystemSettings({ currentUser }) {
     setTimeout(() => {
       setFeedback({ type: '', message: '' });
     }, 4500);
+  };
+
+  // Ativa ou desativa imediatamente a função da Evolution API (WhatsApp) no banco
+  const handleToggleEvolutionImmediate = async (checked) => {
+    setSettings((prev) => ({ ...prev, evolution_whatsapp_enabled: checked }));
+    try {
+      setTogglingEvo(true);
+      await toggleAdminEvolutionApi(checked);
+      setEvoStatus((prev) => (prev ? { ...prev, dbEnabled: checked, enabled: checked } : prev));
+      showFeedback(
+        'success',
+        checked
+          ? 'Função Evolution API (WhatsApp) ATIVADA com sucesso!'
+          : 'Função Evolution API (WhatsApp) DESATIVADA com sucesso! Nenhum envio automático será realizado.'
+      );
+    } catch (err) {
+      setSettings((prev) => ({ ...prev, evolution_whatsapp_enabled: !checked }));
+      showFeedback('error', err.message || 'Erro ao alterar estado da Evolution API.');
+    } finally {
+      setTogglingEvo(false);
+    }
+  };
+
+  const handleSendQuickTest = async () => {
+    if (!testPhone.trim()) {
+      showFeedback('error', 'Informe o número com DDD para enviar o teste.');
+      return;
+    }
+    try {
+      setSendingTest(true);
+      const res = await sendAdminEvolutionTest(testPhone.trim());
+      showFeedback('success', `Mensagem de teste enviada para ${res?.resolvedJid || testPhone}!`);
+      setTestPhone('');
+    } catch (err) {
+      showFeedback('error', err.message || 'Falha ao enviar teste na Evolution API.');
+    } finally {
+      setSendingTest(false);
+    }
   };
 
   const handleSave = async (e) => {
@@ -468,6 +525,95 @@ export default function AdminSystemSettings({ currentUser }) {
         {/* BLOCO 2: VISIBILIDADE NA SESSÃO & MÓDULOS                 */}
         {/* ========================================================= */}
         <div className="space-y-6">
+          {/* INTEGRAÇÃO WHATSAPP — EVOLUTION API (EXCLUSIVO SUPERADMIN) */}
+          <div className="p-6 rounded-3xl bg-white dark:bg-slate-800/90 border border-emerald-500/30 dark:border-emerald-700/50 shadow-sm space-y-4">
+            <div className="flex items-center justify-between gap-2 pb-3 border-b border-stone-200 dark:border-slate-700 flex-wrap">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                  <MessageCircle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-serif font-medium text-stone-900 dark:text-stone-100">
+                    Função Evolution API (WhatsApp Oficial)
+                  </h3>
+                  <p className="text-xs text-stone-400">
+                    Controle geral da conversa no WhatsApp (Texto/Áudio) e do lembrete diário das 09:50.
+                  </p>
+                </div>
+              </div>
+
+              {evoStatus && (
+                <span
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                    evoStatus?.connectionState?.instance?.state === 'open'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                      : 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800'
+                  }`}
+                >
+                  Instância {evoStatus.instanceName || 'isaac'}:{' '}
+                  {evoStatus?.connectionState?.instance?.state === 'open' ? 'Conectada' : 'Verificar'}
+                </span>
+              )}
+            </div>
+
+            <div className="p-4 rounded-2xl bg-stone-50 dark:bg-slate-900/60 border border-stone-200/80 dark:border-slate-700 flex items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  <MessageCircle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-semibold text-stone-800 dark:text-stone-100 flex items-center gap-2 flex-wrap">
+                    Ativar Função da Evolution API
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        settings.evolution_whatsapp_enabled
+                          ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60'
+                          : 'text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-950/60'
+                      }`}
+                    >
+                      {settings.evolution_whatsapp_enabled ? 'Ativada' : 'Desativada'}
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 leading-relaxed">
+                    Quando desativada, pausa imediatamente os lembretes diários das 09:50 e o atendimento automático do agente via WhatsApp (mantendo apenas o respeito a pedidos de cancelamento/opt-out).
+                  </p>
+                </div>
+              </div>
+
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  disabled={togglingEvo}
+                  checked={Boolean(settings.evolution_whatsapp_enabled)}
+                  onChange={(e) => handleToggleEvolutionImmediate(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+              </label>
+            </div>
+
+            {settings.evolution_whatsapp_enabled && (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+                <input
+                  type="tel"
+                  value={testPhone}
+                  onChange={(e) => setTestPhone(e.target.value)}
+                  placeholder="Enviar mensagem de teste (Ex: 31995574906)"
+                  className="flex-1 px-3.5 py-2 rounded-xl bg-stone-50 dark:bg-slate-900 border border-stone-200 dark:border-slate-700 text-xs text-stone-800 dark:text-stone-200 outline-none focus:border-emerald-600"
+                />
+                <button
+                  type="button"
+                  onClick={handleSendQuickTest}
+                  disabled={sendingTest}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 disabled:opacity-50 shrink-0 cursor-pointer"
+                >
+                  {sendingTest ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  <span>Testar Envio</span>
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* MÓDULO INCÔMODO CRIATIVO */}
           <div className="p-6 rounded-3xl bg-white dark:bg-slate-800/90 border border-stone-200/80 dark:border-slate-700 shadow-sm space-y-4">
             <div className="flex items-center gap-2.5 pb-3 border-b border-stone-200 dark:border-slate-700">
