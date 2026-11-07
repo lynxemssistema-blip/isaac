@@ -425,3 +425,96 @@ html.theme-terracotta:not(.dark) .border-stone-200 {
   border-color: rgba(200, 106, 80, 0.2) !important;
 }
 
+/* ==========================================================================
+   MELHORIAS ERGONÔMICAS & VISUAIS NO MENU INFERIOR MOBILE (.mobile-bottom-nav)
+   Para todos os 4 temas: Oceano, Ouro, Esmeralda e Terracota
+   ========================================================================== */
+
+/* 1. Base geral do Mobile Nav: Vidro Fosco de Alta Resolução */
+.mobile-bottom-nav {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* 2. Tema Oceano (.theme-indigo) — Foco & Ciano Elétrico */
+html.theme-indigo .mobile-bottom-nav {
+  background-color: rgba(6, 13, 27, 0.94) !important;
+  border-top-color: rgba(56, 189, 248, 0.22) !important;
+  box-shadow: 0 -4px 24px rgba(2, 132, 199, 0.15) !important;
+}
+html.theme-indigo .nav-item-active {
+  color: #38bdf8 !important;
+}
+html.theme-indigo .nav-pill-active {
+  background-color: rgba(56, 189, 248, 0.16) !important;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.28) !important;
+  color: #38bdf8 !important;
+}
+
+/* 3. Tema Santuário Esmeralda (.theme-emerald) — Glow Zen Restaurador */
+html.theme-emerald .mobile-bottom-nav {
+  background-color: rgba(15, 23, 42, 0.94) !important;
+  border-top-color: rgba(45, 212, 191, 0.22) !important;
+  box-shadow: 0 -4px 24px rgba(15, 118, 110, 0.15) !important;
+}
+html.theme-emerald .nav-item-active {
+  color: #2dd4bf !important;
+}
+html.theme-emerald .nav-pill-active {
+  background-color: rgba(45, 212, 191, 0.16) !important;
+  box-shadow: 0 0 16px rgba(45, 212, 191, 0.25) !important;
+  color: #2dd4bf !important;
+}
+
+/* 4. Tema Refúgio Ouro & Obsidiana (.theme-gold) — Acabamento Dourado Nobre */
+html.theme-gold .mobile-bottom-nav {
+  background-color: rgba(9, 10, 15, 0.96) !important;
+  border-top-color: rgba(212, 175, 55, 0.26) !important;
+  box-shadow: 0 -4px 24px rgba(212, 175, 55, 0.12) !important;
+}
+html.theme-gold .nav-item-active {
+  color: #f1d478 !important;
+}
+html.theme-gold .nav-pill-active {
+  background-color: rgba(212, 175, 55, 0.18) !important;
+  box-shadow: 0 0 16px rgba(212, 175, 55, 0.25) !important;
+  color: #f1d478 !important;
+}
+html.theme-gold .mobile-bottom-nav button:not(.nav-item-active) {
+  color: rgba(230, 220, 200, 0.5) !important;
+}
+
+/* 5. Tema Areia de Seda & Terracota (.theme-terracotta) — Acolhimento Aveludado */
+html.theme-terracotta .mobile-bottom-nav {
+  background-color: rgba(19, 16, 14, 0.95) !important;
+  border-top-color: rgba(200, 106, 80, 0.28) !important;
+  box-shadow: 0 -4px 24px rgba(200, 106, 80, 0.14) !important;
+}
+html.theme-terracotta .nav-item-active {
+  color: #f09a83 !important;
+}
+html.theme-terracotta .nav-pill-active {
+  background-color: rgba(200, 106, 80, 0.18) !important;
+  box-shadow: 0 0 16px rgba(200, 106, 80, 0.25) !important;
+  color: #f09a83 !important;
+}
+
+/* Versão Light Mode para todos os temas no Mobile Nav */
+html:not(.dark) .mobile-bottom-nav {
+  background-color: rgba(255, 255, 255, 0.94) !important;
+  border-top-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06) !important;
+}
+html.theme-indigo:not(.dark) .mobile-bottom-nav {
+  background-color: rgba(240, 245, 250, 0.95) !important;
+  border-top-color: rgba(2, 132, 199, 0.2) !important;
+}
+html.theme-gold:not(.dark) .mobile-bottom-nav {
+  background-color: rgba(250, 248, 240, 0.95) !important;
+  border-top-color: rgba(212, 175, 55, 0.25) !important;
+}
+html.theme-terracotta:not(.dark) .mobile-bottom-nav {
+  background-color: rgba(250, 245, 238, 0.95) !important;
+  border-top-color: rgba(200, 106, 80, 0.22) !important;
+}
+

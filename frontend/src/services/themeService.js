@@ -5,6 +5,21 @@
 
 export const THEMES = [
   {
+    id: 'indigo',
+    name: 'Brisa Índigo & Oceano',
+    tagline: 'Clareza Profunda & Foco Mental',
+    description: 'Azul marinho profundo, noites oceânicas e ciano elétrico.',
+    fontName: 'Outfit Moderna',
+    fontStyle: 'Sans Tecnológica',
+    accent: '#0284c7',
+    accentText: '#38bdf8',
+    surface: '#060d1b',
+    card: '#0d172e',
+    colors: ['#0284c7', '#38bdf8', '#060d1b'],
+    previewIcon: '🌊',
+    badge: 'Padrão Oficial',
+  },
+  {
     id: 'emerald',
     name: 'Santuário Esmeralda',
     tagline: 'Cura Serena & Equilíbrio',
@@ -17,7 +32,7 @@ export const THEMES = [
     card: '#1e293b',
     colors: ['#0f766e', '#14b8a6', '#0f172a'],
     previewIcon: '🌿',
-    badge: 'Padrão Zen',
+    badge: 'Zen & Cura',
   },
   {
     id: 'gold',
@@ -33,21 +48,6 @@ export const THEMES = [
     colors: ['#d4af37', '#e5c358', '#090a0f'],
     previewIcon: '🕯️',
     badge: 'Luxo Nobre',
-  },
-  {
-    id: 'indigo',
-    name: 'Brisa Índigo & Oceano',
-    tagline: 'Clareza Profunda & Foco Mental',
-    description: 'Azul marinho profundo, noites oceânicas e ciano elétrico.',
-    fontName: 'Outfit Moderna',
-    fontStyle: 'Sans Tecnológica',
-    accent: '#0284c7',
-    accentText: '#38bdf8',
-    surface: '#060d1b',
-    card: '#0d172e',
-    colors: ['#0284c7', '#38bdf8', '#060d1b'],
-    previewIcon: '🌊',
-    badge: 'Foco Oceânico',
   },
   {
     id: 'terracotta',
@@ -80,25 +80,25 @@ export function applyAppTheme(themeId) {
     root.classList.remove(`theme-${id}`);
   });
 
-  const targetTheme = VALID_THEME_IDS.includes(themeId) ? themeId : 'gold';
+  const targetTheme = VALID_THEME_IDS.includes(themeId) ? themeId : 'indigo';
   root.classList.add(`theme-${targetTheme}`);
   return targetTheme;
 }
 
 /**
- * Obtém o tema atual salvo localmente (Padrão: 'gold' - Refúgio Ouro & Obsidiana)
+ * Obtém o tema atual salvo localmente (Padrão: 'indigo' - Brisa Índigo & Oceano)
  */
 export function getCurrentTheme() {
-  if (typeof window === 'undefined') return 'gold';
+  if (typeof window === 'undefined') return 'indigo';
   const saved = localStorage.getItem('isaac_app_theme') || localStorage.getItem('izaque_app_theme');
-  return VALID_THEME_IDS.includes(saved) ? saved : 'gold';
+  return VALID_THEME_IDS.includes(saved) ? saved : 'indigo';
 }
 
 /**
  * Salva e aplica o tema no dispositivo do usuário
  */
 export function saveAppTheme(themeId) {
-  const targetTheme = VALID_THEME_IDS.includes(themeId) ? themeId : 'emerald';
+  const targetTheme = VALID_THEME_IDS.includes(themeId) ? themeId : 'indigo';
   applyAppTheme(targetTheme);
   try {
     localStorage.setItem('isaac_app_theme', targetTheme);
