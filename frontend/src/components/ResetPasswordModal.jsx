@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
+import { authFetch, BACKEND_URL } from '../services/authFetch';
 import { Lock, Check, AlertCircle, Feather, ArrowRight, X, Loader2 } from 'lucide-react';
 
 export default function ResetPasswordModal({ isOpen, onClose, tokenHash, onOpenForgot }) {
@@ -84,11 +85,7 @@ export default function ResetPasswordModal({ isOpen, onClose, tokenHash, onOpenF
 
       // 2. Se não tinha sessão (Auth session missing no mobile) ou deu erro, usa o endpoint oficial do backend
       if (!resetSuccessful) {
-        const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL && import.meta.env.VITE_BACKEND_URL.trim() !== '')
-          ? import.meta.env.VITE_BACKEND_URL.replace(/\/$/, '')
-          : '';
-
-        const resp = await fetch(`${BACKEND_URL}/api/auth/reset-password`, {
+        const resp = await authFetch(`${BACKEND_URL}/api/auth/reset-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

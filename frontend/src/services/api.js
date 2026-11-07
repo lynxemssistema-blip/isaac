@@ -4,27 +4,7 @@
  */
 
 import { supabase } from './supabase';
-
-// Em desenvolvimento com proxy Vite ou em produção monólito/Nginx, rotas relativas garantem
-// que celular, tablet, localhost ou IP remoto acessem o backend sem bloqueios de CORS ou portas.
-function resolveBackendUrl() {
-  if (import.meta.env.VITE_BACKEND_URL && import.meta.env.VITE_BACKEND_URL.trim() !== '') {
-    return import.meta.env.VITE_BACKEND_URL.replace(/\/$/, '');
-  }
-
-  // Se estiver rodando localmente em uma porta estática sem proxy Vite (ex: Live Server 5500 ou preview direto)
-  if (typeof window !== 'undefined' && window.location) {
-    const { hostname, port } = window.location;
-    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
-    if (isLocal && port && port !== '5173' && port !== '4173' && port !== '3001') {
-      return 'http://localhost:3001';
-    }
-  }
-
-  return '';
-}
-
-const BACKEND_URL = resolveBackendUrl();
+import { authFetch, BACKEND_URL } from './authFetch';
 
 /**
  * Remove formatações Markdown, emojis, URLs e caracteres que quebram o fluxo da fala.
@@ -101,7 +81,7 @@ async function safeParseJson(response) {
  */
 export async function sendChatMessage({ message, userId, agentId, history = [], sessionId, guidedConversationId }) {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/chat`, {
+    const response = await authFetch(`${BACKEND_URL}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -136,7 +116,7 @@ export async function sendChatMessage({ message, userId, agentId, history = [], 
  */
 export async function checkBackendHealth() {
   try {
-    const res = await fetch(`${BACKEND_URL}/health`);
+    const res = await authFetch(`${BACKEND_URL}/health`);
     return res.ok;
   } catch {
     return false;
@@ -149,7 +129,7 @@ export async function checkBackendHealth() {
 export async function fetchActiveAgents() {
   // 1. Tenta via Backend Hermes
   try {
-    const res = await fetch(`${BACKEND_URL}/api/agents`);
+    const res = await authFetch(`${BACKEND_URL}/api/agents`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) {
@@ -189,7 +169,7 @@ export async function fetchActiveAgents() {
  */
 export async function sendAudioChatMessage({ audioBase64, mimeType = 'audio/webm', userId, agentId, durationSeconds, history = [], sessionId, guidedConversationId }) {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/chat/audio`, {
+    const response = await authFetch(`${BACKEND_URL}/api/chat/audio`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -238,7 +218,7 @@ export async function fetchVoiceAudio({ text, messageId, voiceName = 'Charon' })
 
   // 1. Tenta sintetizar via Backend Hermes (Gemini TTS -> ElevenLabs -> OpenAI -> Google TTS)
   try {
-    const response = await fetch(`${BACKEND_URL}/api/voice`, {
+    const response = await authFetch(`${BACKEND_URL}/api/voice`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -313,7 +293,7 @@ export async function fetchChatHistory(userId, sessionId = null) {
     const url = sessionId
       ? `${BACKEND_URL}/api/chat/history/${userId}?sessionId=${sessionId}`
       : `${BACKEND_URL}/api/chat/history/${userId}`;
-    const response = await fetch(url);
+    const response = await authFetch(url);
     if (response.ok) {
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
@@ -378,7 +358,7 @@ export async function clearChatHistory(userId, sessionId = null) {
     const url = sessionId
       ? `${BACKEND_URL}/api/chat/history/${userId}?sessionId=${sessionId}`
       : `${BACKEND_URL}/api/chat/history/${userId}`;
-    const response = await fetch(url, {
+    const response = await authFetch(url, {
       method: 'DELETE',
     });
     if (!response.ok) throw new Error('Falha ao limpar histórico');
@@ -397,7 +377,7 @@ export async function fetchUserSessions(userId) {
   if (!userId) return [];
 
   try {
-    const res = await fetch(`${BACKEND_URL}/api/chat/sessions/${userId}`);
+    const res = await authFetch(`${BACKEND_URL}/api/chat/sessions/${userId}`);
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) return data;
@@ -428,7 +408,7 @@ export async function createUserSession(userId, title = 'Nova Reflexão', guided
   if (!userId) return null;
 
   try {
-    const res = await fetch(`${BACKEND_URL}/api/chat/sessions`, {
+    const res = await authFetch(`${BACKEND_URL}/api/chat/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, title, guidedConversationId }),
@@ -464,7 +444,7 @@ export async function updateUserSession(sessionId, title) {
   if (!sessionId || !title) return null;
 
   try {
-    const res = await fetch(`${BACKEND_URL}/api/chat/sessions/${sessionId}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/chat/sessions/${sessionId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title }),
@@ -496,7 +476,7 @@ export async function deleteUserSession(sessionId) {
   if (!sessionId) return false;
 
   try {
-    const res = await fetch(`${BACKEND_URL}/api/chat/sessions/${sessionId}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/chat/sessions/${sessionId}`, {
       method: 'DELETE',
     });
     if (res.ok) return true;
@@ -521,7 +501,7 @@ export async function deleteUserSession(sessionId) {
  */
 export async function updateUserProfile(userId, profileData) {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/profile/${userId}`, {
+    const response = await authFetch(`${BACKEND_URL}/api/profile/${userId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(profileData),
@@ -608,7 +588,7 @@ export async function uploadCreatorPhoto(file) {
  */
 export async function requestPasswordReset(email) {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/auth/forgot-password`, {
+    const response = await authFetch(`${BACKEND_URL}/api/auth/forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.trim() }),
@@ -631,7 +611,7 @@ export async function requestPasswordReset(email) {
  */
 export async function fetchPublicPlans() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/plans`);
+    const res = await authFetch(`${BACKEND_URL}/api/plans`);
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) return data;
@@ -653,7 +633,7 @@ export async function fetchPublicPlans() {
  * Cria um pedido de assinatura PIX
  */
 export async function createPixOrder({ planId, userId, userEmail, userName }) {
-  const res = await fetch(`${BACKEND_URL}/api/subscription/pix-order`, {
+  const res = await authFetch(`${BACKEND_URL}/api/subscription/pix-order`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ planId, userId, userEmail, userName }),
@@ -671,7 +651,7 @@ export async function createPixOrder({ planId, userId, userEmail, userName }) {
  * Envia sugestão, reclamação ou pedido de suporte do assinante
  */
 export async function sendSubscriberFeedback({ userId, userEmail, userName, type, subject, message }) {
-  const res = await fetch(`${BACKEND_URL}/api/subscription/feedback`, {
+  const res = await authFetch(`${BACKEND_URL}/api/subscription/feedback`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId, userEmail, userName, type, subject, message }),
@@ -690,7 +670,7 @@ export async function sendSubscriberFeedback({ userId, userEmail, userName, type
  */
 export async function fetchUserSubscriptionStatus(userId) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/subscription/status/${userId}`);
+    const res = await authFetch(`${BACKEND_URL}/api/subscription/status/${userId}`);
     if (res.ok) return await res.json();
   } catch {}
 
@@ -708,7 +688,7 @@ export async function fetchUserSubscriptionStatus(userId) {
  */
 export async function fetchPublicCreator() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/creator`);
+    const res = await authFetch(`${BACKEND_URL}/api/creator`);
     if (res.ok) return await res.json();
   } catch (err) {
     console.warn('Aviso ao buscar dados do idealizador:', err);
@@ -727,7 +707,7 @@ export async function fetchPublicCreator() {
  * Consulta dados completos do Idealizador para o Painel Admin
  */
 export async function fetchAdminCreator() {
-  const res = await fetch(`${BACKEND_URL}/api/admin/creator`);
+  const res = await authFetch(`${BACKEND_URL}/api/admin/creator`);
   if (!res.ok) throw new Error('Falha ao carregar perfil do idealizador.');
   return await res.json();
 }
@@ -736,7 +716,7 @@ export async function fetchAdminCreator() {
  * Atualiza dados do Idealizador pelo Super Admin
  */
 export async function updateAdminCreator(creatorData) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/creator`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/creator`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(creatorData),
@@ -755,7 +735,7 @@ export async function updateAdminCreator(creatorData) {
  */
 export async function fetchPublicGuidedConversations() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/guided-conversations`);
+    const res = await authFetch(`${BACKEND_URL}/api/guided-conversations`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -787,7 +767,7 @@ export async function fetchPublicGuidedConversations() {
 export async function fetchUserNotifications(userId) {
   if (!userId) return [];
   try {
-    const res = await fetch(`${BACKEND_URL}/api/user/notifications/${userId}`);
+    const res = await authFetch(`${BACKEND_URL}/api/user/notifications/${userId}`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -816,7 +796,7 @@ export async function fetchUserNotifications(userId) {
 export async function markNotificationAsRead(notificationId) {
   if (!notificationId) return null;
   try {
-    const res = await fetch(`${BACKEND_URL}/api/user/notifications/${notificationId}/read`, {
+    const res = await authFetch(`${BACKEND_URL}/api/user/notifications/${notificationId}/read`, {
       method: 'PATCH',
     });
     if (res.ok) return await res.json();
@@ -835,7 +815,7 @@ export async function markNotificationAsRead(notificationId) {
 export async function markAllNotificationsAsRead(userId) {
   if (!userId) return null;
   try {
-    const res = await fetch(`${BACKEND_URL}/api/user/notifications/read-all/${userId}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/user/notifications/read-all/${userId}`, {
       method: 'PATCH',
     });
     if (res.ok) return true;

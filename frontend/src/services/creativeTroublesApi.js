@@ -1,8 +1,5 @@
 import { supabase } from './supabase';
-
-const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL && import.meta.env.VITE_BACKEND_URL.trim() !== '')
-  ? import.meta.env.VITE_BACKEND_URL.replace(/\/$/, '')
-  : '';
+import { authFetch, BACKEND_URL } from './authFetch';
 
 /**
  * Módulo de API do Incômodo Criativo
@@ -12,7 +9,7 @@ const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL && import.meta.env.VITE_BA
 // 0. Passo do Chat Guiado Interativo (IA Isaac / Thiago Prata)
 export async function sendCreativeTroubleChatStep({ step, userMessage, history, currentData }) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/creative-troubles/chat-step`, {
+    const res = await authFetch(`${BACKEND_URL}/api/creative-troubles/chat-step`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ step, userMessage, history, currentData }),
@@ -36,7 +33,7 @@ export async function sendCreativeTroubleChatStep({ step, userMessage, history, 
 // 1. Analisar Fato de forma socrática com IA (separar Fato de Julgamento)
 export async function analyzeFactWithAI(rawDescription) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/creative-troubles/analyze-fact`, {
+    const res = await authFetch(`${BACKEND_URL}/api/creative-troubles/analyze-fact`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rawDescription }),
@@ -61,7 +58,7 @@ export async function analyzeFactWithAI(rawDescription) {
 // 2. Gerar Diagnóstico Clínico do Incômodo (Dossiê da Virada)
 export async function generateTroubleDiagnosis(troubleData) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/creative-troubles/diagnose`, {
+    const res = await authFetch(`${BACKEND_URL}/api/creative-troubles/diagnose`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(troubleData),
@@ -101,7 +98,7 @@ export async function generateTroubleDiagnosis(troubleData) {
 export async function createCreativeTrouble(troubleData) {
   // 1. Tenta via Backend Hermes
   try {
-    const res = await fetch(`${BACKEND_URL}/api/creative-troubles`, {
+    const res = await authFetch(`${BACKEND_URL}/api/creative-troubles`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(troubleData),
@@ -129,7 +126,7 @@ export async function createCreativeTrouble(troubleData) {
 // 4. Buscar incômodos do usuário logado
 export async function fetchUserCreativeTroubles(userId) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/creative-troubles?user_id=${userId}`);
+    const res = await authFetch(`${BACKEND_URL}/api/creative-troubles?user_id=${userId}`);
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) return data;
@@ -151,7 +148,7 @@ export async function fetchUserCreativeTroubles(userId) {
 // 5. Atualizar status ou dados do incômodo
 export async function updateCreativeTrouble(id, updates) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/creative-troubles/${id}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/creative-troubles/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
@@ -178,7 +175,7 @@ export async function updateCreativeTrouble(id, updates) {
 // 6. Excluir incômodo
 export async function deleteCreativeTrouble(id) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/creative-troubles/${id}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/creative-troubles/${id}`, {
       method: 'DELETE',
     });
     if (res.ok) return true;
@@ -198,7 +195,7 @@ export async function deleteCreativeTrouble(id) {
 // 7. EXCLUSIVO SUPER ADMIN: Buscar todos os diagnósticos clínicos
 export async function fetchAdminCreativeTroubles() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/creative-troubles`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/creative-troubles`);
     if (res.ok) {
       const data = await res.json();
       return data;
@@ -234,7 +231,7 @@ export async function fetchAdminCreativeTroubles() {
 // 8. EXCLUSIVO SUPER ADMIN: Salvar anotações privadas do Mentor
 export async function saveAdminMentorNotes(id, mentorNotes, reviewerId = null) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/creative-troubles/${id}/mentor-notes`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/creative-troubles/${id}/mentor-notes`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mentor_notes: mentorNotes }),
@@ -267,7 +264,7 @@ export async function saveAdminMentorNotes(id, mentorNotes, reviewerId = null) {
 // 9. Cruzamento Metodológico de Múltiplos Incômodos (Raio-X de Padrões Inconscientes)
 export async function fetchCreativeTroublesCrossAnalysis(userId) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/creative-troubles/cross-analysis?userId=${userId}`);
+    const res = await authFetch(`${BACKEND_URL}/api/creative-troubles/cross-analysis?userId=${userId}`);
     if (res.ok) {
       return await res.json();
     }

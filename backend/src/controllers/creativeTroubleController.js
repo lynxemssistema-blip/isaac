@@ -355,26 +355,34 @@ export async function updateCreativeTrouble(req, res) {
   try {
     const { id } = req.params;
     const updates = { ...req.body, updated_at: new Date().toISOString() };
+    delete updates.id;
+    delete updates.user_id;
 
-    // Não permitir que o usuário comum edite notas do mentor
-    if (req.user && req.user.role !== 'master' && req.user.role !== 'admin') {
+    // Não permitir que o usuário comum edite notas do mentor ou incômodos de terceiros
+    const isAdmin = req.user?.role === 'master' || req.user?.role === 'admin';
+    if (!isAdmin) {
       delete updates.mentor_notes;
       delete updates.reviewed_by;
       delete updates.reviewed_at;
     }
 
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('izaque_creative_troubles')
       .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('id', id);
+
+    if (req.user && !isAdmin) {
+      query = query.eq('user_id', req.user.id);
+    }
+
+    const { data, error } = await query.select().maybeSingle();
 
     if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Incômodo não encontrado ou acesso negado.' });
     res.status(200).json(data);
   } catch (error) {
     console.error('❌ Erro ao atualizar incômodo:', error);
-    res.status(500).json({ error: 'Erro ao atualizar incômodo: ' + error.message });
+    res.status(500).json({ error: 'Erro ao atualizar incômodo.' });
   }
 }
 
@@ -385,16 +393,24 @@ export async function updateCreativeTrouble(req, res) {
 export async function deleteCreativeTrouble(req, res) {
   try {
     const { id } = req.params;
-    const { error } = await supabaseAdmin
+    const isAdmin = req.user?.role === 'master' || req.user?.role === 'admin';
+
+    let query = supabaseAdmin
       .from('izaque_creative_troubles')
       .delete()
       .eq('id', id);
+
+    if (req.user && !isAdmin) {
+      query = query.eq('user_id', req.user.id);
+    }
+
+    const { error } = await query;
 
     if (error) throw error;
     res.status(200).json({ success: true, message: 'Incômodo removido com sucesso.' });
   } catch (error) {
     console.error('❌ Erro ao excluir incômodo:', error);
-    res.status(500).json({ error: 'Erro ao excluir incômodo: ' + error.message });
+    res.status(500).json({ error: 'Erro ao excluir incômodo.' });
   }
 }
 

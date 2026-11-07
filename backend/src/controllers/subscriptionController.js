@@ -3,14 +3,18 @@ import {
   sendSubscriptionOrderNotification,
   sendFeedbackToSupport,
 } from '../services/emailService.js';
+import { getCached, setCached } from '../utils/memoryCache.js';
 
 /**
  * Controller de Planos e Assinaturas (Rotas Públicas e de Usuários)
  */
 
-// 1. Obter lista de planos ativos para exibição no aplicativo
+// 1. Obter lista de planos ativos para exibição no aplicativo (Cache TTL 60s)
 export async function getPublicPlans(req, res) {
   try {
+    const cached = getCached('plans:public');
+    if (cached) return res.status(200).json(cached);
+
     const { data, error } = await supabaseAdmin
       .from('izaque_plans')
       .select('id, name, price, billing_cycle, description, features, pix_key, pix_key_type, pix_beneficiary, activation_notice, is_active')
@@ -18,7 +22,7 @@ export async function getPublicPlans(req, res) {
       .order('price', { ascending: true });
 
     if (error) throw error;
-    res.status(200).json(data || []);
+    res.status(200).json(setCached('plans:public', data || [], 60_000));
   } catch (error) {
     console.error('❌ Erro ao buscar planos públicos:', error);
     res.status(500).json({ error: 'Erro ao carregar planos disponíveis.' });
@@ -188,9 +192,12 @@ export async function getUserSubscriptionStatus(req, res) {
   }
 }
 
-// 5. Obter dados públicos do Idealizador para a Landing Page
+// 5. Obter dados públicos do Idealizador para a Landing Page (Cache TTL 60s)
 export async function getPublicCreator(req, res) {
   try {
+    const cached = getCached('creator:public');
+    if (cached !== undefined) return res.status(200).json(cached);
+
     const { data, error } = await supabaseAdmin
       .from('izaque_creator')
       .select('name, title, bio, story, quote, image_url, social_instagram, social_linkedin, social_whatsapp, is_visible')
@@ -198,7 +205,7 @@ export async function getPublicCreator(req, res) {
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
-    res.status(200).json(data || null);
+    res.status(200).json(setCached('creator:public', data || null, 60_000));
   } catch (error) {
     console.error('❌ Erro ao buscar dados públicos do idealizador:', error);
     res.status(500).json({ error: 'Erro ao carregar dados do idealizador.' });

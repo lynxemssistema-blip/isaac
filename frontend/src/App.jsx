@@ -1,23 +1,34 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { supabase } from './services/supabase';
 import Navbar from './components/Navbar';
 import LandingPage from './components/LandingPage';
 import ReflectionSpace from './components/ReflectionSpace';
-import AdminDashboard from './components/AdminDashboard';
 import AuthModal from './components/AuthModal';
-import DirectSignupPage from './components/DirectSignupPage';
-import SimpleInscriptionPage from './components/SimpleInscriptionPage';
-import WelcomeOnboarding from './components/WelcomeOnboarding';
-import UserProfileModal from './components/UserProfileModal';
 import MobileBottomNav from './components/MobileBottomNav';
-import UserSettingsModal from './components/UserSettingsModal';
-import ResetPasswordModal from './components/ResetPasswordModal';
-import SubscriberFeedbackModal from './components/SubscriberFeedbackModal';
-import CreativeTroubleLab from './components/CreativeTroubleLab';
 import TermsOfUseModal, { TERMS_VERSION } from './components/TermsOfUseModal';
-import { AlertTriangle, LifeBuoy } from 'lucide-react';
+import { AlertTriangle, LifeBuoy, Loader2 } from 'lucide-react';
 import { applyAppTheme, getCurrentTheme } from './services/themeService';
 import { fetchSystemSettings, acceptTermsOfUseApi } from './services/adminApi';
+
+// Code-Splitting (React.lazy): isola painéis pesados (Super Admin, Laboratório e rotas avulsas)
+// do pacote inicial do aluno/visitante, reduzindo drasticamente o tempo de download no 4G/Mobile.
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const CreativeTroubleLab = lazy(() => import('./components/CreativeTroubleLab'));
+const DirectSignupPage = lazy(() => import('./components/DirectSignupPage'));
+const SimpleInscriptionPage = lazy(() => import('./components/SimpleInscriptionPage'));
+const WelcomeOnboarding = lazy(() => import('./components/WelcomeOnboarding'));
+const UserProfileModal = lazy(() => import('./components/UserProfileModal'));
+const UserSettingsModal = lazy(() => import('./components/UserSettingsModal'));
+const ResetPasswordModal = lazy(() => import('./components/ResetPasswordModal'));
+const SubscriberFeedbackModal = lazy(() => import('./components/SubscriberFeedbackModal'));
+
+function LazyFallbackLoader() {
+  return (
+    <div className="flex-1 min-h-[40vh] flex items-center justify-center p-6">
+      <Loader2 className="w-7 h-7 text-teal-600 dark:text-teal-400 animate-spin" />
+    </div>
+  );
+}
 
 function parseDirectSignupLocation() {
   if (typeof window === 'undefined') return null;
@@ -167,10 +178,10 @@ export default function App() {
     fetchSystemSettings().then((res) => {
       if (res) {
         setSystemSettings(res);
-        const savedTheme = localStorage.getItem('izaque_app_theme');
-        // Se o Superadmin ocultou a seleção de temas ou se ainda não há tema salvo, aplica o padrão global (gold)
+        const savedTheme = localStorage.getItem('isaac_app_theme') || localStorage.getItem('izaque_app_theme');
+        // Se o Superadmin ocultou a seleção de temas ou se ainda não há tema salvo, aplica o padrão global (indigo)
         const themeToApply = (!res.show_theme_selector || !savedTheme)
-          ? (res.default_theme || 'gold')
+          ? (res.default_theme || 'indigo')
           : savedTheme;
         applyAppTheme(themeToApply);
         localStorage.setItem('izaque_app_theme', themeToApply);
@@ -225,8 +236,11 @@ export default function App() {
       }
     }
 
+    let initialSessionHandled = false;
+
     // 1. Obter sessão atual
     supabase.auth.getSession().then(({ data: { session } }) => {
+      initialSessionHandled = true;
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
@@ -242,23 +256,23 @@ export default function App() {
       }
     });
 
-    // 2. Escutar mudanças de autenticação
+    // 2. Escutar mudanças de autenticação (evitando disparo duplicado em INITIAL_SESSION)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsResetPasswordOpen(true);
       }
+      if (event === 'INITIAL_SESSION' && initialSessionHandled) {
+        return;
+      }
 
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
-        const isFlowLocked =
-          (typeof window !== 'undefined' && window.__izaqueSignupFlowActive) ||
-          Boolean(directSignupRef.current) ||
-          Boolean(inscriptionRouteRef.current);
-
-        loadUserProfile(currentUser);
+        if (event !== 'TOKEN_REFRESHED') {
+          loadUserProfile(currentUser);
+        }
       } else {
         setProfile(null);
         if (activeTabRef.current === 'chat' || activeTabRef.current === 'admin') {
@@ -342,13 +356,17 @@ export default function App() {
 
   // PÁGINA NOVA E INDEPENDENTE DE FICHA DE INSCRIÇÃO SIMPLES (/inscricao)
   if (isInscriptionRoute) {
-    return <SimpleInscriptionPage />;
+    return (
+      <Suspense fallback={<LazyFallbackLoader />}>
+        <SimpleInscriptionPage />
+      </Suspense>
+    );
   }
 
   // PÁGINA DEDICADA DE CADASTRO DIRETO POR LINK (/cadastro ou /cadastro/:slug)
   if (directSignupRoute) {
     return (
-      <>
+      <Suspense fallback={<LazyFallbackLoader />}>
         <DirectSignupPage
           slug={directSignupRoute.slug}
           currentUser={user}
@@ -378,7 +396,7 @@ export default function App() {
           onClose={() => setIsAuthOpen(false)}
           onSuccess={handleAuthSuccess}
         />
-      </>
+      </Suspense>
     );
   }
 
@@ -424,10 +442,12 @@ export default function App() {
     >
       {/* ONBOARDING DO GUIA (Primeiro Acesso) */}
       {showOnboarding && (
-        <WelcomeOnboarding
-          userName={profile?.full_name || user?.email?.split('@')[0] || 'Viajante'}
-          onComplete={handleCompleteOnboarding}
-        />
+        <Suspense fallback={null}>
+          <WelcomeOnboarding
+            userName={profile?.full_name || user?.email?.split('@')[0] || 'Viajante'}
+            onComplete={handleCompleteOnboarding}
+          />
+        </Suspense>
       )}
 
       {/* BARRA SUPERIOR FIXA (NAVBAR) - Permanece sempre visível no topo da tela durante a navegação */}
@@ -496,7 +516,9 @@ export default function App() {
         {activeTab === 'admin' && (
           <>
             {profile?.role === 'master' || profile?.role === 'admin' ? (
-              <AdminDashboard currentUser={profile} />
+              <Suspense fallback={<LazyFallbackLoader />}>
+                <AdminDashboard currentUser={profile} />
+              </Suspense>
             ) : (
               <div className="flex-1 flex items-center justify-center p-6 text-center">
                 <div className="max-w-md p-8 rounded-4xl bg-white dark:bg-slate-800 border border-stone-200 dark:border-slate-700">
@@ -521,11 +543,13 @@ export default function App() {
         {activeTab === 'incomodo' && (
           <>
             {user ? (
-              <CreativeTroubleLab
-                user={profile || user}
-                profile={profile}
-                onBackToChat={() => setActiveTab('chat')}
-              />
+              <Suspense fallback={<LazyFallbackLoader />}>
+                <CreativeTroubleLab
+                  user={profile || user}
+                  profile={profile}
+                  onBackToChat={() => setActiveTab('chat')}
+                />
+              </Suspense>
             ) : (
               <div className="flex-1 flex items-center justify-center p-6 text-center">
                 <div className="max-w-md p-8 rounded-4xl bg-white dark:bg-slate-800/80 border border-stone-200 dark:border-slate-700 shadow-xl space-y-4">
@@ -557,40 +581,53 @@ export default function App() {
         onSuccess={handleAuthSuccess}
       />
 
-      {/* MODAL DE REDEFINIÇÃO DE SENHA (RECUPERAÇÃO VIA E-MAIL OFICIAL) */}
-      <ResetPasswordModal
-        isOpen={isResetPasswordOpen}
-        tokenHash={resetTokenHash}
-        onClose={() => {
-          setIsResetPasswordOpen(false);
-          setResetTokenHash('');
-        }}
-        onOpenForgot={() => openAuthModal('forgot', '')}
-      />
+      {/* MODAIS SECUNDÁRIOS CARREGADOS SOB DEMANDA */}
+      <Suspense fallback={null}>
+        {isResetPasswordOpen && (
+          <ResetPasswordModal
+            isOpen={isResetPasswordOpen}
+            tokenHash={resetTokenHash}
+            onClose={() => {
+              setIsResetPasswordOpen(false);
+              setResetTokenHash('');
+            }}
+            onOpenForgot={() => openAuthModal('forgot', '')}
+          />
+        )}
 
-      {/* MODAL DE PERFIL DO USUÁRIO (FOTO, NOME, WHATSAPP, DADOS COMPLETOS) */}
-      {user && (
-        <UserProfileModal
-          isOpen={isProfileOpen}
-          onClose={() => setIsProfileOpen(false)}
-          user={user}
-          profile={profile}
-          onProfileUpdated={(updated) => setProfile(updated)}
-        />
-      )}
+        {user && isProfileOpen && (
+          <UserProfileModal
+            isOpen={isProfileOpen}
+            onClose={() => setIsProfileOpen(false)}
+            user={user}
+            profile={profile}
+            onProfileUpdated={(updated) => setProfile(updated)}
+          />
+        )}
 
-      {/* MODAL DE AJUSTES E PREFERÊNCIAS SENSORIAIS (SOM & VOZ) */}
-      <UserSettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        user={user}
-        profile={profile}
-        onProfileUpdated={(updated) => setProfile(updated)}
-        onGuideNameChanged={(newName) => {
-          setGuideName(newName);
-          window.dispatchEvent(new Event('storage'));
-        }}
-      />
+        {isSettingsOpen && (
+          <UserSettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            user={user}
+            profile={profile}
+            onProfileUpdated={(updated) => setProfile(updated)}
+            onGuideNameChanged={(newName) => {
+              setGuideName(newName);
+              window.dispatchEvent(new Event('storage'));
+            }}
+          />
+        )}
+
+        {isFeedbackOpen && (
+          <SubscriberFeedbackModal
+            isOpen={isFeedbackOpen}
+            onClose={() => setIsFeedbackOpen(false)}
+            user={user}
+            profile={profile}
+          />
+        )}
+      </Suspense>
 
       {/* MENU INFERIOR FIXO PARA CELULARES E TABLETS (BOTTOM NAVIGATION BAR) */}
       <MobileBottomNav
@@ -613,14 +650,6 @@ export default function App() {
         user={user}
         profile={profile}
         systemSettings={systemSettings}
-      />
-
-      {/* MODAL DE SUPORTE, SUGESTÕES E RECLAMAÇÕES LYNX */}
-      <SubscriberFeedbackModal
-        isOpen={isFeedbackOpen}
-        onClose={() => setIsFeedbackOpen(false)}
-        user={user}
-        profile={profile}
       />
 
       {/* MODAL JURÍDICO DE TERMOS OBRIGATÓRIOS PARA USUÁRIOS LOGADOS */}

@@ -11,16 +11,19 @@ import {
   deleteAdminPdfCampaign,
   testOrResendCampaignPdf,
 } from '../controllers/pdfCampaignController.js';
+import { requireAdmin } from '../middlewares/authMiddleware.js';
+import { authAndMailLimiter } from '../middlewares/rateLimiters.js';
 
 const router = Router();
 
 // Rotas Públicas (Página de Cadastro Direto & Modal da Landing Page)
 router.get('/campaigns/public-default', getPublicDefaultCampaign);
 router.get('/campaigns/public/:slug', getPublicCampaignBySlug);
-router.post('/campaigns/complete-signup', completeSignupAndDeliverPdf);
-router.post('/campaigns/send-existing', sendPdfToExistingUser);
+router.post('/campaigns/complete-signup', authAndMailLimiter, completeSignupAndDeliverPdf);
+router.post('/campaigns/send-existing', authAndMailLimiter, sendPdfToExistingUser);
 
 // Rotas Administrativas (Painel Admin)
+router.use('/admin', requireAdmin);
 router.get('/admin/pdf-campaigns', getAdminPdfCampaigns);
 router.post('/admin/pdf-campaigns', createAdminPdfCampaign);
 router.put('/admin/pdf-campaigns/:id', updateAdminPdfCampaign);

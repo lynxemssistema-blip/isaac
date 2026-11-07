@@ -1,22 +1,37 @@
 import { genAI, CHAT_MODEL, FALLBACK_CHAT_MODELS } from '../config/gemini.js';
 import { supabaseAdmin } from '../config/supabase.js';
 import { generateEmbedding, searchMemories, formatMemoriesForPrompt } from '../services/memoryService.js';
+import { searchAgentKnowledge, formatAgentKnowledgeForPrompt } from '../services/agentKnowledgeService.js';
 import { extractAndSaveMemoryAsync } from '../services/extractionService.js';
 import { transcribeAudioWithGemini } from '../services/audioService.js';
+import { getCached, setCached } from '../utils/memoryCache.js';
+
+const ACTIVE_AGENTS_CACHE_KEY = 'agents:active_full';
+const ACTIVE_AGENTS_TTL_MS = 60_000;
+
+async function fetchCachedActiveAgents() {
+  const cached = getCached(ACTIVE_AGENTS_CACHE_KEY);
+  if (cached) return cached;
+
+  const { data, error } = await supabaseAdmin
+    .from('izaque_agents')
+    .select('id, name, slug, type, temperature, system_prompt, is_active, starter_questions')
+    .eq('is_active', true)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return setCached(ACTIVE_AGENTS_CACHE_KEY, data || [], ACTIVE_AGENTS_TTL_MS);
+}
 
 /**
  * Retorna todos os agentes especialistas ativos para o seletor da interface
+ * (Omite system_prompt na rota pública para proteger propriedade intelectual dos prompts)
  */
 export async function getActiveAgents(req, res) {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('izaque_agents')
-      .select('id, name, slug, type, temperature, system_prompt, is_active, starter_questions')
-      .eq('is_active', true)
-      .order('created_at', { ascending: true });
-
-    if (error) throw error;
-    res.status(200).json(data || []);
+    const agents = await fetchCachedActiveAgents();
+    const publicAgents = agents.map(({ system_prompt, ...publicFields }) => publicFields);
+    res.status(200).json(publicAgents);
   } catch (error) {
     console.error('❌ Erro ao listar agentes ativos:', error);
     res.status(500).json({ error: 'Erro ao listar agentes.' });
@@ -278,72 +293,78 @@ Retorne EXCLUSIVAMENTE o ID ou Slug do especialista escolhido. Não inclua expli
  * Executa a orquestração completa: RAG de memórias, super-prompt e Gemini
  */
 async function processChatMessageCore({ message, userId, agentId, history = [], sessionId = null, guidedConversationId = null }) {
-  const { data: allActiveAgents } = await supabaseAdmin
-    .from('izaque_agents')
-    .select('id, name, slug, type, system_prompt, temperature')
-    .eq('is_active', true);
+  const allActiveAgents = await fetchCachedActiveAgents().catch(() => []);
 
-  const selectedAgent = await resolveAgent(agentId, message, allActiveAgents || [], history);
+  // Etapa 1 Paralelizada: Roteamento + Embedding (768d) + Conversa Direcionada + Incômodos Criativos Ativos
+  const [selectedAgent, userEmbedding, guidedConversation, activeTroubles] = await Promise.all([
+    resolveAgent(agentId, message, allActiveAgents, history),
+    generateEmbedding(message).catch((e) => {
+      console.warn('⚠️ Falha ao gerar embedding:', e.message);
+      return null;
+    }),
+    getGuidedConversationContext(guidedConversationId, sessionId).catch((gErr) => {
+      console.warn('⚠️ Falha ao carregar contexto de conversa direcionada:', gErr.message);
+      return null;
+    }),
+    userId
+      ? supabaseAdmin
+          .from('izaque_creative_troubles')
+          .select('title, fact_description, posture_level, internal_state, intensity_score, relevance_score, responsibility_score, influence_score, micro_action_24h, status, created_at')
+          .eq('user_id', userId)
+          .eq('status', 'ativo')
+          .order('created_at', { ascending: false })
+          .limit(3)
+          .then(({ data }) => data || [])
+          .catch((ctErr) => {
+            console.warn('⚠️ Falha ao buscar incômodos criativos para o contexto do chat:', ctErr.message);
+            return [];
+          })
+      : Promise.resolve([]),
+  ]);
 
-  // 1. Gera Embedding da mensagem (768d) com tolerância a falhas
-  let userEmbedding = null;
-  try {
-    userEmbedding = await generateEmbedding(message);
-  } catch (e) {
-    console.warn('⚠️ Falha ao gerar embedding:', e.message);
-  }
-
-  // 2. Busca memórias semânticas no Supabase pgvector (se embedding disponível)
+  // Etapa 2 Paralelizada: Busca Vetorial no pgvector (Memórias do Usuário + Base de Estudos do Especialista)
   let relevantMemories = [];
-  if (userEmbedding) {
-    try {
-      relevantMemories = await searchMemories(userId, userEmbedding, {
-        matchThreshold: 0.40,
-        matchCount: 4,
-      });
-    } catch (mErr) {
-      console.warn('⚠️ Falha ao buscar memórias do usuário:', mErr.message);
-    }
-  }
-  const memoriesText = formatMemoriesForPrompt(relevantMemories);
-
-  // 3. Busca estudos e materiais técnicos do Agente (se embedding disponível)
-  let knowledgeText = '';
   let relevantKnowledge = [];
   if (userEmbedding) {
-    try {
-      const { searchAgentKnowledge, formatAgentKnowledgeForPrompt } = await import('../services/agentKnowledgeService.js');
-      relevantKnowledge = await searchAgentKnowledge(selectedAgent.id, userEmbedding, {
+    [relevantMemories, relevantKnowledge] = await Promise.all([
+      searchMemories(userId, userEmbedding, {
+        matchThreshold: 0.40,
+        matchCount: 4,
+      }).catch((mErr) => {
+        console.warn('⚠️ Falha ao buscar memórias do usuário:', mErr.message);
+        return [];
+      }),
+      searchAgentKnowledge(selectedAgent.id, userEmbedding, {
         matchThreshold: 0.38,
         matchCount: 3,
-      });
-      knowledgeText = formatAgentKnowledgeForPrompt(relevantKnowledge);
-    } catch (kErr) {
-      console.warn('⚠️ Falha ao buscar conhecimento de estudo do agente:', kErr.message);
-    }
+      }).catch((kErr) => {
+        console.warn('⚠️ Falha ao buscar conhecimento de estudo do agente:', kErr.message);
+        return [];
+      }),
+    ]);
   }
 
-  // 4. Se for uma Conversa Direcionada definida pelo Superadmin, extrai roteiro de perguntas
-  let guidedConversation = null;
+  const memoriesText = formatMemoriesForPrompt(relevantMemories);
+  const knowledgeText = formatAgentKnowledgeForPrompt(relevantKnowledge);
+
+  // 3. Monta protocolo de Conversa Direcionada se aplicável
   let guidedInstruction = '';
-  try {
-    guidedConversation = await getGuidedConversationContext(guidedConversationId, sessionId);
-    if (guidedConversation) {
-      let rawQuestions = [];
-      if (Array.isArray(guidedConversation.questions)) {
-        rawQuestions = guidedConversation.questions;
-      } else if (typeof guidedConversation.questions === 'string') {
-        try {
-          rawQuestions = JSON.parse(guidedConversation.questions);
-        } catch {}
-      }
+  if (guidedConversation) {
+    let rawQuestions = [];
+    if (Array.isArray(guidedConversation.questions)) {
+      rawQuestions = guidedConversation.questions;
+    } else if (typeof guidedConversation.questions === 'string') {
+      try {
+        rawQuestions = JSON.parse(guidedConversation.questions);
+      } catch {}
+    }
 
-      if (rawQuestions.length > 0) {
-        const formattedQuestions = rawQuestions
-          .map((q, idx) => `   Pergunta ${idx + 1}: "${typeof q === 'string' ? q : (q.text || q.question || JSON.stringify(q))}"`)
-          .join('\n');
+    if (rawQuestions.length > 0) {
+      const formattedQuestions = rawQuestions
+        .map((q, idx) => `   Pergunta ${idx + 1}: "${typeof q === 'string' ? q : (q.text || q.question || JSON.stringify(q))}"`)
+        .join('\n');
 
-        guidedInstruction = `
+      guidedInstruction = `
 🎯 PROTOCOLO DE CONVERSA DIRECIONADA (PRIORIDADE MÁXIMA DEFINIDA PELO SUPERADMIN):
 Esta sessão é uma CONVERSA DIRECIONADA com tema: "${guidedConversation.title}".
 ${guidedConversation.description ? `Propósito/Objetivo: "${guidedConversation.description}"` : ''}
@@ -358,34 +379,17 @@ SUA PRIORIDADE MÁXIMA E INEGOCIÁVEL NESTA INTERAÇÃO É DIRECIONAR A CONVERSA
 4. UMA PERGUNTA POR VEZ: NUNCA faça mais de uma pergunta de uma só vez nem despeje o questionário inteiro. Avance ordenadamente, dando espaço para o usuário digerir e responder cada etapa.
 5. CONSCIÊNCIA DE PROGRESSO NO HISTÓRICO: Examine o histórico recente da conversa para identificar quais perguntas das listadas acima o usuário já respondeu com substância. Direcione o seu foco para a PRÓXIMA pergunta ainda não respondida.
 6. FECHAMENTO PRÁTICO: Quando todas as perguntas do roteiro forem respondidas, consolide os pontos fortes revelados pelo usuário e encerre a conversa com uma reflexão inspiradora e uma micro-ação prática para as próximas 24 horas.`;
-      }
     }
-  } catch (gErr) {
-    console.warn('⚠️ Falha ao carregar contexto de conversa direcionada:', gErr.message);
   }
 
-  // 4.5 Injeta Incômodos Criativos Ativos do Usuário (Metodologia do Mentor Thiago Prata)
+  // 4. Formata Incômodos Criativos Ativos do Usuário (Metodologia do Mentor Thiago Prata)
   let creativeTroublesText = '';
-  if (userId) {
-    try {
-      const { data: activeTroubles } = await supabaseAdmin
-        .from('izaque_creative_troubles')
-        .select('title, fact_description, posture_level, internal_state, intensity_score, relevance_score, responsibility_score, influence_score, micro_action_24h, status, created_at')
-        .eq('user_id', userId)
-        .eq('status', 'ativo')
-        .order('created_at', { ascending: false })
-        .limit(3);
+  if (activeTroubles && activeTroubles.length > 0) {
+    const troublesList = activeTroubles.map((t, idx) =>
+      '[' + (idx + 1) + '] "' + t.title + '": Fato="' + (t.fact_description || '') + '" | Postura=[Nível ' + (t.posture_level || 1) + '] | Hawkins="' + (t.internal_state || '') + '" | IRRI (I:' + (t.intensity_score || 3) + ', R:' + (t.relevance_score || 3) + ', Resp:' + (t.responsibility_score || 3) + ', Inf:' + (t.influence_score || 3) + ') | Micro-ação 24h="' + (t.micro_action_24h || 'Pendente') + '"'
+    ).join('\n');
 
-      if (activeTroubles && activeTroubles.length > 0) {
-        const troublesList = activeTroubles.map((t, idx) => 
-          '[' + (idx + 1) + '] "' + t.title + '": Fato="' + (t.fact_description || '') + '" | Postura=[Nível ' + (t.posture_level || 1) + '] | Hawkins="' + (t.internal_state || '') + '" | IRRI (I:' + (t.intensity_score || 3) + ', R:' + (t.relevance_score || 3) + ', Resp:' + (t.responsibility_score || 3) + ', Inf:' + (t.influence_score || 3) + ') | Micro-ação 24h="' + (t.micro_action_24h || 'Pendente') + '"'
-        ).join('\n');
-
-        creativeTroublesText = '\n\nINCÔMODOS CRIATIVOS ATIVOS DO USUÁRIO (LABORATÓRIO DO INCÔMODO CRIATIVO):\nO usuário está trabalhando ativamente nas seguintes questões na metodologia do mentor Thiago Prata:\n' + troublesList + '\nIntegre essas informações com sensibilidade para apoiar o usuário, incentivar a postura ativa e acompanhar o compromisso da micro-ação de 24 horas.\n';
-      }
-    } catch (ctErr) {
-      console.warn('⚠️ Falha ao buscar incômodos criativos para o contexto do chat:', ctErr.message);
-    }
+    creativeTroublesText = '\n\nINCÔMODOS CRIATIVOS ATIVOS DO USUÁRIO (LABORATÓRIO DO INCÔMODO CRIATIVO):\nO usuário está trabalhando ativamente nas seguintes questões na metodologia do mentor Thiago Prata:\n' + troublesList + '\nIntegre essas informações com sensibilidade para apoiar o usuário, incentivar a postura ativa e acompanhar o compromisso da micro-ação de 24 horas.\n';
   }
 
   // 5. Monta o Super-Prompt com Persona + Conhecimento Técnico + Memórias Pessoais + Diretriz Direcionada + Incômodos
@@ -915,22 +919,29 @@ export async function updateUserSession(req, res) {
       return res.status(400).json({ error: 'Título inválido.' });
     }
 
-    const { data: updated, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('izaque_chat_sessions')
       .update({
         title: title.trim().slice(0, 60),
         updated_at: new Date().toISOString(),
       })
-      .eq('id', sessionId)
-      .select()
-      .single();
+      .eq('id', sessionId);
+
+    if (req.user && req.user.role !== 'master' && req.user.role !== 'admin') {
+      query = query.eq('user_id', req.user.id);
+    }
+
+    const { data: updated, error } = await query.select().maybeSingle();
 
     if (error) throw error;
+    if (!updated) {
+      return res.status(404).json({ error: 'Sessão não encontrada ou acesso negado.' });
+    }
 
     res.status(200).json(updated);
   } catch (error) {
     console.error('❌ Erro ao atualizar sessão:', error);
-    res.status(500).json({ error: 'Erro ao atualizar título da conversa.', details: error.message });
+    res.status(500).json({ error: 'Erro ao atualizar título da conversa.' });
   }
 }
 
@@ -945,17 +956,23 @@ export async function deleteUserSession(req, res) {
       return res.status(400).json({ error: 'sessionId é obrigatório.' });
     }
 
-    const { error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('izaque_chat_sessions')
       .delete()
       .eq('id', sessionId);
+
+    if (req.user && req.user.role !== 'master' && req.user.role !== 'admin') {
+      query = query.eq('user_id', req.user.id);
+    }
+
+    const { error } = await query;
 
     if (error) throw error;
 
     res.status(200).json({ success: true, message: 'Sessão removida com sucesso.' });
   } catch (error) {
     console.error('❌ Erro ao remover sessão:', error);
-    res.status(500).json({ error: 'Erro ao remover sessão.', details: error.message });
+    res.status(500).json({ error: 'Erro ao remover sessão.' });
   }
 }
 

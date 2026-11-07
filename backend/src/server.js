@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import chatRoutes from './routes/chatRoutes.js';
@@ -8,11 +9,16 @@ import adminRoutes from './routes/adminRoutes.js';
 import creativeTroubleRoutes from './routes/creativeTroubleRoutes.js';
 import pdfCampaignRoutes from './routes/pdfCampaignRoutes.js';
 import inscriptionRoutes from './routes/inscriptionRoutes.js';
+import { requireAdmin } from './middlewares/authMiddleware.js';
+import { apiGeneralLimiter } from './middlewares/rateLimiters.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Confiar no proxy reverso (Traefik / Easypanel / Nginx) para IP real no Rate Limit e logs LGPD
+app.set('trust proxy', 1);
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -31,16 +37,37 @@ const candidateDistPaths = [
 ];
 const distPath = candidateDistPaths.find((p) => fs.existsSync(p)) || candidateDistPaths[0];
 
-// Middlewares de Segurança e Logging
-app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({
-  origin: process.env.CORS_ORIGIN === '*' ? '*' : process.env.CORS_ORIGIN?.split(','),
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ limit: '25mb', extended: true }));
-app.use(morgan('dev'));
+// Middlewares de Segurança, Compressão e Logging
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
+app.use(compression());
+app.use(
+  cors({
+    origin:
+      !process.env.CORS_ORIGIN || process.env.CORS_ORIGIN === '*'
+        ? '*'
+        : process.env.CORS_ORIGIN.split(',').map((o) => o.trim()),
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+
+// Limite de 2MB padrão contra DoS de memória; 25MB exclusivo para rotas de áudio e upload de PDF/documentos
+const defaultJsonParser = express.json({ limit: '2mb' });
+const largeUploadJsonParser = express.json({ limit: '25mb' });
+app.use((req, res, next) => {
+  const isLargeUpload =
+    req.path === '/api/chat/audio' ||
+    req.path.startsWith('/api/admin/pdf-campaigns') ||
+    /^\/api\/admin\/agents\/[^/]+\/documents/.test(req.path);
+  return isLargeUpload ? largeUploadJsonParser(req, res, next) : defaultJsonParser(req, res, next);
+});
+app.use(express.urlencoded({ limit: '2mb', extended: true }));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'short' : 'dev'));
 
 // Health check para monitoramento na VPS / Easypanel
 const healthHandler = (req, res) => {
@@ -54,6 +81,10 @@ const healthHandler = (req, res) => {
 };
 app.get('/health', healthHandler);
 app.get('/api/health', healthHandler);
+
+// Rate Limit geral e Barreira Global Zero-Trust para todas as rotas /api/admin/*
+app.use('/api', apiGeneralLimiter);
+app.use('/api/admin', requireAdmin);
 
 // Rotas da API
 app.use('/api', chatRoutes);
@@ -70,6 +101,8 @@ if (fs.existsSync(distPath)) {
       setHeaders: (res, filePath) => {
         if (filePath.endsWith('index.html')) {
           res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        } else if (filePath.includes(`${path.sep}assets${path.sep}`) || filePath.includes('/assets/')) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         }
       },
     })

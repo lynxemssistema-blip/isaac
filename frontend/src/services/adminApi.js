@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { authFetch } from './authFetch';
 
 const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL && import.meta.env.VITE_BACKEND_URL.trim() !== '')
   ? import.meta.env.VITE_BACKEND_URL.replace(/\/$/, '')
@@ -7,7 +8,7 @@ const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL && import.meta.env.VITE_BA
 export async function fetchAdminMetrics() {
   // 1. Tenta via Backend Hermes
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/metrics`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/metrics`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -47,7 +48,7 @@ export async function fetchAdminMetrics() {
 
 export async function fetchAdminUsers() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/users`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/users`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -70,7 +71,7 @@ export async function fetchAdminUsers() {
 
 export async function updateRole(userId, role) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/users/role`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/users/role`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, role }),
@@ -90,7 +91,7 @@ export async function updateRole(userId, role) {
 
 export async function fetchAdminMemories() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/memories`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/memories`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -114,7 +115,7 @@ export async function fetchAdminMemories() {
 
 export async function fetchAdminAgents() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/agents`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/agents`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -137,7 +138,7 @@ export async function fetchAdminAgents() {
 
 export async function updateAgent(id, data) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/agents/${id}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/agents/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -157,7 +158,7 @@ export async function updateAgent(id, data) {
 
 export async function createAgent(data) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/agents`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/agents`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -178,7 +179,7 @@ export async function createAgent(data) {
 
 export async function deleteAgent(id) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/agents/${id}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/agents/${id}`, {
       method: 'DELETE',
     });
     if (res.ok) return await res.json();
@@ -196,7 +197,7 @@ export async function deleteAgent(id) {
 
 export async function fetchAgentDocuments(agentId) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/agents/${agentId}/documents`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/agents/${agentId}/documents`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -214,7 +215,7 @@ export async function fetchAgentDocuments(agentId) {
 }
 
 export async function uploadAgentDocument(agentId, data) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/agents/${agentId}/documents`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/agents/${agentId}/documents`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -228,7 +229,7 @@ export async function uploadAgentDocument(agentId, data) {
 
 export async function deleteAgentDocument(agentId, docId) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/agents/${agentId}/documents/${docId}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/agents/${agentId}/documents/${docId}`, {
       method: 'DELETE',
     });
     if (res.ok) return await res.json();
@@ -245,7 +246,7 @@ export async function deleteAgentDocument(agentId, docId) {
 
 export async function fetchDocumentChunks(agentId, docId) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/agents/${agentId}/documents/${docId}/chunks`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/agents/${agentId}/documents/${docId}/chunks`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -268,7 +269,7 @@ export async function fetchDocumentChunks(agentId, docId) {
 
 export async function fetchAdminPlans() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/plans`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/plans`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -285,7 +286,7 @@ export async function fetchAdminPlans() {
 }
 
 export async function updateAdminPlan(planId, updates) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/plans/${planId}`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/plans/${planId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
@@ -300,7 +301,7 @@ export async function updateAdminPlan(planId, updates) {
 }
 
 export async function updateUserStatus(userId, isActive) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/users/status`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/users/status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId, isActive }),
@@ -315,7 +316,7 @@ export async function updateUserStatus(userId, isActive) {
 }
 
 export async function updateUserPlan(userId, planId, planStatus = 'active') {
-  const res = await fetch(`${BACKEND_URL}/api/admin/users/plan`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/users/plan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId, planId, planStatus }),
@@ -331,7 +332,7 @@ export async function updateUserPlan(userId, planId, planStatus = 'active') {
 
 export async function fetchAdminSubscriptions() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/subscriptions`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/subscriptions`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -348,7 +349,7 @@ export async function fetchAdminSubscriptions() {
 }
 
 export async function approveSubscription(subId, adminId) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/subscriptions/${subId}/approve`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/subscriptions/${subId}/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ adminId }),
@@ -364,7 +365,7 @@ export async function approveSubscription(subId, adminId) {
 
 export async function fetchAdminFeedbacks() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/feedbacks`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/feedbacks`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -382,7 +383,7 @@ export async function fetchAdminFeedbacks() {
 
 export async function fetchAdminCreator() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/creator`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/creator`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -401,7 +402,7 @@ export async function fetchAdminCreator() {
 
 export async function updateAdminCreator(creatorData) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/creator`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/creator`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(creatorData),
@@ -456,7 +457,7 @@ export async function uploadCreatorPhoto(file) {
  * Consulta estatísticas de público para disparo de e-mails em massa
  */
 export async function fetchBroadcastStats() {
-  const res = await fetch(`${BACKEND_URL}/api/admin/broadcast/stats`);
+  const res = await authFetch(`${BACKEND_URL}/api/admin/broadcast/stats`);
   if (!res.ok) throw new Error('Falha ao consultar estatísticas de e-mail');
   return await res.json();
 }
@@ -465,7 +466,7 @@ export async function fetchBroadcastStats() {
  * Solicita ao Gemini para redigir o e-mail de novidades
  */
 export async function generateBroadcastDraft({ topic, targetAudience = 'all', extraPrompt = '' }) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/broadcast/draft`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/broadcast/draft`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ topic, targetAudience, extraPrompt }),
@@ -483,7 +484,7 @@ export async function generateBroadcastDraft({ topic, targetAudience = 'all', ex
  * Dispara e-mail em massa para os usuários
  */
 export async function sendBroadcastEmail({ subject, htmlContent, targetAudience = 'all', testEmail = null, callToActionText = 'Visitar Meu Refúgio Agora' }) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/broadcast/send`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/broadcast/send`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ subject, htmlContent, targetAudience, testEmail, callToActionText }),
@@ -502,7 +503,7 @@ export async function sendBroadcastEmail({ subject, htmlContent, targetAudience 
  */
 export async function fetchAdminGuidedConversations() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/guided-conversations`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/guided-conversations`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -527,7 +528,7 @@ export async function fetchAdminGuidedConversations() {
 
 export async function createAdminGuidedConversation(payload) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/guided-conversations`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/guided-conversations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -551,7 +552,7 @@ export async function createAdminGuidedConversation(payload) {
 
 export async function updateAdminGuidedConversation(id, payload) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/guided-conversations/${id}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/guided-conversations/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -576,7 +577,7 @@ export async function updateAdminGuidedConversation(id, payload) {
 
 export async function deleteAdminGuidedConversation(id) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/guided-conversations/${id}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/guided-conversations/${id}`, {
       method: 'DELETE',
     });
     if (res.ok) return true;
@@ -597,7 +598,7 @@ export async function deleteAdminGuidedConversation(id) {
  */
 export async function fetchAdminUserGroups() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/user-groups`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/user-groups`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -621,7 +622,7 @@ export async function fetchAdminUserGroups() {
 
 export async function createAdminUserGroup(payload) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/user-groups`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/user-groups`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -644,7 +645,7 @@ export async function createAdminUserGroup(payload) {
 
 export async function updateAdminUserGroup(id, payload) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/user-groups/${id}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/user-groups/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -668,7 +669,7 @@ export async function updateAdminUserGroup(id, payload) {
 
 export async function deleteAdminUserGroup(id) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/user-groups/${id}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/user-groups/${id}`, {
       method: 'DELETE',
     });
     if (res.ok) return true;
@@ -685,7 +686,7 @@ export async function deleteAdminUserGroup(id) {
 
 export async function fetchAdminGroupMembers(groupId) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/user-groups/${groupId}/members`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/user-groups/${groupId}/members`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -711,7 +712,7 @@ export async function fetchAdminGroupMembers(groupId) {
 
 export async function fetchUserAssignedGroups(userId) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/users/${userId}/groups`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/users/${userId}/groups`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -729,7 +730,7 @@ export async function fetchUserAssignedGroups(userId) {
 
 export async function setUserAssignedGroups(userId, groupIds) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/users/${userId}/groups`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/users/${userId}/groups`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ groupIds }),
@@ -761,7 +762,7 @@ export async function setUserAssignedGroups(userId, groupIds) {
  * Disparar Mensagem de Texto e/ou Áudio para Grupos (Superadmin)
  */
 export async function sendAdminGroupBroadcast({ title, content, audio_url, target_group_ids, sender_id }) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/group-broadcasts`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/group-broadcasts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, content, audio_url, target_group_ids, sender_id }),
@@ -777,7 +778,7 @@ export async function sendAdminGroupBroadcast({ title, content, audio_url, targe
 
 export async function fetchAdminGroupBroadcasts() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/group-broadcasts`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/group-broadcasts`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -828,7 +829,7 @@ export async function uploadBroadcastAudio(audioBlobOrFile) {
 
 export async function fetchProjectMembers() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/project/members`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/project/members`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -844,7 +845,7 @@ export async function fetchProjectMembers() {
 
 export async function createProjectMember(member) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/project/members`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/project/members`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(member),
@@ -867,7 +868,7 @@ export async function createProjectMember(member) {
 
 export async function updateProjectMember(id, member) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/project/members/${id}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/project/members/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(member),
@@ -891,7 +892,7 @@ export async function updateProjectMember(id, member) {
 
 export async function deleteProjectMember(id) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/project/members/${id}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/project/members/${id}`, {
       method: 'DELETE',
     });
     if (res.ok) return await res.json();
@@ -907,7 +908,7 @@ export async function deleteProjectMember(id) {
 
 export async function fetchProjectMilestones() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/project/milestones`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/project/milestones`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -924,7 +925,7 @@ export async function fetchProjectMilestones() {
 
 export async function createProjectMilestone(milestone) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/project/milestones`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/project/milestones`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(milestone),
@@ -947,7 +948,7 @@ export async function createProjectMilestone(milestone) {
 
 export async function updateProjectMilestone(id, milestone) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/project/milestones/${id}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/project/milestones/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(milestone),
@@ -971,7 +972,7 @@ export async function updateProjectMilestone(id, milestone) {
 
 export async function deleteProjectMilestone(id) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/project/milestones/${id}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/project/milestones/${id}`, {
       method: 'DELETE',
     });
     if (res.ok) return await res.json();
@@ -992,7 +993,7 @@ export async function fetchProjectTasks(filters = {}) {
     if (filters.status) params.append('status', filters.status);
     const qs = params.toString() ? `?${params.toString()}` : '';
 
-    const res = await fetch(`${BACKEND_URL}/api/admin/project/tasks${qs}`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/project/tasks${qs}`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -1018,7 +1019,7 @@ export async function fetchProjectTasks(filters = {}) {
 
 export async function createProjectTask(task) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/project/tasks`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/project/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(task),
@@ -1045,7 +1046,7 @@ export async function createProjectTask(task) {
 
 export async function updateProjectTask(id, task) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/project/tasks/${id}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/project/tasks/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(task),
@@ -1073,7 +1074,7 @@ export async function updateProjectTask(id, task) {
 
 export async function deleteProjectTask(id) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/project/tasks/${id}`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/project/tasks/${id}`, {
       method: 'DELETE',
     });
     if (res.ok) return await res.json();
@@ -1088,7 +1089,7 @@ export async function deleteProjectTask(id) {
 }
 
 export async function triggerTaskReminder(taskId) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/project/tasks/${taskId}/notify`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/project/tasks/${taskId}/notify`, {
     method: 'POST',
   });
   const data = await res.json();
@@ -1097,7 +1098,7 @@ export async function triggerTaskReminder(taskId) {
 }
 
 export async function runAutomatedRemindersCheck() {
-  const res = await fetch(`${BACKEND_URL}/api/admin/project/check-reminders`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/project/check-reminders`, {
     method: 'POST',
   });
   const data = await res.json();
@@ -1107,7 +1108,7 @@ export async function runAutomatedRemindersCheck() {
 
 export async function fetchProjectNotificationsLog() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/project/notifications-log`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/project/notifications-log`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -1132,7 +1133,7 @@ export async function fetchProjectNotificationsLog() {
 export async function fetchSystemSettings() {
   // 1. Tenta via backend Hermes
   try {
-    const res = await fetch(`${BACKEND_URL}/api/system/settings`);
+    const res = await authFetch(`${BACKEND_URL}/api/system/settings`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -1165,8 +1166,8 @@ export async function fetchSystemSettings() {
     show_landing_security: true,
     show_landing_steps: true,
     show_landing_cta: true,
-    default_theme: 'gold',
-    default_guide_name: 'Izaque',
+    default_theme: 'indigo',
+    default_guide_name: 'Isaac',
     default_ambient_track: '432hz',
     default_ambient_volume: 0.20,
     default_ambient_enabled: false,
@@ -1179,7 +1180,7 @@ export async function fetchSystemSettings() {
 export async function updateSystemSettings(settings) {
   // 1. Tenta via backend Hermes
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/system/settings`, {
+    const res = await authFetch(`${BACKEND_URL}/api/admin/system/settings`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
@@ -1213,7 +1214,7 @@ export async function updateSystemSettings(settings) {
 export async function acceptTermsOfUseApi({ userId, termsVersion = 'v1.0-beta-2026' }) {
   // 1. Tenta via backend Hermes (que captura IP real e headers)
   try {
-    const res = await fetch(`${BACKEND_URL}/api/terms/accept`, {
+    const res = await authFetch(`${BACKEND_URL}/api/terms/accept`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, termsVersion }),
@@ -1259,7 +1260,7 @@ export async function acceptTermsOfUseApi({ userId, termsVersion = 'v1.0-beta-20
 
 export async function fetchTermsAcceptanceLogs() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/terms/logs`);
+    const res = await authFetch(`${BACKEND_URL}/api/admin/terms/logs`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -1288,7 +1289,7 @@ export async function fetchTermsAcceptanceLogs() {
 
 export async function fetchPublicCampaignBySlug(slug) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/campaigns/public/${encodeURIComponent(slug)}`);
+    const res = await authFetch(`${BACKEND_URL}/api/campaigns/public/${encodeURIComponent(slug)}`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -1307,7 +1308,7 @@ export async function fetchPublicCampaignBySlug(slug) {
 
 export async function fetchPublicDefaultCampaign() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/campaigns/public-default`);
+    const res = await authFetch(`${BACKEND_URL}/api/campaigns/public-default`);
     if (res.ok) {
       const ct = res.headers.get('content-type') || '';
       if (ct.includes('application/json')) return await res.json();
@@ -1325,7 +1326,7 @@ export async function fetchPublicDefaultCampaign() {
 }
 
 export async function completeSignupAndDeliverPdfApi(payload) {
-  const res = await fetch(`${BACKEND_URL}/api/campaigns/complete-signup`, {
+  const res = await authFetch(`${BACKEND_URL}/api/campaigns/complete-signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -1338,7 +1339,7 @@ export async function completeSignupAndDeliverPdfApi(payload) {
 }
 
 export async function sendPdfToExistingUserApi(payload) {
-  const res = await fetch(`${BACKEND_URL}/api/campaigns/send-existing`, {
+  const res = await authFetch(`${BACKEND_URL}/api/campaigns/send-existing`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -1354,7 +1355,7 @@ export async function sendPdfToExistingUserApi(payload) {
 }
 
 export async function fetchAdminPdfCampaigns() {
-  const res = await fetch(`${BACKEND_URL}/api/admin/pdf-campaigns`);
+  const res = await authFetch(`${BACKEND_URL}/api/admin/pdf-campaigns`);
   const data = await res.json().catch(() => []);
   if (!res.ok) {
     throw new Error(data.error || 'Falha ao carregar campanhas de PDF.');
@@ -1363,7 +1364,7 @@ export async function fetchAdminPdfCampaigns() {
 }
 
 export async function createAdminPdfCampaign(payload) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/pdf-campaigns`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/pdf-campaigns`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -1376,7 +1377,7 @@ export async function createAdminPdfCampaign(payload) {
 }
 
 export async function updateAdminPdfCampaign(id, payload) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/pdf-campaigns/${id}`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/pdf-campaigns/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -1389,7 +1390,7 @@ export async function updateAdminPdfCampaign(id, payload) {
 }
 
 export async function deleteAdminPdfCampaign(id) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/pdf-campaigns/${id}`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/pdf-campaigns/${id}`, {
     method: 'DELETE',
   });
   const data = await res.json().catch(() => ({}));
@@ -1400,7 +1401,7 @@ export async function deleteAdminPdfCampaign(id) {
 }
 
 export async function sendTestOrManualCampaignPdf(id, payload) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/pdf-campaigns/${id}/send`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/pdf-campaigns/${id}/send`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -1414,7 +1415,7 @@ export async function sendTestOrManualCampaignPdf(id, payload) {
 
 export async function fetchAdminPdfDeliveries(campaignId = '') {
   const qs = campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : '';
-  const res = await fetch(`${BACKEND_URL}/api/admin/pdf-deliveries${qs}`);
+  const res = await authFetch(`${BACKEND_URL}/api/admin/pdf-deliveries${qs}`);
   const data = await res.json().catch(() => []);
   if (!res.ok) {
     throw new Error(data.error || 'Falha ao carregar histórico de envios.');
@@ -1427,7 +1428,7 @@ export async function fetchAdminPdfDeliveries(campaignId = '') {
 // ============================================================================
 
 export async function submitPublicInscriptionApi(payload) {
-  const res = await fetch(`${BACKEND_URL}/api/inscriptions`, {
+  const res = await authFetch(`${BACKEND_URL}/api/inscriptions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -1440,7 +1441,7 @@ export async function submitPublicInscriptionApi(payload) {
 }
 
 export async function updateAdminInscriptionApi(id, payload) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/inscriptions/${id}`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/inscriptions/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -1453,7 +1454,7 @@ export async function updateAdminInscriptionApi(id, payload) {
 }
 
 export async function deleteAdminInscriptionApi(id) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/inscriptions/${id}`, {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/inscriptions/${id}`, {
     method: 'DELETE',
   });
   const data = await res.json().catch(() => ({}));

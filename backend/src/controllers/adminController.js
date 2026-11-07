@@ -8,6 +8,8 @@ import {
   sendTaskReminderEmail,
   sendTaskCompletedEmail,
 } from '../services/emailService.js';
+import { getCached, setCached, invalidateCache } from '../utils/memoryCache.js';
+import { invalidateAuthCache } from '../middlewares/authMiddleware.js';
 
 /**
  * Controller Administrativo (Exclusivo para Super Admin / Master)
@@ -114,6 +116,7 @@ export async function updateUserRole(req, res) {
       .single();
 
     if (error) throw error;
+    invalidateAuthCache();
     res.status(200).json(data);
   } catch (error) {
     console.error('❌ Erro ao alterar role:', error);
@@ -187,6 +190,7 @@ export async function updateAdminAgent(req, res) {
       .single();
 
     if (error) throw error;
+    invalidateCache('agents:active_full');
     res.status(200).json(data);
   } catch (error) {
     console.error('❌ Erro ao atualizar agente:', error);
@@ -221,6 +225,7 @@ export async function createAdminAgent(req, res) {
       .single();
 
     if (error) throw error;
+    invalidateCache('agents:active_full');
     console.log(`🤖 [ISAAC Multi-Agent] Novo especialista criado: "${data.name}" (${data.slug})`);
     res.status(201).json(data);
   } catch (error) {
@@ -251,6 +256,7 @@ export async function deleteAdminAgent(req, res) {
       .eq('id', id);
 
     if (error) throw error;
+    invalidateCache('agents:active_full');
     res.status(200).json({ message: 'Agente removido com sucesso.' });
   } catch (error) {
     console.error('❌ Erro ao excluir agente:', error);
@@ -435,6 +441,7 @@ export async function updateAdminPlan(req, res) {
       .single();
 
     if (error) throw error;
+    invalidateCache('plans:public');
 
     console.log(`✅ [Plan Updated] Plano ${id} atualizado pelo Superadmin. Preço: R$ ${data.price}, Chave PIX: ${data.pix_key}`);
     res.status(200).json(data);
@@ -471,6 +478,7 @@ export async function updateUserStatus(req, res) {
     if (profileErr) throw profileErr;
 
     if (profileData) {
+      invalidateAuthCache();
       console.log(`👤 [User Access] Usuário ${userId} status alterado para: ${isActive ? 'ATIVO' : 'BLOQUEADO'}`);
       return res.status(200).json(profileData);
     }
@@ -696,6 +704,7 @@ export async function updateAdminCreator(req, res) {
       .single();
 
     if (error) throw error;
+    invalidateCache('creator:public');
     res.status(200).json({
       success: true,
       message: 'Perfil do Idealizador atualizado com sucesso!',
@@ -844,6 +853,9 @@ export async function sendBroadcastMessageController(req, res) {
  */
 export async function getPublicGuidedConversations(req, res) {
   try {
+    const cached = getCached('guided:public');
+    if (cached) return res.status(200).json(cached);
+
     const { data, error } = await supabaseAdmin
       .from('izaque_guided_conversations')
       .select('*')
@@ -852,7 +864,7 @@ export async function getPublicGuidedConversations(req, res) {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    res.status(200).json(data || []);
+    res.status(200).json(setCached('guided:public', data || [], 60_000));
   } catch (error) {
     console.error('❌ Erro ao listar conversas direcionadas públicas:', error);
     res.status(500).json({ error: 'Erro ao carregar conversas direcionadas.' });
@@ -920,6 +932,7 @@ export async function createAdminGuidedConversation(req, res) {
       .single();
 
     if (error) throw error;
+    invalidateCache('guided:public');
     res.status(201).json(data);
   } catch (error) {
     console.error('❌ Erro ao criar conversa direcionada:', error);
@@ -966,6 +979,7 @@ export async function updateAdminGuidedConversation(req, res) {
       .single();
 
     if (error) throw error;
+    invalidateCache('guided:public');
     res.status(200).json(data);
   } catch (error) {
     console.error('❌ Erro ao atualizar conversa direcionada:', error);
@@ -986,6 +1000,7 @@ export async function deleteAdminGuidedConversation(req, res) {
       .eq('id', id);
 
     if (error) throw error;
+    invalidateCache('guided:public');
     res.status(200).json({ success: true, message: 'Conversa direcionada removida com sucesso.' });
   } catch (error) {
     console.error('❌ Erro ao excluir conversa direcionada:', error);
@@ -1357,12 +1372,16 @@ export async function getUserNotifications(req, res) {
 export async function markNotificationAsRead(req, res) {
   try {
     const { id } = req.params;
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('izaque_user_notifications')
       .update({ is_read: true, read_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('id', id);
+
+    if (req.user && req.user.role !== 'master' && req.user.role !== 'admin') {
+      query = query.eq('user_id', req.user.id);
+    }
+
+    const { data, error } = await query.select().maybeSingle();
 
     if (error) throw error;
     res.status(200).json(data);
@@ -2046,6 +2065,9 @@ export async function getProjectNotificationsLog(req, res) {
  */
 export async function getSystemSettings(req, res) {
   try {
+    const cached = getCached('system:settings');
+    if (cached) return res.status(200).json(cached);
+
     const { data, error } = await supabaseAdmin
       .from('izaque_system_settings')
       .select('*')
@@ -2066,7 +2088,7 @@ export async function getSystemSettings(req, res) {
       show_landing_security: true,
       show_landing_steps: true,
       show_landing_cta: true,
-      default_theme: 'gold',
+      default_theme: 'indigo',
       default_guide_name: 'Isaac',
       default_ambient_track: '432hz',
       default_ambient_volume: 0.20,
@@ -2076,7 +2098,7 @@ export async function getSystemSettings(req, res) {
       default_immersive_voice: false,
     };
 
-    res.status(200).json({
+    const normalizedSettings = {
       ...settings,
       show_creative_troubles: settings.show_creative_troubles !== undefined ? settings.show_creative_troubles : true,
       show_landing_creator: settings.show_landing_creator !== undefined ? settings.show_landing_creator : true,
@@ -2085,7 +2107,9 @@ export async function getSystemSettings(req, res) {
       show_landing_security: settings.show_landing_security !== undefined ? settings.show_landing_security : true,
       show_landing_steps: settings.show_landing_steps !== undefined ? settings.show_landing_steps : true,
       show_landing_cta: settings.show_landing_cta !== undefined ? settings.show_landing_cta : true,
-    });
+    };
+
+    res.status(200).json(setCached('system:settings', normalizedSettings, 60_000));
   } catch (error) {
     console.error('❌ Erro ao buscar parâmetros do sistema:', error);
     res.status(200).json({
@@ -2100,7 +2124,7 @@ export async function getSystemSettings(req, res) {
       show_landing_security: true,
       show_landing_steps: true,
       show_landing_cta: true,
-      default_theme: 'gold',
+      default_theme: 'indigo',
       default_guide_name: 'Isaac',
       default_ambient_track: '432hz',
       default_ambient_volume: 0.20,
@@ -2152,7 +2176,7 @@ export async function updateSystemSettings(req, res) {
       show_landing_security: show_landing_security !== undefined ? Boolean(show_landing_security) : true,
       show_landing_steps: show_landing_steps !== undefined ? Boolean(show_landing_steps) : true,
       show_landing_cta: show_landing_cta !== undefined ? Boolean(show_landing_cta) : true,
-      default_theme: default_theme || 'gold',
+      default_theme: default_theme || 'indigo',
       default_guide_name: default_guide_name || 'Isaac',
       default_ambient_track: default_ambient_track || '432hz',
       default_ambient_volume: default_ambient_volume !== undefined ? Number(default_ambient_volume) : 0.20,
@@ -2171,6 +2195,7 @@ export async function updateSystemSettings(req, res) {
       .single();
 
     if (error) throw error;
+    invalidateCache('system:settings');
     res.status(200).json(data);
   } catch (error) {
     console.error('❌ Erro ao salvar parâmetros do sistema:', error);

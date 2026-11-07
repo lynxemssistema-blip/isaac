@@ -61,8 +61,12 @@ import {
   acceptTermsOfUse,
   getTermsAcceptanceLogs,
 } from '../controllers/adminController.js';
+import { requireAuth, requireAdmin, requireSelfOrAdmin } from '../middlewares/authMiddleware.js';
 
 const router = Router();
+
+// Barreira explícita RBAC para qualquer sub-rota /admin/* neste router
+router.use('/admin', requireAdmin);
 
 // Conversas Direcionadas Públicas (para todos os usuários)
 router.get('/guided-conversations', getPublicGuidedConversations);
@@ -119,10 +123,10 @@ router.post('/admin/users/:userId/groups', setUserAssignedGroups);
 router.post('/admin/group-broadcasts', sendGroupBroadcast);
 router.get('/admin/group-broadcasts', getAdminGroupBroadcasts);
 
-// Notificações / Comunicados In-App do Usuário
-router.get('/user/notifications/:userId', getUserNotifications);
-router.patch('/user/notifications/:id/read', markNotificationAsRead);
-router.patch('/user/notifications/read-all/:userId', markAllNotificationsAsRead);
+// Notificações / Comunicados In-App do Usuário (Protegidas por BOLA/IDOR)
+router.get('/user/notifications/:userId', requireSelfOrAdmin('userId'), getUserNotifications);
+router.patch('/user/notifications/:id/read', requireAuth, markNotificationAsRead);
+router.patch('/user/notifications/read-all/:userId', requireSelfOrAdmin('userId'), markAllNotificationsAsRead);
 
 // Gestão de Projetos, Membros, Cronograma e Cobranças por E-mail (Superadmin)
 router.get('/admin/project/members', getProjectMembers);
@@ -150,7 +154,7 @@ router.get('/admin/system/settings', getSystemSettings);
 router.put('/admin/system/settings', updateSystemSettings);
 
 // Termos e Condições de Uso (Clickwrap com validade jurídica)
-router.post('/terms/accept', acceptTermsOfUse);
+router.post('/terms/accept', requireSelfOrAdmin('userId'), acceptTermsOfUse);
 router.get('/admin/terms/logs', getTermsAcceptanceLogs);
 
 export default router;

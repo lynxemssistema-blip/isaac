@@ -26,8 +26,19 @@ export default function UserNotificationsPopover({ user }) {
   const [playingAudioId, setPlayingAudioId] = useState(null);
   const audioRef = useRef(null);
 
-  const loadNotifications = async () => {
+  const lastFetchAtRef = useRef(0);
+
+  const loadNotifications = async (force = false) => {
     if (!user?.id) return;
+    if (!force && typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      return;
+    }
+    const now = Date.now();
+    if (!force && now - lastFetchAtRef.current < 10_000) {
+      return;
+    }
+    lastFetchAtRef.current = now;
+
     try {
       const data = await fetchUserNotifications(user.id);
       setNotifications(data || []);
@@ -37,9 +48,18 @@ export default function UserNotificationsPopover({ user }) {
   };
 
   useEffect(() => {
-    loadNotifications();
-    const interval = setInterval(loadNotifications, 30000); // 30s polling
-    return () => clearInterval(interval);
+    loadNotifications(true);
+    const interval = setInterval(() => loadNotifications(false), 45_000); // 45s polling inteligente (pausado em abas ocultas)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadNotifications(false);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [user?.id]);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;

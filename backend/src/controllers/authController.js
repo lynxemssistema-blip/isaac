@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { sendPasswordResetEmail, sendTestEmail } from '../services/emailService.js';
+import { extractBearerToken } from '../middlewares/authMiddleware.js';
 
 /**
  * Controller de Recuperação de Senha Oficial
@@ -14,7 +15,7 @@ export async function handleForgotPassword(req, res) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const appUrl = (process.env.APP_URL || 'https://izaque.lynxems.com.br').replace(/\/$/, '');
+    const appUrl = (process.env.APP_URL || 'https://isaac.lynxems.com.br').replace(/\/$/, '');
 
     // 1. Busca os dados do perfil do usuário para capturar o nome
     const { data: profile } = await supabaseAdmin
@@ -100,14 +101,14 @@ export async function handleTestEmail(req, res) {
  */
 export async function handleResetPasswordWithToken(req, res) {
   try {
-    const { token_hash, password, email } = req.body;
+    const { token_hash, password } = req.body;
 
-    if (!password || password.length < 6) {
+    if (!password || typeof password !== 'string' || password.length < 6) {
       return res.status(400).json({ error: 'A nova senha deve ter pelo menos 6 caracteres.' });
     }
 
-    // 1. Se recebemos o token_hash da recuperação
-    if (token_hash) {
+    // 1. Verificação criptográfica via token_hash de uso único (OTP recovery)
+    if (token_hash && typeof token_hash === 'string') {
       const { data: otpData, error: otpError } = await supabaseAdmin.auth.verifyOtp({
         token_hash,
         type: 'recovery',
@@ -120,7 +121,6 @@ export async function handleResetPasswordWithToken(req, res) {
         });
       }
 
-      // Atualiza a senha pelo ID com privilégios de Admin
       const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(otpData.user.id, {
         password,
       });
@@ -129,7 +129,7 @@ export async function handleResetPasswordWithToken(req, res) {
         throw updateError;
       }
 
-      console.log(`🔐 [Reset Password] Senha redefinida com sucesso para o usuário ${otpData.user.email} (ID: ${otpData.user.id})`);
+      console.log(`🔐 [Reset Password] Senha redefinida com sucesso via token_hash para ${otpData.user.email} (ID: ${otpData.user.id})`);
 
       return res.status(200).json({
         success: true,
@@ -137,19 +137,18 @@ export async function handleResetPasswordWithToken(req, res) {
       });
     }
 
-    // 2. Se foi enviado por e-mail com verificação
-    if (email && email.includes('@')) {
-      const { data: userRow } = await supabaseAdmin
-        .from('izaque_profiles')
-        .select('id')
-        .eq('email', email.trim().toLowerCase())
-        .maybeSingle();
-
-      if (userRow?.id) {
-        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userRow.id, {
+    // 2. Fallback autenticado: caso o token_hash já tenha sido consumido no client-side (verifyOtp)
+    // e o cliente possua o JWT legítimo da sessão de recuperação no header Authorization
+    const bearerToken = extractBearerToken(req);
+    if (bearerToken) {
+      const { data: authData, error: authErr } = await supabaseAdmin.auth.getUser(bearerToken);
+      if (!authErr && authData?.user?.id) {
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(authData.user.id, {
           password,
         });
         if (updateError) throw updateError;
+
+        console.log(`🔐 [Reset Password] Senha redefinida via JWT autenticado para ${authData.user.email} (ID: ${authData.user.id})`);
         return res.status(200).json({
           success: true,
           message: 'Senha redefinida com sucesso!',
@@ -157,11 +156,13 @@ export async function handleResetPasswordWithToken(req, res) {
       }
     }
 
-    return res.status(400).json({ error: 'Token de recuperação ausente ou inválido.' });
+    return res.status(401).json({
+      error: 'Token de recuperação ausente ou expirado. Por favor, solicite um novo link por e-mail.',
+    });
   } catch (error) {
     console.error('❌ Erro ao redefinir senha com token:', error);
     res.status(500).json({
-      error: 'Erro ao salvar nova senha: ' + error.message,
+      error: 'Erro ao salvar nova senha. Solicite um novo link e tente novamente.',
     });
   }
 }
