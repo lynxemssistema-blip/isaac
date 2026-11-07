@@ -39,6 +39,7 @@ import {
   ExternalLink,
   Link2,
   Phone,
+  CreditCard,
   X,
 } from 'lucide-react';
 import {
@@ -68,6 +69,7 @@ import AdminProjectPlanning from './AdminProjectPlanning';
 import AdminCreativeTroubles from './AdminCreativeTroubles';
 import AdminSystemSettings from './AdminSystemSettings';
 import AdminPdfCampaigns from './AdminPdfCampaigns';
+import AdminAsaasPanel from './AdminAsaasPanel';
 
 export default function AdminDashboard({ currentUser }) {
   const isSuperAdmin = currentUser?.role === 'master' || currentUser?.email === 'edsonmanoel2012@gmail.com';
@@ -661,6 +663,18 @@ export default function AdminDashboard({ currentUser }) {
             >
               <HelpCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
               <span>Manual</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('asaas_billing')}
+              className={`px-3 sm:px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'asaas_billing'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30'
+              }`}
+            >
+              <CreditCard className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+              <span className="font-semibold">Planos & Pagamentos Asaas</span>
             </button>
 
             {isSuperAdmin && (
@@ -1631,6 +1645,11 @@ export default function AdminDashboard({ currentUser }) {
         {/* ABA 13: PARÂMETROS AVANÇADOS DO SISTEMA (EXCLUSIVO SUPERADMIN) */}
         {activeTab === 'advanced_params' && isSuperAdmin && (
           <AdminSystemSettings currentUser={currentUser} />
+        )}
+
+        {/* ABA 15: PLANOS & PAINEL DE PAGAMENTOS ASAAS */}
+        {activeTab === 'asaas_billing' && (
+          <AdminAsaasPanel currentUser={currentUser} />
         )}
 
         {/* ABA 14: LINKS DE CADASTRO DIRETO & ENVIO AUTOMÁTICO DE PDFS */}

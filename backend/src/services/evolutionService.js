@@ -903,7 +903,7 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
     if (incomingKey) {
       const { data: profiles } = await supabaseAdmin
         .from('izaque_profiles')
-        .select('id, full_name, email, role, phone, whatsapp_jid, whatsapp_opt_out, plan_id, plan_status, is_active, preferences')
+        .select('id, full_name, email, role, phone, whatsapp_jid, whatsapp_opt_out, plan_id, plan_status, plan_expires_at, is_active, preferences')
         .not('phone', 'is', null);
 
       matchedProfile =
@@ -1033,10 +1033,21 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
     return { eventType, matchedUserId: matchedProfile.id, remoteJid, skipped: 'inactive_account' };
   }
 
-  // 3. Verifica Plano: Gratuito (R$ 0,00 -> apenas App) vs Plano WhatsApp (R$ 14,99/mês ou SuperAdmin master)
-  const hasWhatsappChatAccess =
+  // 3. Verifica Plano:
+  // - SuperAdmin (edsonmanoel2012@gmail.com / role master): Plano Completo vitalício sem necessidade de assinar
+  // - Assinante Pago (whatsapp_monthly): ativo dentro do ciclo de vencimento mensal
+  // - Plano Gratuito (R$ 0,00): acesso 100% livre no App Web, sem conversa pelo WhatsApp
+  const superAdminEmail = (process.env.SUPERADMIN_EMAIL || 'edsonmanoel2012@gmail.com').trim().toLowerCase();
+  const isSuperAdmin =
     matchedProfile.role === 'master' ||
-    (matchedProfile.plan_id === 'whatsapp_monthly' && matchedProfile.plan_status === 'active');
+    String(matchedProfile.email || '').trim().toLowerCase() === superAdminEmail;
+
+  const isMonthlySubscriptionValid =
+    matchedProfile.plan_id === 'whatsapp_monthly' &&
+    matchedProfile.plan_status === 'active' &&
+    (!matchedProfile.plan_expires_at || new Date(matchedProfile.plan_expires_at).getTime() > Date.now());
+
+  const hasWhatsappChatAccess = isSuperAdmin || isMonthlySubscriptionValid;
 
   if (!hasWhatsappChatAccess) {
     const lastFreeNotice = noticeCooldownByJid.get(`free:${remoteJid}`) || 0;
@@ -1044,9 +1055,14 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
       noticeCooldownByJid.set(`free:${remoteJid}`, Date.now());
       const firstName = (matchedProfile.full_name || 'amigo(a)').trim().split(/\s+/)[0];
       const appUrl = getEvoConfig().appUrl;
+      const wasPreviouslySubscriber = matchedProfile.plan_id === 'whatsapp_monthly';
+      const noticeText = wasPreviouslySubscriber
+        ? `Olá, ${firstName}! Seu ciclo mensal do *Plano ISAAC no WhatsApp* chegou ao vencimento.\n\nSeu acesso à mentoria pelo aplicativo continua *100% gratuito e liberado* em ${appUrl}\n\nCaso deseje renovar a conversa comigo por texto e áudio aqui no WhatsApp (R$ 14,99/mês), basta regularizar a assinatura mensal lá no aplicativo!`
+        : `Olá, ${firstName}! Que bom receber sua mensagem.\n\nNo seu *Plano Gratuito*, você tem tudo 100% liberado para conversar comigo à vontade diretamente pelo aplicativo em ${appUrl}\n\nPara conversar comigo também aqui pelo WhatsApp (por *texto e áudio*, integrado à mesma conversa do app), basta ativar o *Plano Mensal ISAAC no WhatsApp (R$ 14,99/mês)* dentro do aplicativo!`;
+
       await sendWhatsAppTextSafe({
         jidOrNumber: remoteJid,
-        text: `Olá, ${firstName}! Que bom receber sua mensagem.\n\nNo seu *Plano Gratuito*, você tem tudo 100% liberado para conversar comigo à vontade diretamente pelo aplicativo em ${appUrl}\n\nPara conversar comigo também aqui pelo WhatsApp (por *texto e áudio*, integrado à mesma conversa do app), basta ativar o *Plano ISAAC no WhatsApp (R$ 14,99/mês)* dentro do aplicativo!`,
+        text: noticeText,
       }).catch(() => {});
     }
     return { eventType, matchedUserId: matchedProfile.id, remoteJid, action: 'free_plan_notice' };

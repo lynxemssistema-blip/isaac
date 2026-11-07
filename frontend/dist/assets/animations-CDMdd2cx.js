@@ -1,4 +1,4 @@
-import{r as Oo,a as S}from"./icons-CSOeOOOb.js";var ye={exports:{}},At={};/**
+import{r as Oo,a as S}from"./icons-BcX82P8w.js";var ye={exports:{}},At={};/**
  * @license React
  * react-jsx-runtime.production.min.js
  *

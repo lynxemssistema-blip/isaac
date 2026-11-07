@@ -658,14 +658,31 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  v_is_master boolean;
 BEGIN
-  INSERT INTO public.izaque_profiles (id, email, full_name, phone, role)
+  v_is_master := lower(NEW.email) IN ('edsonmanoel2012@gmail.com', 'thiagopratas@gmail.com');
+  INSERT INTO public.izaque_profiles (
+    id,
+    email,
+    full_name,
+    phone,
+    role,
+    plan_id,
+    plan_status,
+    plan_activated_at,
+    plan_expires_at
+  )
   VALUES (
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
     NEW.raw_user_meta_data->>'phone',
-    CASE WHEN lower(NEW.email) IN ('edsonmanoel2012@gmail.com', 'thiagopratas@gmail.com') THEN 'master' ELSE 'user' END
+    CASE WHEN v_is_master THEN 'master' ELSE 'user' END,
+    CASE WHEN v_is_master THEN 'whatsapp_monthly' ELSE 'free' END,
+    CASE WHEN v_is_master THEN 'active' ELSE 'free' END,
+    CASE WHEN v_is_master THEN now() ELSE NULL END,
+    NULL
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
@@ -681,6 +698,12 @@ CREATE TRIGGER on_auth_user_created_izaque
 -- ============================================================================
 -- 22. PLANOS OFICIAIS (GRATUITO LIVRE + WHATSAPP R$ 14,99) E GATEWAY ASAAS V3
 -- ============================================================================
+ALTER TABLE public.izaque_plans
+  ADD COLUMN IF NOT EXISTS gateway text DEFAULT 'none',
+  ADD COLUMN IF NOT EXISTS asaas_payment_link_id text,
+  ADD COLUMN IF NOT EXISTS asaas_payment_link_url text,
+  ADD COLUMN IF NOT EXISTS asaas_customer_group text;
+
 ALTER TABLE public.izaque_profiles
   ADD COLUMN IF NOT EXISTS cpf_cnpj text,
   ADD COLUMN IF NOT EXISTS asaas_customer_id text,

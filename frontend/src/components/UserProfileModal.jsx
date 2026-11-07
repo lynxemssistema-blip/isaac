@@ -403,8 +403,16 @@ export default function UserProfileModal({ isOpen, onClose, user, profile, onPro
                   Plano atual:{' '}
                   <strong className="text-emerald-800 dark:text-emerald-300">
                     {profile?.role === 'master' ||
-                    (profile?.plan_id === 'whatsapp_monthly' && profile?.plan_status === 'active')
-                      ? 'ISAAC no WhatsApp (Texto & Áudio)'
+                    String(user?.email || profile?.email || '').trim().toLowerCase() === 'edsonmanoel2012@gmail.com'
+                      ? 'Plano Completo Vitalício (SuperAdmin)'
+                      : profile?.plan_id === 'whatsapp_monthly' &&
+                        profile?.plan_status === 'active' &&
+                        (!profile?.plan_expires_at || new Date(profile.plan_expires_at).getTime() > Date.now())
+                      ? `ISAAC no WhatsApp (Mensal${
+                          profile?.plan_expires_at
+                            ? ` • vence em ${new Date(profile.plan_expires_at).toLocaleDateString('pt-BR')}`
+                            : ''
+                        })`
                       : 'Gratuito (App 100% Liberado)'}
                   </strong>
                 </span>
@@ -416,9 +424,12 @@ export default function UserProfileModal({ isOpen, onClose, user, profile, onPro
                   }}
                   className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold transition shrink-0"
                 >
-                  {profile?.plan_id === 'whatsapp_monthly' && profile?.plan_status === 'active'
-                    ? 'Gerenciar WhatsApp'
-                    : 'Liberar WhatsApp (R$ 14,99)'}
+                  {profile?.role === 'master' ||
+                  String(user?.email || profile?.email || '').trim().toLowerCase() === 'edsonmanoel2012@gmail.com'
+                    ? 'Abrir WhatsApp'
+                    : profile?.plan_id === 'whatsapp_monthly' && profile?.plan_status === 'active'
+                    ? 'Gerenciar Assinatura'
+                    : 'Liberar WhatsApp (R$ 14,99/mês)'}
                 </button>
               </div>
             )}

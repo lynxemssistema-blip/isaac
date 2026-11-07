@@ -6,6 +6,33 @@ const DEFAULT_ASAAS_URL = 'https://api.asaas.com/v3';
 const DEFAULT_CUSTOMER_GROUP = 'Isaac';
 const WHATSAPP_PLAN_ID = 'whatsapp_monthly';
 const WHATSAPP_PLAN_PRICE = 14.99;
+const SUPERADMIN_EMAIL = (process.env.SUPERADMIN_EMAIL || 'edsonmanoel2012@gmail.com').trim().toLowerCase();
+
+export function isSuperAdminProfile(profile) {
+  if (!profile) return false;
+  if (profile.role === 'master') return true;
+  const email = String(profile.email || '').trim().toLowerCase();
+  return email === SUPERADMIN_EMAIL;
+}
+
+/**
+ * Calcula o vencimento mensal exato (+1 mês de calendário) a partir da data base.
+ * Se o assinante renovar antes do vencimento atual, soma +1 mês a partir do vencimento vigente.
+ */
+export function computeMonthlyExpirationIso(currentExpiresAt = null) {
+  const now = new Date();
+  let base = now;
+  if (currentExpiresAt) {
+    const parsed = new Date(currentExpiresAt);
+    if (!Number.isNaN(parsed.getTime()) && parsed.getTime() > now.getTime()) {
+      base = parsed;
+    }
+  }
+  const next = new Date(base.getTime());
+  const targetMonth = next.getUTCMonth() + 1;
+  next.setUTCMonth(targetMonth);
+  return next.toISOString();
+}
 
 function getAsaasConfig() {
   let rawKey = (process.env.ASAAS_API_KEY || '').trim();
@@ -143,12 +170,38 @@ export async function ensureAsaasCustomer({ userId, fullName, email, phone, cpfC
 export async function createOrGetWhatsappSubscriptionCheckout({ userId, cpfCnpj, phone }) {
   const { data: profile, error: profErr } = await supabaseAdmin
     .from('izaque_profiles')
-    .select('id, full_name, email, phone, cpf_cnpj, plan_id, plan_status, asaas_customer_id, asaas_subscription_id')
+    .select('id, full_name, email, role, phone, cpf_cnpj, plan_id, plan_status, plan_expires_at, asaas_customer_id, asaas_subscription_id')
     .eq('id', userId)
     .single();
 
   if (profErr || !profile) {
     throw new Error('Perfil do usuário não encontrado.');
+  }
+
+  // SuperAdmin (edsonmanoel2012@gmail.com / role master) já possui Plano Completo vitalício sem necessidade de assinar
+  if (isSuperAdminProfile(profile)) {
+    const cleanOptionalPhone = String(phone || profile.phone || '').trim();
+    await supabaseAdmin
+      .from('izaque_profiles')
+      .update({
+        ...(cleanOptionalPhone ? { phone: cleanOptionalPhone } : {}),
+        plan_id: WHATSAPP_PLAN_ID,
+        plan_status: 'active',
+        plan_expires_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId);
+    invalidateAuthCache();
+
+    return {
+      success: true,
+      alreadyActive: true,
+      isSuperAdmin: true,
+      billingCycle: 'lifetime',
+      planId: WHATSAPP_PLAN_ID,
+      price: 0,
+      expiresAt: null,
+    };
   }
 
   const finalPhone = String(phone || profile.phone || '').trim();
@@ -179,6 +232,17 @@ export async function createOrGetWhatsappSubscriptionCheckout({ userId, cpfCnpj,
   });
 
   const externalReference = `isaac:${userId}`;
+
+  // Carrega o plano pago oficial associado ao Asaas em public.izaque_plans
+  const { data: planRow } = await supabaseAdmin
+    .from('izaque_plans')
+    .select('id, name, price, asaas_payment_link_id, asaas_payment_link_url')
+    .eq('id', WHATSAPP_PLAN_ID)
+    .maybeSingle();
+
+  const planPrice = Number(planRow?.price) > 0 ? Number(planRow.price) : WHATSAPP_PLAN_PRICE;
+  const planName = planRow?.name || 'ISAAC no WhatsApp (Texto e Áudio)';
+
   let subscriptionId = profile.asaas_subscription_id || null;
   let activeSub = null;
 
@@ -199,10 +263,10 @@ export async function createOrGetWhatsappSubscriptionCheckout({ userId, cpfCnpj,
       body: {
         customer: customerId,
         billingType: 'UNDEFINED',
-        value: WHATSAPP_PLAN_PRICE,
+        value: planPrice,
         nextDueDate: getTodayBrtDateString(),
         cycle: 'MONTHLY',
-        description: 'ISAAC no WhatsApp (Texto e Áudio) — Assinatura Mensal',
+        description: `${planName} — Assinatura com Vencimento Mensal`,
         externalReference,
       },
     });
@@ -240,7 +304,7 @@ export async function createOrGetWhatsappSubscriptionCheckout({ userId, cpfCnpj,
     profileUpdates.plan_id = WHATSAPP_PLAN_ID;
     profileUpdates.plan_status = 'active';
     profileUpdates.plan_activated_at = new Date().toISOString();
-    profileUpdates.plan_expires_at = new Date(Date.now() + 32 * 24 * 60 * 60 * 1000).toISOString();
+    profileUpdates.plan_expires_at = computeMonthlyExpirationIso(profile.plan_expires_at);
   }
 
   await supabaseAdmin.from('izaque_profiles').update(profileUpdates).eq('id', userId);
@@ -258,17 +322,17 @@ export async function createOrGetWhatsappSubscriptionCheckout({ userId, cpfCnpj,
       user_email: (profile.email || '').toLowerCase(),
       user_name: profile.full_name || 'Membro ISAAC',
       plan_id: WHATSAPP_PLAN_ID,
-      amount: WHATSAPP_PLAN_PRICE,
+      amount: planPrice,
       status: isAlreadyPaid ? 'active' : 'pending',
       asaas_customer_id: customerId,
       asaas_subscription_id: subscriptionId,
       asaas_payment_id: pendingOrLatestPayment.id,
       billing_type: pendingOrLatestPayment.billingType || 'UNDEFINED',
-      invoice_url: pendingOrLatestPayment.invoiceUrl || null,
+      invoice_url: pendingOrLatestPayment.invoiceUrl || planRow?.asaas_payment_link_url || null,
       pix_qr_code_base64: pixQrCodeBase64,
       pix_copy_paste: pixCopyPaste,
       external_reference: externalReference,
-      notes: 'Assinatura Asaas — Grupo Isaac (R$ 14,99/mês)',
+      notes: `Assinatura Mensal Asaas — Grupo Isaac (R$ ${planPrice.toFixed(2).replace('.', ',')}/mês)`,
     };
 
     if (existingLocalOrder?.id) {
@@ -281,12 +345,17 @@ export async function createOrGetWhatsappSubscriptionCheckout({ userId, cpfCnpj,
   return {
     success: true,
     alreadyActive: isAlreadyPaid,
+    billingCycle: 'monthly',
     planId: WHATSAPP_PLAN_ID,
-    price: WHATSAPP_PLAN_PRICE,
+    planName,
+    price: planPrice,
     subscriptionId,
     paymentId: pendingOrLatestPayment?.id || null,
     paymentStatus: pendingOrLatestPayment?.status || 'PENDING',
-    invoiceUrl: pendingOrLatestPayment?.invoiceUrl || null,
+    nextDueDate: activeSub?.nextDueDate || pendingOrLatestPayment?.dueDate || null,
+    expiresAt: profileUpdates.plan_expires_at || profile.plan_expires_at || null,
+    invoiceUrl: pendingOrLatestPayment?.invoiceUrl || planRow?.asaas_payment_link_url || null,
+    asaasPlanLinkUrl: planRow?.asaas_payment_link_url || null,
     pixQrCodeBase64,
     pixCopyPaste,
   };
@@ -298,7 +367,7 @@ export async function createOrGetWhatsappSubscriptionCheckout({ userId, cpfCnpj,
 export async function syncUserWhatsappPlanStatus(userId) {
   const { data: profile } = await supabaseAdmin
     .from('izaque_profiles')
-    .select('id, full_name, phone, plan_id, plan_status, plan_expires_at, asaas_subscription_id, whatsapp_opt_out')
+    .select('id, full_name, email, role, phone, plan_id, plan_status, plan_expires_at, asaas_subscription_id, whatsapp_opt_out')
     .eq('id', userId)
     .maybeSingle();
 
@@ -306,9 +375,25 @@ export async function syncUserWhatsappPlanStatus(userId) {
     throw new Error('Perfil não encontrado.');
   }
 
-  if (profile.plan_id === WHATSAPP_PLAN_ID && profile.plan_status === 'active') {
+  // SuperAdmin já possui o plano completo liberado sem vencimento e sem necessidade de assinar
+  if (isSuperAdminProfile(profile)) {
     return {
       isActive: true,
+      isSuperAdmin: true,
+      billingCycle: 'lifetime',
+      planId: WHATSAPP_PLAN_ID,
+      planStatus: 'active',
+      expiresAt: null,
+    };
+  }
+
+  const notExpiredYet =
+    !profile.plan_expires_at || new Date(profile.plan_expires_at).getTime() > Date.now();
+
+  if (profile.plan_id === WHATSAPP_PLAN_ID && profile.plan_status === 'active' && notExpiredYet) {
+    return {
+      isActive: true,
+      billingCycle: 'monthly',
       planId: WHATSAPP_PLAN_ID,
       planStatus: 'active',
       expiresAt: profile.plan_expires_at,
@@ -326,30 +411,36 @@ export async function syncUserWhatsappPlanStatus(userId) {
       );
 
       if (paidPayment) {
-        const expiresAt = new Date(Date.now() + 32 * 24 * 60 * 60 * 1000).toISOString();
-        await supabaseAdmin
-          .from('izaque_profiles')
-          .update({
-            plan_id: WHATSAPP_PLAN_ID,
-            plan_status: 'active',
-            plan_activated_at: new Date().toISOString(),
-            plan_expires_at: expiresAt,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', userId);
+        const paymentDateStr = paidPayment.confirmedDate || paidPayment.clientPaymentDate || paidPayment.paymentDate;
+        const paidBaseMs = paymentDateStr ? new Date(paymentDateStr).getTime() : Date.now();
+        // Verifica se este pagamento ocorreu nos últimos 31 dias (ciclo mensal vigente)
+        if (Date.now() - paidBaseMs <= 32 * 24 * 60 * 60 * 1000) {
+          const expiresAt = computeMonthlyExpirationIso(profile.plan_expires_at);
+          await supabaseAdmin
+            .from('izaque_profiles')
+            .update({
+              plan_id: WHATSAPP_PLAN_ID,
+              plan_status: 'active',
+              plan_activated_at: new Date().toISOString(),
+              plan_expires_at: expiresAt,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', userId);
 
-        await supabaseAdmin
-          .from('izaque_subscriptions')
-          .update({ status: 'active', approved_at: new Date().toISOString() })
-          .eq('asaas_payment_id', paidPayment.id);
+          await supabaseAdmin
+            .from('izaque_subscriptions')
+            .update({ status: 'active', approved_at: new Date().toISOString() })
+            .eq('asaas_payment_id', paidPayment.id);
 
-        invalidateAuthCache();
-        return {
-          isActive: true,
-          planId: WHATSAPP_PLAN_ID,
-          planStatus: 'active',
-          expiresAt,
-        };
+          invalidateAuthCache();
+          return {
+            isActive: true,
+            billingCycle: 'monthly',
+            planId: WHATSAPP_PLAN_ID,
+            planStatus: 'active',
+            expiresAt,
+          };
+        }
       }
     } catch (err) {
       console.warn('⚠️ [Asaas Sync] Erro ao consultar pagamentos da assinatura:', err.message);
@@ -370,9 +461,13 @@ export async function syncUserWhatsappPlanStatus(userId) {
 export async function cancelUserWhatsappSubscription(userId) {
   const { data: profile } = await supabaseAdmin
     .from('izaque_profiles')
-    .select('id, asaas_subscription_id')
+    .select('id, email, role, asaas_subscription_id')
     .eq('id', userId)
     .maybeSingle();
+
+  if (isSuperAdminProfile(profile)) {
+    return { success: true, isSuperAdmin: true, planId: WHATSAPP_PLAN_ID };
+  }
 
   if (profile?.asaas_subscription_id) {
     try {
@@ -389,6 +484,7 @@ export async function cancelUserWhatsappSubscription(userId) {
     .update({
       plan_id: 'free',
       plan_status: 'free',
+      plan_expires_at: null,
       asaas_subscription_id: null,
       updated_at: new Date().toISOString(),
     })
@@ -421,13 +517,15 @@ export async function processAsaasWebhook(headers = {}, body = {}) {
   const asaasCustomerId = payment?.customer || null;
   const asaasPaymentId = body?.payment?.id || null;
 
+  const selectCols =
+    'id, full_name, email, role, phone, whatsapp_jid, whatsapp_opt_out, plan_id, plan_status, plan_expires_at';
   let targetProfile = null;
 
   if (extRef.startsWith('isaac:')) {
     const uid = extRef.slice('isaac:'.length).trim();
     const { data } = await supabaseAdmin
       .from('izaque_profiles')
-      .select('id, full_name, email, phone, whatsapp_jid, whatsapp_opt_out, plan_id, plan_status')
+      .select(selectCols)
       .eq('id', uid)
       .maybeSingle();
     targetProfile = data || null;
@@ -436,7 +534,7 @@ export async function processAsaasWebhook(headers = {}, body = {}) {
   if (!targetProfile && asaasSubId) {
     const { data } = await supabaseAdmin
       .from('izaque_profiles')
-      .select('id, full_name, email, phone, whatsapp_jid, whatsapp_opt_out, plan_id, plan_status')
+      .select(selectCols)
       .eq('asaas_subscription_id', asaasSubId)
       .maybeSingle();
     targetProfile = data || null;
@@ -445,7 +543,7 @@ export async function processAsaasWebhook(headers = {}, body = {}) {
   if (!targetProfile && asaasCustomerId) {
     const { data } = await supabaseAdmin
       .from('izaque_profiles')
-      .select('id, full_name, email, phone, whatsapp_jid, whatsapp_opt_out, plan_id, plan_status')
+      .select(selectCols)
       .eq('asaas_customer_id', asaasCustomerId)
       .maybeSingle();
     targetProfile = data || null;
@@ -456,13 +554,19 @@ export async function processAsaasWebhook(headers = {}, body = {}) {
     return { ignored: true, reason: 'not_isaac_customer', event };
   }
 
+  // SuperAdmin sempre preserva acesso completo sem vencimento
+  if (isSuperAdminProfile(targetProfile)) {
+    return { ignored: true, reason: 'superadmin_lifetime_plan', userId: targetProfile.id, event };
+  }
+
   const activationEvents = ['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED', 'PAYMENT_DUNNING_RECEIVED'];
-  const deactivationEvents = ['PAYMENT_REFUNDED', 'PAYMENT_CHARGEBACK_REQUESTED'];
+  const refundEvents = ['PAYMENT_REFUNDED', 'PAYMENT_CHARGEBACK_REQUESTED'];
+  const overdueOrCancelEvents = ['PAYMENT_OVERDUE', 'SUBSCRIPTION_INACTIVATED', 'SUBSCRIPTION_DELETED'];
 
   if (activationEvents.includes(event)) {
     const wasAlreadyActive =
       targetProfile.plan_id === WHATSAPP_PLAN_ID && targetProfile.plan_status === 'active';
-    const expiresAt = new Date(Date.now() + 32 * 24 * 60 * 60 * 1000).toISOString();
+    const expiresAt = computeMonthlyExpirationIso(targetProfile.plan_expires_at);
 
     await supabaseAdmin
       .from('izaque_profiles')
@@ -494,7 +598,7 @@ export async function processAsaasWebhook(headers = {}, body = {}) {
           const jidInfo = await resolveWhatsAppJid(targetProfile.whatsapp_jid || targetProfile.phone);
           if (jidInfo?.exists && jidInfo?.jid) {
             const firstName = (targetProfile.full_name || 'amigo(a)').trim().split(/\s+/)[0];
-            const welcomeText = `Olá, ${firstName}! Que alegria ter você por aqui.\n\nSeu *Plano ISAAC no WhatsApp (Texto e Áudio)* acaba de ser ativado! A partir de agora, você pode conversar comigo diretamente por aqui — enviando texto ou áudio — e toda a nossa conversa ficará sincronizada automaticamente no seu mesmo chat lá em https://isaac.lynxems.com.br/\n\nQuando quiser começar ou continuar sua reflexão, é só me chamar!`;
+            const welcomeText = `Olá, ${firstName}! Que alegria ter você por aqui.\n\nSeu *Plano Mensal ISAAC no WhatsApp (Texto e Áudio)* acaba de ser ativado! A partir de agora, você pode conversar comigo diretamente por aqui — enviando texto ou áudio — e toda a nossa conversa ficará sincronizada automaticamente no seu mesmo chat lá em https://isaac.lynxems.com.br/\n\nQuando quiser começar ou continuar sua reflexão, é só me chamar!`;
             await sendWhatsAppTextSafe({ jidOrNumber: jidInfo.jid, text: welcomeText });
           }
         }
@@ -503,16 +607,48 @@ export async function processAsaasWebhook(headers = {}, body = {}) {
       }
     }
 
-    console.log(`✅ [Asaas Webhook] Plano WhatsApp ativado para ${targetProfile.email} (${event})`);
-    return { activated: true, userId: targetProfile.id, event };
+    console.log(`✅ [Asaas Webhook] Plano Mensal WhatsApp ativado para ${targetProfile.email} até ${expiresAt} (${event})`);
+    return { activated: true, userId: targetProfile.id, expiresAt, event };
   }
 
-  if (deactivationEvents.includes(event)) {
+  if (overdueOrCancelEvents.includes(event)) {
+    const stillHasPaidDays =
+      targetProfile.plan_expires_at && new Date(targetProfile.plan_expires_at).getTime() > Date.now();
+
+    if (event === 'PAYMENT_OVERDUE' && !stillHasPaidDays) {
+      await supabaseAdmin
+        .from('izaque_profiles')
+        .update({
+          plan_status: 'overdue',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', targetProfile.id);
+      invalidateAuthCache();
+      return { overdue: true, userId: targetProfile.id, event };
+    }
+
+    if ((event === 'SUBSCRIPTION_INACTIVATED' || event === 'SUBSCRIPTION_DELETED') && !stillHasPaidDays) {
+      await supabaseAdmin
+        .from('izaque_profiles')
+        .update({
+          plan_id: 'free',
+          plan_status: 'free',
+          plan_expires_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', targetProfile.id);
+      invalidateAuthCache();
+      return { deactivated: true, userId: targetProfile.id, event };
+    }
+  }
+
+  if (refundEvents.includes(event)) {
     await supabaseAdmin
       .from('izaque_profiles')
       .update({
         plan_id: 'free',
         plan_status: 'free',
+        plan_expires_at: null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', targetProfile.id);
@@ -531,3 +667,157 @@ export async function processAsaasWebhook(headers = {}, body = {}) {
 
   return { processed: true, userId: targetProfile.id, event };
 }
+
+/**
+ * Painel Administrativo de Pagamentos & Planos Asaas (SuperAdmin / Admin):
+ * Retorna status em tempo real da conta Asaas, planos oficiais (Gratuito Livre vs WhatsApp Mensal Asaas),
+ * SuperAdmins vitalícios e histórico de cobranças/assinaturas do grupo Isaac.
+ */
+export async function getAdminAsaasOverview() {
+  const cfg = getAsaasConfig();
+
+  const [plansRes, subsRes, activeProfilesRes] = await Promise.all([
+    supabaseAdmin
+      .from('izaque_plans')
+      .select('*')
+      .eq('is_active', true)
+      .order('price', { ascending: true }),
+    supabaseAdmin
+      .from('izaque_subscriptions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100),
+    supabaseAdmin
+      .from('izaque_profiles')
+      .select('id, full_name, email, role, phone, plan_id, plan_status, plan_activated_at, plan_expires_at, asaas_customer_id, asaas_subscription_id')
+      .or('role.eq.master,plan_id.eq.whatsapp_monthly')
+      .order('updated_at', { ascending: false }),
+  ]);
+
+  let accountInfo = null;
+  let webhookInfo = null;
+
+  if (cfg.apiKey) {
+    try {
+      const [acct, whList] = await Promise.all([
+        asaasRequest('/myAccount/commercialInfo').catch(() => null),
+        asaasRequest('/webhooks?limit=20').catch(() => null),
+      ]);
+      accountInfo = acct
+        ? {
+            companyName: acct.companyName || acct.name || 'Conta Asaas Conectada',
+            email: acct.email || null,
+            cpfCnpj: acct.cpfCnpj || null,
+          }
+        : null;
+      const isaacWh = (whList?.data || []).find(
+        (w) => String(w.url || '').includes('isaac.lynxems.com.br') || String(w.name || '').toLowerCase() === 'isaac'
+      );
+      if (isaacWh) {
+        webhookInfo = {
+          id: isaacWh.id,
+          name: isaacWh.name,
+          url: isaacWh.url,
+          enabled: isaacWh.enabled,
+          interrupted: isaacWh.interrupted,
+        };
+      }
+    } catch (err) {
+      console.warn('⚠️ [Admin Asaas Overview] Aviso ao consultar conta Asaas:', err.message);
+    }
+  }
+
+  const paidPlan = (plansRes.data || []).find((p) => p.id === WHATSAPP_PLAN_ID) || null;
+
+  return {
+    integration: {
+      configured: Boolean(cfg.apiKey),
+      customerGroup: cfg.customerGroup,
+      webhookEndpoint: 'https://isaac.lynxems.com.br/api/webhooks/asaas',
+      account: accountInfo,
+      webhook: webhookInfo,
+      asaasPlanLinkId: paidPlan?.asaas_payment_link_id || null,
+      asaasPlanLinkUrl: paidPlan?.asaas_payment_link_url || null,
+    },
+    plans: plansRes.data || [],
+    orders: subsRes.data || [],
+    subscribersAndMasters: activeProfilesRes.data || [],
+  };
+}
+
+/**
+ * Atualiza o Plano Mensal Pago (whatsapp_monthly) e sincroniza com o Link de Assinatura Mensal no Asaas
+ */
+export async function updateAdminAsaasPlan({ name, price, description }) {
+  const numericPrice = Number(String(price).replace(',', '.'));
+  if (!Number.isFinite(numericPrice) || numericPrice < 5) {
+    throw new Error('No Asaas, o valor mínimo para assinatura mensal é R$ 5,00.');
+  }
+
+  const cleanName = String(name || 'ISAAC no WhatsApp (Texto e Áudio)').trim();
+  const cleanDesc = String(
+    description || 'Tudo do Plano Gratuito + conversa completa com o Agente Orquestrador pelo WhatsApp por Texto e Áudio.'
+  ).trim();
+
+  const { data: existingPlan } = await supabaseAdmin
+    .from('izaque_plans')
+    .select('*')
+    .eq('id', WHATSAPP_PLAN_ID)
+    .maybeSingle();
+
+  let linkId = existingPlan?.asaas_payment_link_id || null;
+  let linkUrl = existingPlan?.asaas_payment_link_url || null;
+
+  if (getAsaasConfig().apiKey) {
+    const linkPayload = {
+      name: `${cleanName} — Plano Mensal`,
+      description: cleanDesc,
+      value: numericPrice,
+      billingType: 'UNDEFINED',
+      chargeType: 'RECURRENT',
+      subscriptionCycle: 'MONTHLY',
+      dueDateLimitDays: 3,
+      notificationEnabled: true,
+      externalReference: 'isaac:plan:whatsapp_monthly',
+    };
+
+    if (linkId) {
+      const updatedLink = await asaasRequest(`/paymentLinks/${encodeURIComponent(linkId)}`, {
+        method: 'PUT',
+        body: linkPayload,
+      });
+      linkUrl = updatedLink?.url || linkUrl;
+    } else {
+      const createdLink = await asaasRequest('/paymentLinks', {
+        method: 'POST',
+        body: linkPayload,
+      });
+      linkId = createdLink?.id || null;
+      linkUrl = createdLink?.url || null;
+    }
+  }
+
+  const { data: savedPlan, error } = await supabaseAdmin
+    .from('izaque_plans')
+    .update({
+      name: cleanName,
+      price: numericPrice,
+      billing_cycle: 'monthly',
+      gateway: 'asaas',
+      description: cleanDesc,
+      asaas_payment_link_id: linkId,
+      asaas_payment_link_url: linkUrl,
+      asaas_customer_group: getAsaasConfig().customerGroup,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', WHATSAPP_PLAN_ID)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return { success: true, plan: savedPlan };
+}
+

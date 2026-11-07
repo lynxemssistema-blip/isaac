@@ -50,9 +50,25 @@ export default function WhatsappPlanModal({ isOpen, onClose, user, profile, onPr
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const isMaster = profile?.role === 'master';
-  const isPaidActive =
-    isMaster || (profile?.plan_id === 'whatsapp_monthly' && profile?.plan_status === 'active');
+  const isMaster =
+    profile?.role === 'master' ||
+    String(user?.email || profile?.email || '').trim().toLowerCase() === 'edsonmanoel2012@gmail.com';
+
+  const isMonthlySubValid =
+    profile?.plan_id === 'whatsapp_monthly' &&
+    profile?.plan_status === 'active' &&
+    (!profile?.plan_expires_at || new Date(profile.plan_expires_at).getTime() > Date.now());
+
+  const isPaidActive = isMaster || isMonthlySubValid;
+
+  const formattedMonthlyDueDate =
+    !isMaster && profile?.plan_expires_at
+      ? new Date(profile.plan_expires_at).toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        })
+      : null;
 
   useEffect(() => {
     if (isOpen) {
@@ -283,10 +299,10 @@ export default function WhatsappPlanModal({ isOpen, onClose, user, profile, onPr
               </div>
               <div className="text-2xl font-serif font-bold text-emerald-900 dark:text-emerald-300 mb-1">
                 R$ 14,99
-                <span className="text-xs font-normal text-stone-500 dark:text-stone-400"> / mês</span>
+                <span className="text-xs font-normal text-stone-500 dark:text-stone-400"> / vencimento mensal</span>
               </div>
               <p className="text-[11px] text-stone-600 dark:text-stone-300 mb-3">
-                Sua mentoria no bolso, integrada ao mesmo chat do App.
+                Sua mentoria no bolso com renovação mensal, integrada ao mesmo chat do App.
               </p>
               <ul className="space-y-2 text-xs text-stone-700 dark:text-stone-200">
                 <li className="flex items-start gap-2">
@@ -314,8 +330,15 @@ export default function WhatsappPlanModal({ isOpen, onClose, user, profile, onPr
         {isPaidActive ? (
           <div className="p-5 rounded-3xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-4 text-center">
             <div className="text-sm font-serif font-medium text-emerald-900 dark:text-emerald-200">
-              Seu acesso ao ISAAC pelo WhatsApp (Texto e Áudio) está ativo!
+              {isMaster
+                ? 'Plano Completo Liberado (SuperAdmin — Sem necessidade de assinar)'
+                : 'Seu Plano Mensal do ISAAC pelo WhatsApp (Texto e Áudio) está ativo!'}
             </div>
+            {formattedMonthlyDueDate && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-800 dark:text-emerald-300 font-medium">
+                <span>Próximo vencimento mensal: {formattedMonthlyDueDate}</span>
+              </div>
+            )}
             <p className="text-xs text-stone-600 dark:text-stone-300 max-w-md mx-auto">
               Certifique-se de que seu número <strong>{profile?.phone || 'de celular'}</strong> esteja atualizado em Meu Perfil e chame o ISAAC quando desejar:
             </p>
@@ -344,11 +367,11 @@ export default function WhatsappPlanModal({ isOpen, onClose, user, profile, onPr
             </div>
           </div>
         ) : !checkoutData ? (
-          /* FORMULÁRIO RÁPIDO PARA GERAR COBRANÇA ASAAS (R$ 14,99) */
+          /* FORMULÁRIO RÁPIDO PARA GERAR COBRANÇA ASAAS (R$ 14,99 MENSAL) */
           <form onSubmit={handleGenerateCheckout} className="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-stone-200 dark:border-slate-700 space-y-4">
             <div className="flex items-center gap-2 text-xs font-semibold text-stone-800 dark:text-stone-100">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Ativar Plano ISAAC no WhatsApp (R$ 14,99/mês via Asaas)</span>
+              <span>Ativar Plano Mensal ISAAC no WhatsApp (R$ 14,99 — Vencimento Mensal via Asaas)</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -403,21 +426,37 @@ export default function WhatsappPlanModal({ isOpen, onClose, user, profile, onPr
             </button>
           </form>
         ) : (
-          /* TELA DE PAGAMENTO ASAAS GERADO (QR CODE PIX IMEDIATO + OPÇÃO DE CARTÃO) */
+          /* PAINEL DE PAGAMENTO CONECTADO AO ASAAS (CHECKOUT OFICIAL + QR CODE PIX IMEDIATO) */
           <div className="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-emerald-500/40 space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
-                <QrCode className="w-4 h-4" />
-                <span>Finalize o pagamento de R$ 14,99 (Liberação Automática)</span>
+                <ShieldCheck className="w-4 h-4" />
+                <span>Painel de Pagamento Asaas — R$ 14,99 (Vencimento Mensal)</span>
               </div>
               <span className="text-[11px] text-stone-400 flex items-center gap-1">
                 <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
-                Aguardando confirmação automática...
+                Liberação automática via Webhook Asaas...
               </span>
             </div>
 
+            {checkoutData.invoiceUrl && (
+              <a
+                href={checkoutData.invoiceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20"
+              >
+                <CreditCard className="w-4 h-4" />
+                <span>Abrir Painel de Pagamento Oficial Asaas (Cartão / PIX / Boleto)</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+
             {checkoutData.pixQrCodeBase64 && (
               <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-stone-50 dark:bg-slate-900 border border-stone-200 dark:border-slate-700 space-y-3">
+                <span className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                  Ou pague instantaneamente pelo QR Code PIX do Asaas abaixo:
+                </span>
                 <img
                   src={`data:image/png;base64,${checkoutData.pixQrCodeBase64}`}
                   alt="QR Code PIX Asaas"
@@ -427,29 +466,16 @@ export default function WhatsappPlanModal({ isOpen, onClose, user, profile, onPr
                   <button
                     type="button"
                     onClick={handleCopyPix}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"
+                    className="px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"
                   >
                     {copiedPix ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedPix ? 'Código PIX Copiado!' : 'Copiar Código PIX (Copia e Cola)'}</span>
+                    <span>{copiedPix ? 'Código PIX Copiado!' : 'Copiar Código PIX Asaas (Copia e Cola)'}</span>
                   </button>
                 )}
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-1">
-              {checkoutData.invoiceUrl && (
-                <a
-                  href={checkoutData.invoiceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-stone-100 dark:bg-slate-700 hover:bg-stone-200 dark:hover:bg-slate-600 text-stone-800 dark:text-stone-100 text-xs font-medium transition flex items-center justify-center gap-2"
-                >
-                  <CreditCard className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                  <span>Pagar com Cartão de Crédito / Fatura Asaas</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              )}
-
+            <div className="flex items-center justify-end pt-1">
               <button
                 type="button"
                 onClick={handleManualVerify}
@@ -457,7 +483,7 @@ export default function WhatsappPlanModal({ isOpen, onClose, user, profile, onPr
                 className="w-full sm:w-auto py-2.5 px-4 rounded-xl border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 text-xs font-semibold transition flex items-center justify-center gap-1.5"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${checkingStatus ? 'animate-spin' : ''}`} />
-                <span>Já paguei, verificar</span>
+                <span>Já paguei no Asaas, verificar liberação</span>
               </button>
             </div>
           </div>
@@ -466,3 +492,4 @@ export default function WhatsappPlanModal({ isOpen, onClose, user, profile, onPr
     </div>
   );
 }
+

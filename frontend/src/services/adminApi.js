@@ -1503,3 +1503,25 @@ export async function sendAdminEvolutionTest(phone) {
   return data;
 }
 
+export async function fetchAdminAsaasOverview() {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/asaas/overview`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao carregar painel Asaas.');
+  }
+  return data;
+}
+
+export async function updateAdminAsaasPlanApi(payload) {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/asaas/plan`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao atualizar plano no Asaas.');
+  }
+  return data;
+}
+
