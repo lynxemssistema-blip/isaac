@@ -26,3 +26,4 @@ Thumbs.db
 .agents/
 .cache/
 .temp/
+*.zip
