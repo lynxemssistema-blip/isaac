@@ -639,4 +639,33 @@ ALTER TABLE public.izaque_whatsapp_webhook_events ENABLE ROW LEVEL SECURITY;
 GRANT ALL ON public.izaque_whatsapp_followups TO service_role;
 GRANT ALL ON public.izaque_whatsapp_webhook_events TO service_role;
 
+-- ============================================================================
+-- 21. TRIGGER AUTOMATICO DE PERFIL EM AUTH.USERS (GARANTE ZERO CONTA ORFA)
+-- ============================================================================
+CREATE OR REPLACE FUNCTION public.handle_new_izaque_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.izaque_profiles (id, email, full_name, phone, role)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
+    NEW.raw_user_meta_data->>'phone',
+    CASE WHEN lower(NEW.email) IN ('edsonmanoel2012@gmail.com', 'thiagopratas@gmail.com') THEN 'master' ELSE 'user' END
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created_izaque ON auth.users;
+CREATE TRIGGER on_auth_user_created_izaque
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_izaque_user();
+
 

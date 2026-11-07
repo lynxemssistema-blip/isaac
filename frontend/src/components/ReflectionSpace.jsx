@@ -174,9 +174,12 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
     return () => window.removeEventListener('system-settings-updated', handleSettingsUpdated);
   }, [propSystemSettings]);
 
-  const canShowTheme = systemSettings ? systemSettings.show_theme_selector !== false : true;
-  const canShowSettings = systemSettings ? systemSettings.show_settings_button !== false : true;
-  const canShowAmbient = systemSettings ? systemSettings.show_ambient_sound_button !== false : true;
+  const isSuperAdmin =
+    user?.role === 'master' ||
+    user?.email === 'edsonmanoel2012@gmail.com';
+  const canShowTheme = isSuperAdmin || (systemSettings ? systemSettings.show_theme_selector !== false : true);
+  const canShowSettings = isSuperAdmin || (systemSettings ? systemSettings.show_settings_button !== false : true);
+  const canShowAmbient = isSuperAdmin || (systemSettings ? systemSettings.show_ambient_sound_button !== false : true);
 
   const [guideName, setGuideName] = useState(() => {
     return localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac';

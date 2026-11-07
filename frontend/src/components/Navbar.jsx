@@ -17,7 +17,11 @@ export default function Navbar({
   onOpenFeedback,
   systemSettings,
 }) {
-  const isMasterOrAdmin = profile?.role === 'master' || profile?.role === 'admin';
+  const isSuperAdmin =
+    profile?.role === 'master' ||
+    user?.email === 'edsonmanoel2012@gmail.com' ||
+    profile?.email === 'edsonmanoel2012@gmail.com';
+  const isMasterOrAdmin = isSuperAdmin || profile?.role === 'admin';
   const [guideName, setGuideName] = useState(() => {
     return localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac';
   });
@@ -108,7 +112,7 @@ export default function Navbar({
             )}
           </button>
 
-          {systemSettings?.show_creative_troubles !== false && (
+          {(isSuperAdmin || systemSettings?.show_creative_troubles !== false) && (
             <button
               onClick={() => {
                 if (!user) {
@@ -146,8 +150,8 @@ export default function Navbar({
 
         {/* ÁREA DO USUÁRIO OU ENTRADA */}
         <div className="flex items-center space-x-1.5 sm:space-x-2.5">
-          {/* SELETOR RÁPIDO DE TEMA VISUAL (PC & DESKTOP) */}
-          {(systemSettings ? systemSettings.show_theme_selector !== false : true) && (
+          {/* SELETOR RÁPIDO DE TEMA VISUAL (PC & DESKTOP — SEMPRE VISÍVEL PARA SUPERADMIN) */}
+          {(isSuperAdmin || (systemSettings ? systemSettings.show_theme_selector !== false : true)) && (
             <div className="relative">
               <button
                 type="button"
@@ -222,16 +226,16 @@ export default function Navbar({
             </div>
           )}
 
-          {/* BOTÃO DE PREFERÊNCIAS SENSORIAIS (PC & DESKTOP) */}
-          {onOpenSettings && (systemSettings ? systemSettings.show_settings_button !== false : true) && (
+          {/* BOTÃO DE PREFERÊNCIAS / CONFIGURAÇÕES (SEMPRE VISÍVEL PARA SUPERADMIN) */}
+          {onOpenSettings && (isSuperAdmin || (systemSettings ? systemSettings.show_settings_button !== false : true)) && (
             <button
               type="button"
               onClick={onOpenSettings}
-              title="Preferências Sensoriais (Voz Neural Gemini, Áudio Ambiente e Ajustes)"
+              title="Configurações e Preferências Sensoriais (Voz Neural Gemini, Áudio Ambiente e Ajustes)"
               className="p-2 text-stone-500 hover:text-teal-700 dark:hover:text-teal-400 hover:bg-stone-200/60 dark:hover:bg-slate-800 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
             >
               <Sliders className="w-4 h-4" />
-              <span className="hidden lg:inline text-xs font-serif">Ajustes</span>
+              <span className="hidden lg:inline text-xs font-serif">Configurações</span>
             </button>
           )}
 

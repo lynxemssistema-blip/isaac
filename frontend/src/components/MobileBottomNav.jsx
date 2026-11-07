@@ -10,7 +10,11 @@ export default function MobileBottomNav({
   profile,
   systemSettings,
 }) {
-  const isMasterOrAdmin = profile?.role === 'master' || profile?.role === 'admin';
+  const isSuperAdmin =
+    profile?.role === 'master' ||
+    user?.email === 'edsonmanoel2012@gmail.com' ||
+    profile?.email === 'edsonmanoel2012@gmail.com';
+  const isMasterOrAdmin = isSuperAdmin || profile?.role === 'admin';
   const guideName = localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac';
 
   return (
@@ -66,7 +70,7 @@ export default function MobileBottomNav({
         </button>
 
         {/* INCÔMODO CRIATIVO */}
-        {systemSettings?.show_creative_troubles !== false && (
+        {(isSuperAdmin || systemSettings?.show_creative_troubles !== false) && (
           <button
             type="button"
             onClick={() => onNavigate('incomodo')}
@@ -109,8 +113,8 @@ export default function MobileBottomNav({
           <span className="text-[10px] font-sans font-medium tracking-tight mt-0.5 leading-none">Perfil</span>
         </button>
 
-        {/* PREFERÊNCIAS SENSORIAIS (VOZ, TEMAS & AMBIENTE) */}
-        {systemSettings?.show_settings_button !== false && (
+        {/* PREFERÊNCIAS SENSORIAIS / CONFIGURAÇÕES (SEMPRE VISÍVEL PARA SUPERADMIN) */}
+        {(isSuperAdmin || systemSettings?.show_settings_button !== false) && (
           <button
             type="button"
             onClick={onOpenSettings}
