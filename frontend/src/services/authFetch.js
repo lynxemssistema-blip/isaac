@@ -27,6 +27,7 @@ export const BACKEND_URL = resolveBackendUrl();
  */
 export async function authFetch(url, options = {}) {
   const headers = new Headers(options.headers || {});
+  let attachedSessionToken = false;
 
   if (!headers.has('Authorization')) {
     try {
@@ -34,15 +35,34 @@ export async function authFetch(url, options = {}) {
       const accessToken = data?.session?.access_token;
       if (accessToken) {
         headers.set('Authorization', `Bearer ${accessToken}`);
+        attachedSessionToken = true;
       }
     } catch {
       // Prossegue sem token (ex: rotas públicas ou visitante deslogado)
     }
   }
 
-  return fetch(url, {
+  const response = await fetch(url, {
     ...options,
     headers,
   });
+
+  // Se o token em cache era inválido/revogado (ex: troca de servidor Auth ou sessão expirada),
+  // tenta renovar 1 vez; se falhar, limpa a sessão local silenciosamente para abrir o login limpo.
+  if (response.status === 401 && attachedSessionToken) {
+    try {
+      const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+      if (!refreshErr && refreshed?.session?.access_token) {
+        const retryHeaders = new Headers(options.headers || {});
+        retryHeaders.set('Authorization', `Bearer ${refreshed.session.access_token}`);
+        return fetch(url, { ...options, headers: retryHeaders });
+      }
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+    }
+  }
+
+  return response;
 }
 

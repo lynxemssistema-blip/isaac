@@ -16,6 +16,19 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('⚠️ [Supabase Client] Variáveis SUPABASE_URL ou SUPABASE_ANON_KEY não encontradas.');
 }
 
+// Remove sessões legadas do antigo Supabase Cloud para evitar envio de JWT obsoleto (401)
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    for (const key of Object.keys(window.localStorage)) {
+      if (key.includes('ohjuqcrpakswvnoqobiq')) {
+        window.localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Ignora bloqueios de storage privado
+  }
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,

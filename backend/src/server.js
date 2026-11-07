@@ -9,6 +9,8 @@ import adminRoutes from './routes/adminRoutes.js';
 import creativeTroubleRoutes from './routes/creativeTroubleRoutes.js';
 import pdfCampaignRoutes from './routes/pdfCampaignRoutes.js';
 import inscriptionRoutes from './routes/inscriptionRoutes.js';
+import evolutionRoutes from './routes/evolutionRoutes.js';
+import { startEvolutionDailyScheduler } from './services/evolutionService.js';
 import { requireAdmin } from './middlewares/authMiddleware.js';
 import { apiGeneralLimiter } from './middlewares/rateLimiters.js';
 import {
@@ -71,6 +73,7 @@ const largeUploadJsonParser = express.json({ limit: '25mb' });
 app.use((req, res, next) => {
   const isLargeUpload =
     req.path === '/api/chat/audio' ||
+    req.path.startsWith('/api/webhooks/evolution') ||
     req.path.startsWith('/api/admin/pdf-campaigns') ||
     /^\/api\/admin\/agents\/[^/]+\/documents/.test(req.path);
   return isLargeUpload ? largeUploadJsonParser(req, res, next) : defaultJsonParser(req, res, next);
@@ -97,13 +100,17 @@ app.get('/sitemap.xml', handleSitemapXml);
 app.get('/llms.txt', handleLlmsTxt);
 app.get('/llms-full.txt', handleLlmsFullTxt);
 
-// Rate Limit geral e Barreira Global Zero-Trust para todas as rotas /api/admin/*
-app.use('/api', apiGeneralLimiter);
+// Rate Limit geral (exceto webhook oficial de eventos da Evolution API) e Barreira Global Zero-Trust /api/admin/*
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/webhooks/evolution')) return next();
+  return apiGeneralLimiter(req, res, next);
+});
 app.get('/api/public/topics', handlePublicTopicsList);
 app.get('/api/public/topics/:slug', handlePublicTopicBySlug);
 app.use('/api/admin', requireAdmin);
 
 // Rotas da API
+app.use('/api', evolutionRoutes);
 app.use('/api', chatRoutes);
 app.use('/api', adminRoutes);
 app.use('/api', creativeTroubleRoutes);
@@ -173,6 +180,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`📡 [Health Check] Acesse http://localhost:${PORT}/health`);
   console.log(`🌐 [Modo] ${process.env.NODE_ENV || 'development'}`);
   console.log(`====================================================`);
+  startEvolutionDailyScheduler();
 });
 
 process.on('SIGTERM', () => {

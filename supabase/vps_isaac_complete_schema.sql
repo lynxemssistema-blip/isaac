@@ -578,3 +578,65 @@ REVOKE EXECUTE ON FUNCTION public.izaque_match_agent_knowledge(vector, uuid, flo
 GRANT EXECUTE ON FUNCTION public.izaque_match_memories(vector, float, int, uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.izaque_match_agent_knowledge(vector, uuid, float, int) TO service_role;
 
+-- ============================================================================
+-- 20. INTEGRACAO WHATSAPP EVOLUTION API (FOLLOW-UP DIARIO 09:50 & WEBHOOK)
+-- ============================================================================
+ALTER TABLE public.izaque_profiles
+  ADD COLUMN IF NOT EXISTS whatsapp_jid text,
+  ADD COLUMN IF NOT EXISTS whatsapp_opt_out boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS whatsapp_opt_out_at timestamptz,
+  ADD COLUMN IF NOT EXISTS last_whatsapp_inbound_at timestamptz;
+
+CREATE TABLE IF NOT EXISTS public.izaque_whatsapp_followups (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  session_id uuid REFERENCES public.izaque_chat_sessions(id) ON DELETE SET NULL,
+  last_message_id uuid,
+  phone_raw text,
+  whatsapp_jid text,
+  preferred_name text,
+  pending_topic_summary text,
+  message_content text NOT NULL,
+  trigger_type text NOT NULL DEFAULT 'daily_cron',
+  status text NOT NULL DEFAULT 'sent',
+  evolution_message_id text,
+  delay_ms integer,
+  error_message text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.izaque_whatsapp_webhook_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type text NOT NULL,
+  instance_name text,
+  remote_jid text,
+  matched_user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  from_me boolean NOT NULL DEFAULT false,
+  message_text text,
+  payload jsonb DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_izaque_profiles_phone_active
+  ON public.izaque_profiles(is_active, whatsapp_opt_out)
+  WHERE phone IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_izaque_whatsapp_followups_user_created
+  ON public.izaque_whatsapp_followups(user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_izaque_whatsapp_followups_last_msg
+  ON public.izaque_whatsapp_followups(user_id, last_message_id)
+  WHERE status = 'sent';
+
+CREATE INDEX IF NOT EXISTS idx_izaque_whatsapp_webhooks_jid_created
+  ON public.izaque_whatsapp_webhook_events(remote_jid, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_izaque_whatsapp_webhooks_user
+  ON public.izaque_whatsapp_webhook_events(matched_user_id);
+
+ALTER TABLE public.izaque_whatsapp_followups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.izaque_whatsapp_webhook_events ENABLE ROW LEVEL SECURITY;
+GRANT ALL ON public.izaque_whatsapp_followups TO service_role;
+GRANT ALL ON public.izaque_whatsapp_webhook_events TO service_role;
+
+

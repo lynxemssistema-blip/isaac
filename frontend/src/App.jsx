@@ -10,18 +10,47 @@ import { AlertTriangle, LifeBuoy, Loader2 } from 'lucide-react';
 import { applyAppTheme, getCurrentTheme } from './services/themeService';
 import { fetchSystemSettings, acceptTermsOfUseApi } from './services/adminApi';
 
-// Code-Splitting (React.lazy): isola painéis pesados (Super Admin, Laboratório e rotas avulsas)
-// do pacote inicial do aluno/visitante, reduzindo drasticamente o tempo de download no 4G/Mobile.
-const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
-const CreativeTroubleLab = lazy(() => import('./components/CreativeTroubleLab'));
-const DirectSignupPage = lazy(() => import('./components/DirectSignupPage'));
-const SimpleInscriptionPage = lazy(() => import('./components/SimpleInscriptionPage'));
-const WelcomeOnboarding = lazy(() => import('./components/WelcomeOnboarding'));
-const UserProfileModal = lazy(() => import('./components/UserProfileModal'));
-const UserSettingsModal = lazy(() => import('./components/UserSettingsModal'));
-const ResetPasswordModal = lazy(() => import('./components/ResetPasswordModal'));
-const SubscriberFeedbackModal = lazy(() => import('./components/SubscriberFeedbackModal'));
-const TopicLandingPage = lazy(() => import('./components/TopicLandingPage'));
+// Proteção anti-404 de chunks em novos deploys (recarrega silenciosamente 1x se o hash do arquivo mudou)
+if (typeof window !== 'undefined') {
+  window.addEventListener('vite:preloadError', (event) => {
+    event.preventDefault();
+    const reloadedAt = Number(sessionStorage.getItem('__isaac_chunk_reload_ts') || '0');
+    if (Date.now() - reloadedAt > 15_000) {
+      sessionStorage.setItem('__isaac_chunk_reload_ts', String(Date.now()));
+      window.location.reload();
+    }
+  });
+}
+
+function lazyWithRetry(importer) {
+  return lazy(async () => {
+    try {
+      return await importer();
+    } catch (err) {
+      if (typeof window !== 'undefined') {
+        const reloadedAt = Number(sessionStorage.getItem('__isaac_chunk_reload_ts') || '0');
+        if (Date.now() - reloadedAt > 15_000) {
+          sessionStorage.setItem('__isaac_chunk_reload_ts', String(Date.now()));
+          window.location.reload();
+          return new Promise(() => {});
+        }
+      }
+      throw err;
+    }
+  });
+}
+
+// Code-Splitting (React.lazy com auto-recovery pós-deploy): isola painéis pesados do pacote inicial
+const AdminDashboard = lazyWithRetry(() => import('./components/AdminDashboard'));
+const CreativeTroubleLab = lazyWithRetry(() => import('./components/CreativeTroubleLab'));
+const DirectSignupPage = lazyWithRetry(() => import('./components/DirectSignupPage'));
+const SimpleInscriptionPage = lazyWithRetry(() => import('./components/SimpleInscriptionPage'));
+const WelcomeOnboarding = lazyWithRetry(() => import('./components/WelcomeOnboarding'));
+const UserProfileModal = lazyWithRetry(() => import('./components/UserProfileModal'));
+const UserSettingsModal = lazyWithRetry(() => import('./components/UserSettingsModal'));
+const ResetPasswordModal = lazyWithRetry(() => import('./components/ResetPasswordModal'));
+const SubscriberFeedbackModal = lazyWithRetry(() => import('./components/SubscriberFeedbackModal'));
+const TopicLandingPage = lazyWithRetry(() => import('./components/TopicLandingPage'));
 
 function LazyFallbackLoader() {
   return (
