@@ -856,11 +856,20 @@ function rememberProcessedMessage(msgId) {
  * 3. Para usuários do Plano Gratuito: informa gentilmente (com cooldown anti-spam) que o App Web é 100% gratuito e que a conversa via WhatsApp faz parte do Plano de R$ 14,99.
  */
 export async function processEvolutionWebhookPayload(eventParam, body = {}) {
-  const eventType = String(body?.event || eventParam || 'unknown').toUpperCase().replace(/-/g, '_');
+  const eventType = String(body?.event || eventParam || 'unknown')
+    .toUpperCase()
+    .replace(/[.-]/g, '_');
   const instanceName = body?.instance || getEvoConfig().instanceName;
   const data = body?.data || {};
   const key = data?.key || {};
-  const remoteJid = key?.remoteJid || data?.remoteJid || null;
+  const rawRemoteJid = key?.remoteJid || data?.remoteJid || null;
+  const altRemoteJid = key?.remoteJidAlt || key?.senderPn || data?.remoteJidAlt || null;
+  const remoteJid =
+    rawRemoteJid && rawRemoteJid.endsWith('@s.whatsapp.net')
+      ? rawRemoteJid
+      : altRemoteJid && altRemoteJid.endsWith('@s.whatsapp.net')
+      ? altRemoteJid
+      : rawRemoteJid;
   const fromMe = Boolean(key?.fromMe);
   const inboundMsgId = key?.id || null;
 
