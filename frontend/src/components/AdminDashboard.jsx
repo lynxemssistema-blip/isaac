@@ -16,8 +16,6 @@ import {
   Heart,
   BookOpen,
   HelpCircle,
-  CreditCard,
-  QrCode,
   UserCheck,
   UserX,
   MessageSquare,
@@ -51,12 +49,7 @@ import {
   fetchAdminAgents,
   updateAgent,
   deleteAgent,
-  fetchAdminPlans,
-  updateAdminPlan,
   updateUserStatus,
-  updateUserPlan,
-  fetchAdminSubscriptions,
-  approveSubscription,
   fetchAdminFeedbacks,
   fetchAdminCreator,
   updateAdminCreator,
@@ -78,7 +71,7 @@ import AdminPdfCampaigns from './AdminPdfCampaigns';
 
 export default function AdminDashboard({ currentUser }) {
   const isSuperAdmin = currentUser?.role === 'master' || currentUser?.email === 'edsonmanoel2012@gmail.com';
-  const [activeTab, setActiveTab] = useState('metrics'); // 'users' | 'plans' | 'subscriptions' | 'feedbacks' | 'memories' | 'agents' | 'help' | 'broadcast'
+  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'feedbacks' | 'memories' | 'agents' | 'help' | 'broadcast'
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isCreateAgentOpen, setIsCreateAgentOpen] = useState(false);
@@ -88,8 +81,6 @@ export default function AdminDashboard({ currentUser }) {
   const [users, setUsers] = useState([]);
   const [memories, setMemories] = useState([]);
   const [agents, setAgents] = useState([]);
-  const [plans, setPlans] = useState([]);
-  const [subscriptions, setSubscriptions] = useState([]);
   const [feedbacks, setFeedbacks] = useState([]);
 
   // Filtros e busca
@@ -113,12 +104,6 @@ export default function AdminDashboard({ currentUser }) {
   const [editingQuestionCategory, setEditingQuestionCategory] = useState('');
   const [savingQuestions, setSavingQuestions] = useState(false);
 
-  // Plano em edição
-  const [selectedPlanId, setSelectedPlanId] = useState('pro_monthly');
-  const [editingPlan, setEditingPlan] = useState(null);
-  const [featuresText, setFeaturesText] = useState('');
-  const [savingPlan, setSavingPlan] = useState(false);
-
   // Perfil do Idealizador do Isaac
   const [creatorData, setCreatorData] = useState({
     name: 'Edson Manoel',
@@ -139,13 +124,11 @@ export default function AdminDashboard({ currentUser }) {
   const loadAllData = async () => {
     try {
       setRefreshing(true);
-      const [m, u, mem, ag, p, s, f, cr] = await Promise.all([
+      const [m, u, mem, ag, f, cr] = await Promise.all([
         fetchAdminMetrics().catch(() => null),
         fetchAdminUsers().catch(() => []),
         fetchAdminMemories().catch(() => []),
         fetchAdminAgents().catch(() => []),
-        fetchAdminPlans().catch(() => []),
-        fetchAdminSubscriptions().catch(() => []),
         fetchAdminFeedbacks().catch(() => []),
         fetchAdminCreator().catch(() => null),
       ]);
@@ -154,8 +137,6 @@ export default function AdminDashboard({ currentUser }) {
       setUsers(u);
       setMemories(mem);
       setAgents(ag);
-      setPlans(p);
-      setSubscriptions(s);
       setFeedbacks(f);
       if (cr && cr.name) {
         setCreatorData(cr);
@@ -170,12 +151,6 @@ export default function AdminDashboard({ currentUser }) {
         setAgentTemp(Number(targetAgent.temperature) || 0.7);
         setAgentQuestions(Array.isArray(targetAgent.starter_questions) ? [...targetAgent.starter_questions] : []);
       }
-
-      if (p.length > 0) {
-        const curPlan = p.find((item) => item.id === selectedPlanId) || p[0];
-        setEditingPlan({ ...curPlan });
-        setFeaturesText(Array.isArray(curPlan.features) ? curPlan.features.join('\n') : '');
-      }
     } catch (err) {
       console.error('Erro ao carregar dados do admin:', err);
     } finally {
@@ -188,44 +163,6 @@ export default function AdminDashboard({ currentUser }) {
     loadAllData();
   }, []);
 
-  // Quando o superadmin troca o plano a ser editado
-  const handleSelectPlanToEdit = (planId) => {
-    setSelectedPlanId(planId);
-    const target = plans.find((p) => p.id === planId);
-    if (target) {
-      setEditingPlan({ ...target });
-      setFeaturesText(Array.isArray(target.features) ? target.features.join('\n') : '');
-    }
-  };
-
-  // Salvar alterações de um plano (Preço, Chave PIX, Titular, etc.)
-  const handleSavePlan = async (e) => {
-    e?.preventDefault();
-    if (!editingPlan) return;
-    setSavingPlan(true);
-
-    try {
-      const featuresArray = featuresText
-        .split('\n')
-        .map((f) => f.trim())
-        .filter((f) => f.length > 0);
-
-      const payload = {
-        ...editingPlan,
-        features: featuresArray,
-      };
-
-      await updateAdminPlan(editingPlan.id, payload);
-      setFeedbackMsg(`Plano "${editingPlan.name}" e dados PIX atualizados com sucesso!`);
-      setTimeout(() => setFeedbackMsg(''), 3500);
-      loadAllData();
-    } catch (err) {
-      alert('Erro ao salvar plano: ' + err.message);
-    } finally {
-      setSavingPlan(false);
-    }
-  };
-
   // Bloquear ou desbloquear acesso geral de um cliente
   const handleToggleUserStatus = async (userId, currentStatus) => {
     const newStatus = currentStatus === false ? true : false;
@@ -236,30 +173,6 @@ export default function AdminDashboard({ currentUser }) {
       loadAllData();
     } catch (err) {
       alert('Erro ao alterar status de acesso: ' + err.message);
-    }
-  };
-
-  // Alterar plano de um cliente diretamente no dropdown
-  const handleUserPlanChange = async (userId, newPlanId) => {
-    try {
-      await updateUserPlan(userId, newPlanId);
-      setFeedbackMsg('Plano do cliente atualizado com sucesso!');
-      setTimeout(() => setFeedbackMsg(''), 3000);
-      loadAllData();
-    } catch (err) {
-      alert('Erro ao atualizar plano do cliente: ' + err.message);
-    }
-  };
-
-  // Aprovar pedido PIX e ativar o plano do cliente
-  const handleApproveSubscription = async (subId) => {
-    try {
-      await approveSubscription(subId, currentUser?.id);
-      setFeedbackMsg('Assinatura PIX aprovada! Plano ativado e e-mail enviado ao cliente.');
-      setTimeout(() => setFeedbackMsg(''), 3500);
-      loadAllData();
-    } catch (err) {
-      alert('Erro ao aprovar assinatura: ' + err.message);
     }
   };
 
@@ -495,11 +408,6 @@ export default function AdminDashboard({ currentUser }) {
     return m.category === memoryFilter;
   });
 
-  const pendingSubsCount = subscriptions.filter((s) => s.status === 'pending').length;
-  const activeSubscribersCount = users.filter(
-    (u) => !u.is_inscription && u.plan_id && u.plan_id !== 'free'
-  ).length;
-
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-slate-900 text-stone-800 dark:text-stone-100 p-3.5 sm:p-8 font-sans transition-colors duration-300">
       <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
@@ -518,7 +426,7 @@ export default function AdminDashboard({ currentUser }) {
               </span>
             </div>
             <p className="text-[11px] sm:text-xs text-stone-500 dark:text-stone-400 mt-1 font-serif">
-              Controle total de planos, pagamentos PIX, bloqueio de clientes e suporte Lynx
+              Controle total de usuários, mentores especialistas, conversas direcionadas e suporte Lynx
             </p>
           </div>
 
@@ -570,34 +478,27 @@ export default function AdminDashboard({ currentUser }) {
 
           <div className="p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700 shadow-sm">
             <div className="flex items-center justify-between text-stone-500 dark:text-stone-400 mb-1.5 sm:mb-2">
-              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Assinantes Ativos</span>
-              <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-700 dark:text-amber-400" />
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Mentores & Estudos</span>
+              <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-700 dark:text-amber-400" />
             </div>
             <span className="text-xl sm:text-3xl font-serif font-medium text-amber-800 dark:text-amber-300">
-              {activeSubscribersCount}
+              {agents.length}
             </span>
             <span className="block text-[10px] sm:text-[11px] text-stone-400 dark:text-stone-500 mt-0.5 sm:mt-1">
-              Planos Mensal ou Anual
+              Especialistas cadastrados
             </span>
           </div>
 
           <div className="p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700 shadow-sm">
             <div className="flex items-center justify-between text-stone-500 dark:text-stone-400 mb-1.5 sm:mb-2">
-              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Pedidos PIX</span>
-              <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-700 dark:text-teal-400" />
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Lembranças RAG</span>
+              <Bookmark className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-700 dark:text-teal-400" />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xl sm:text-3xl font-serif font-medium text-stone-900 dark:text-stone-50">
-                {subscriptions.length}
-              </span>
-              {pendingSubsCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white animate-pulse">
-                  {pendingSubsCount} pendente(s)
-                </span>
-              )}
-            </div>
+            <span className="text-xl sm:text-3xl font-serif font-medium text-stone-900 dark:text-stone-50">
+              {memories.length}
+            </span>
             <span className="block text-[10px] sm:text-[11px] text-stone-400 dark:text-stone-500 mt-0.5 sm:mt-1">
-              Transações geradas
+              Memórias ativas de longo prazo
             </span>
           </div>
 
@@ -628,30 +529,6 @@ export default function AdminDashboard({ currentUser }) {
             >
               <Users className="w-3.5 h-3.5" />
               Usuários & Acessos ({users.length})
-            </button>
-
-            <button
-              onClick={() => setActiveTab('plans')}
-              className={`px-3 sm:px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'plans'
-                  ? 'bg-teal-700 text-white shadow-sm'
-                  : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
-              }`}
-            >
-              <CreditCard className="w-3.5 h-3.5" />
-              Configurar Planos & PIX
-            </button>
-
-            <button
-              onClick={() => setActiveTab('subscriptions')}
-              className={`px-3 sm:px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'subscriptions'
-                  ? 'bg-teal-700 text-white shadow-sm'
-                  : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
-              }`}
-            >
-              <QrCode className="w-3.5 h-3.5" />
-              Assinaturas PIX ({pendingSubsCount > 0 ? `${pendingSubsCount} Pendentes` : subscriptions.length})
             </button>
 
             <button
@@ -902,7 +779,6 @@ export default function AdminDashboard({ currentUser }) {
                   <tr>
                     <th className="p-4">Cliente / Contato</th>
                     <th className="p-4">Papel / Origem</th>
-                    <th className="p-4">Plano Atual</th>
                     <th className="p-4">Status</th>
                     <th className="p-4">Data de Cadastro</th>
                     <th className="p-4 text-right">Ações</th>
@@ -911,7 +787,6 @@ export default function AdminDashboard({ currentUser }) {
                 <tbody className="divide-y divide-stone-200/60 dark:divide-slate-700/60">
                   {filteredUsers.map((u) => {
                     const isActive = u.is_active !== false;
-                    const planId = u.plan_id || 'free';
                     const isInscription = Boolean(u.is_inscription);
 
                     return (
@@ -964,31 +839,6 @@ export default function AdminDashboard({ currentUser }) {
                               <option value="user">user</option>
                               <option value="admin">admin</option>
                               <option value="master">master</option>
-                            </select>
-                          )}
-                        </td>
-
-                        {/* PLANO ATUAL EDITÁVEL PELO SUPERADMIN */}
-                        <td className="p-4">
-                          {isInscription ? (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-[11px] font-medium bg-stone-100 dark:bg-slate-900 text-stone-500 dark:text-stone-400 border border-stone-200 dark:border-slate-700">
-                              Sem login no app
-                            </span>
-                          ) : (
-                            <select
-                              value={planId}
-                              onChange={(e) => handleUserPlanChange(u.id, e.target.value)}
-                              className={`text-xs rounded-xl px-2.5 py-1 font-medium border outline-none ${
-                                planId === 'pro_annual'
-                                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-300'
-                                  : planId === 'pro_monthly'
-                                  ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-300 border-teal-300'
-                                  : 'bg-stone-100 dark:bg-slate-700 text-stone-600 dark:text-stone-300 border-stone-300'
-                              }`}
-                            >
-                              <option value="free">Gratuito (free)</option>
-                              <option value="pro_monthly">Mensal (R$ 29,90)</option>
-                              <option value="pro_annual">Anual (R$ 247,00)</option>
                             </select>
                           )}
                         </td>
@@ -1072,297 +922,6 @@ export default function AdminDashboard({ currentUser }) {
                       </tr>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ABA 2: CONFIGURAR PLANOS E DADOS PIX */}
-        {activeTab === 'plans' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* LISTA DE PLANOS CADASTRADOS */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-stone-500 mb-2">
-                Planos de Mentoria
-              </h3>
-              {plans.map((p) => {
-                const isSelected = selectedPlanId === p.id;
-                return (
-                  <div
-                    key={p.id}
-                    onClick={() => handleSelectPlanToEdit(p.id)}
-                    className={`p-4 rounded-3xl border transition cursor-pointer flex flex-col justify-between ${
-                      isSelected
-                        ? 'bg-white dark:bg-slate-800 border-teal-700 shadow-md ring-2 ring-teal-700/20'
-                        : 'bg-stone-100/70 dark:bg-slate-800/50 border-stone-200 dark:border-slate-700 hover:border-teal-500/40'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-serif font-medium text-sm text-stone-900 dark:text-stone-100">
-                        {p.name}
-                      </span>
-                      <span className="text-xs font-bold text-teal-800 dark:text-teal-300">
-                        R$ {Number(p.price).toFixed(2).replace('.', ',')}
-                      </span>
-                    </div>
-                    <span className="text-[11px] text-stone-400 mt-1">
-                      Ciclo: {p.billing_cycle === 'annual' ? 'Anual (365 dias)' : 'Mensal (30 dias)'}
-                    </span>
-                    <span className="text-[11px] text-teal-700 dark:text-teal-400 mt-0.5">
-                      Chave PIX: {p.pix_key || 'Não cadastrada'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* FORMULÁRIO DE EDIÇÃO COMPLETO */}
-            <div className="md:col-span-2 p-6 sm:p-8 rounded-4xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700 shadow-sm space-y-6">
-              <div className="flex items-center justify-between pb-4 border-b border-stone-100 dark:border-slate-700">
-                <div>
-                  <h3 className="text-base font-serif font-medium text-stone-900 dark:text-stone-50">
-                    Editar Plano: {editingPlan?.name}
-                  </h3>
-                  <p className="text-xs text-stone-500 dark:text-stone-400">
-                    Altere o valor em Reais, a chave PIX de recebimento e os dados do titular.
-                  </p>
-                </div>
-              </div>
-
-              {editingPlan ? (
-                <form onSubmit={handleSavePlan} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
-                        Nome do Plano
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={editingPlan.name || ''}
-                        onChange={(e) => setEditingPlan({ ...editingPlan, name: e.target.value })}
-                        className="w-full px-4 py-2.5 rounded-2xl bg-stone-50 dark:bg-slate-900 border border-stone-300 dark:border-slate-700 text-xs text-stone-800 dark:text-stone-200 outline-none focus:border-teal-700 transition"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
-                        Valor em Reais (R$)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        required
-                        value={editingPlan.price || 0}
-                        onChange={(e) => setEditingPlan({ ...editingPlan, price: e.target.value })}
-                        className="w-full px-4 py-2.5 rounded-2xl bg-stone-50 dark:bg-slate-900 border border-stone-300 dark:border-slate-700 text-xs text-stone-800 dark:text-stone-200 outline-none focus:border-teal-700 transition"
-                      />
-                    </div>
-                  </div>
-
-                  {/* CONFIGURAÇÃO DA CHAVE PIX */}
-                  <div className="p-4 rounded-3xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/60 dark:border-teal-900/60 space-y-4">
-                    <div className="flex items-center gap-2 text-teal-800 dark:text-teal-300 text-xs font-semibold">
-                      <QrCode className="w-4 h-4" />
-                      <span>Configurações da Chave PIX Oficial</span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
-                          Chave PIX (E-mail, CNPJ, CPF, Telefone ou Aleatória)
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={editingPlan.pix_key || ''}
-                          onChange={(e) => setEditingPlan({ ...editingPlan, pix_key: e.target.value })}
-                          placeholder="Ex: suporte@lynxems.com.br ou 00.000.000/0001-00"
-                          className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-stone-300 dark:border-slate-700 text-xs text-stone-800 dark:text-stone-200 outline-none focus:border-teal-700 transition"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
-                          Tipo da Chave
-                        </label>
-                        <select
-                          value={editingPlan.pix_key_type || 'email'}
-                          onChange={(e) => setEditingPlan({ ...editingPlan, pix_key_type: e.target.value })}
-                          className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-stone-300 dark:border-slate-700 text-xs text-stone-800 dark:text-stone-200 outline-none focus:border-teal-700 transition"
-                        >
-                          <option value="email">E-mail</option>
-                          <option value="cnpj">CNPJ</option>
-                          <option value="cpf">CPF</option>
-                          <option value="telefone">Telefone</option>
-                          <option value="aleatoria">Chave Aleatória (EVP)</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
-                        Nome do Favorecido / Titular da Conta
-                      </label>
-                      <input
-                        type="text"
-                        value={editingPlan.pix_beneficiary || ''}
-                        onChange={(e) => setEditingPlan({ ...editingPlan, pix_beneficiary: e.target.value })}
-                        placeholder="Ex: Lynx EMS Soluções Tecnológicas"
-                        className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-stone-300 dark:border-slate-700 text-xs text-stone-800 dark:text-stone-200 outline-none focus:border-teal-700 transition"
-                      />
-                    </div>
-                  </div>
-
-                  {/* AVISO DE ATIVAÇÃO DE 10 MINUTOS */}
-                  <div>
-                    <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
-                      Aviso Exibido ao Usuário (Prazo de Ativação)
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={editingPlan.activation_notice || ''}
-                      onChange={(e) => setEditingPlan({ ...editingPlan, activation_notice: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-2xl bg-stone-50 dark:bg-slate-900 border border-stone-300 dark:border-slate-700 text-xs text-stone-800 dark:text-stone-200 outline-none focus:border-teal-700 transition resize-none"
-                    />
-                  </div>
-
-                  {/* DESCRIÇÃO E BENEFÍCIOS */}
-                  <div>
-                    <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
-                      Descrição Resumida
-                    </label>
-                    <input
-                      type="text"
-                      value={editingPlan.description || ''}
-                      onChange={(e) => setEditingPlan({ ...editingPlan, description: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-2xl bg-stone-50 dark:bg-slate-900 border border-stone-300 dark:border-slate-700 text-xs text-stone-800 dark:text-stone-200 outline-none focus:border-teal-700 transition"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
-                      Benefícios do Plano (1 por linha)
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={featuresText}
-                      onChange={(e) => setFeaturesText(e.target.value)}
-                      placeholder="Conversas sem limite&#10;Voz neural Charon e Aoede&#10;Suporte prioritário Lynx"
-                      className="w-full px-4 py-2.5 rounded-2xl bg-stone-50 dark:bg-slate-900 border border-stone-300 dark:border-slate-700 text-xs text-stone-800 dark:text-stone-200 outline-none focus:border-teal-700 transition font-mono"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={savingPlan}
-                    className="px-6 py-3 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-medium text-xs shadow-md shadow-teal-700/20 transition flex items-center gap-2 disabled:opacity-50 active:scale-95"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>{savingPlan ? 'Salvando...' : 'Salvar Alterações do Plano'}</span>
-                  </button>
-                </form>
-              ) : (
-                <div className="py-12 text-center text-xs text-stone-400">
-                  Selecione um plano à esquerda para editar.
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ABA 3: PEDIDOS DE ASSINATURA PIX */}
-        {activeTab === 'subscriptions' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-stone-500">
-                Histórico de Pedidos de Assinatura
-              </h3>
-              <span className="text-xs text-stone-400 font-serif">
-                Total de pedidos: {subscriptions.length}
-              </span>
-            </div>
-
-            <div className="overflow-x-auto rounded-3xl border border-stone-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
-              <table className="w-full text-left text-xs text-stone-700 dark:text-stone-300">
-                <thead className="bg-stone-100/70 dark:bg-slate-850 uppercase font-semibold text-[11px] text-stone-500 border-b border-stone-200/80 dark:border-slate-700">
-                  <tr>
-                    <th className="p-4">Cliente</th>
-                    <th className="p-4">Plano Escolhido</th>
-                    <th className="p-4">Valor</th>
-                    <th className="p-4">Data do Pedido</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 text-right">Aprovação Superadmin</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-200/60 dark:divide-slate-700/60">
-                  {subscriptions.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="p-8 text-center text-stone-400 text-xs">
-                        Nenhum pedido de assinatura registrado até o momento.
-                      </td>
-                    </tr>
-                  ) : (
-                    subscriptions.map((sub) => {
-                      const isPending = sub.status === 'pending';
-                      const isActive = sub.status === 'active';
-
-                      return (
-                        <tr key={sub.id} className="hover:bg-stone-50/70 dark:hover:bg-slate-750 transition">
-                          <td className="p-4">
-                            <div className="font-serif font-medium text-stone-900 dark:text-stone-100">
-                              {sub.user_name || 'Cliente'}
-                            </div>
-                            <div className="text-[11px] text-stone-400">{sub.user_email}</div>
-                          </td>
-
-                          <td className="p-4 font-medium text-stone-800 dark:text-stone-200">
-                            {sub.plan?.name || sub.plan_id}
-                          </td>
-
-                          <td className="p-4 font-semibold text-teal-800 dark:text-teal-300">
-                            R$ {Number(sub.amount).toFixed(2).replace('.', ',')}
-                          </td>
-
-                          <td className="p-4 text-stone-400">
-                            {new Date(sub.created_at).toLocaleString('pt-BR')}
-                          </td>
-
-                          <td className="p-4">
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                isActive
-                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200'
-                                  : isPending
-                                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 animate-pulse'
-                                  : 'bg-stone-100 dark:bg-slate-700 text-stone-500'
-                              }`}
-                            >
-                              {isActive ? 'Ativo / Pago' : isPending ? 'Pendente de PIX' : sub.status}
-                            </span>
-                          </td>
-
-                          <td className="p-4 text-right">
-                            {isPending ? (
-                              <button
-                                type="button"
-                                onClick={() => handleApproveSubscription(sub.id)}
-                                className="px-3.5 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs transition active:scale-95 shadow-sm inline-flex items-center gap-1.5"
-                              >
-                                <CheckCircle className="w-3.5 h-3.5" />
-                                <span>Aprovar & Ativar Plano</span>
-                              </button>
-                            ) : (
-                              <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                                Aprovado em {sub.approved_at ? new Date(sub.approved_at).toLocaleDateString('pt-BR') : 'OK'}
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
                 </tbody>
               </table>
             </div>
