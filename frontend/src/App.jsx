@@ -236,11 +236,6 @@ export default function App() {
         if (!onSignupLink) {
           // REQUISITO: Usuário autenticado já abre direto na página de conversa com ISAAC
           setActiveTab('chat');
-          // Verifica se é o primeiro acesso para exibir o onboarding
-          const completed = localStorage.getItem('izaque_onboarding_completed');
-          if (!completed) {
-            setShowOnboarding(true);
-          }
         }
       } else {
         setLoadingProfile(false);
@@ -264,12 +259,6 @@ export default function App() {
           Boolean(inscriptionRouteRef.current);
 
         loadUserProfile(currentUser);
-        if (!isFlowLocked) {
-          const completed = localStorage.getItem('izaque_onboarding_completed');
-          if (!completed) {
-            setShowOnboarding(true);
-          }
-        }
       } else {
         setProfile(null);
         if (activeTabRef.current === 'chat' || activeTabRef.current === 'admin') {
@@ -327,10 +316,6 @@ export default function App() {
       setProfile(savedProfile);
     }
     loadUserProfile(loggedUser);
-    const completed = localStorage.getItem('izaque_onboarding_completed');
-    if (!completed) {
-      setShowOnboarding(true);
-    }
     setActiveTab('chat');
   };
 
@@ -460,7 +445,7 @@ export default function App() {
           }}
           onOpenAuth={() => openAuthModal('login', '')}
           onLogout={handleLogout}
-          onOpenOnboarding={() => setShowOnboarding(true)}
+          onOpenOnboarding={() => setIsSettingsOpen(true)}
           onOpenProfile={() => setIsProfileOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenFeedback={() => setIsFeedbackOpen(true)}
@@ -483,7 +468,7 @@ export default function App() {
             {user ? (
               <ReflectionSpace
                 user={profile || user}
-                onEditGuideName={() => setShowOnboarding(true)}
+                onEditGuideName={() => setIsSettingsOpen(true)}
                 onBackToHome={() => setActiveTab('landing')}
                 systemSettings={systemSettings}
               />

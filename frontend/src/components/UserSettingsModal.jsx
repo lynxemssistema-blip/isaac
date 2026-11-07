@@ -118,7 +118,7 @@ export default function UserSettingsModal({
     if (isOpen) {
       const prefs = profile?.preferences || {};
 
-      setGuideName(prefs.guide_name || localStorage.getItem('izaque_guide_name') || 'Izaque');
+      setGuideName(prefs.guide_name || localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac');
       setAmbientTrack(prefs.ambient_track || localStorage.getItem('izaque_ambient_track') || '432hz');
       setAmbientVolume(
         prefs.ambient_volume !== undefined
@@ -294,6 +294,7 @@ export default function UserSettingsModal({
 
     // 1. Persiste no localStorage do dispositivo atual para acesso instantâneo
     saveAppTheme(appTheme);
+    localStorage.setItem('isaac_guide_name', finalGuideName);
     localStorage.setItem('izaque_guide_name', finalGuideName);
     localStorage.setItem('izaque_ambient_track', ambientTrack);
     localStorage.setItem('izaque_ambient_volume', ambientVolume.toString());
