@@ -573,106 +573,39 @@ export async function sendWhatsAppImageSafe({ jidOrNumber, caption, mediaUrl, fi
 }
 
 /**
- * Envio Humano Blindado em 2 Balões para páginas de eBooks:
- * Balão 1: Envia a Capa Oficial + apresentação pessoal SEM LINK na legenda da imagem (elimina o principal score de spam da Meta!).
- * Pausa humana de digitação (2.8s a 5.1s).
- * Balão 2: Envia uma mensagem curta e natural com a URL editorial limpa (/biblioteca, /leituras ou /acervo + token único) com linkPreview nativo!
+ * Envio Único Enxuto e Protegido para páginas de eBooks (1 Mensagem c/ Card OpenGraph Nativo):
+ * Envia APENAS 1 mensagem humana enxuta (Saudação pelo Primeiro Nome + frase natural + Link Editorial rotacionado
+ * /biblioteca, /leituras ou /acervo + token único ?v=xxxxxx) com linkPreview nativo do WhatsApp que já renderiza
+ * automaticamente o card oficial da capa, título e descrição — sem disparar 2 mensagens!
  */
-export async function sendProtectedEbookTwoBubbleDelivery({
+export async function sendProtectedEbookSingleLinkDelivery({
   jidOrNumber,
   fullCaptionText,
-  mediaUrl,
   seed = '',
-  isIntl = false,
 }) {
-  const rewrittenText = rewriteSalesLinksAntiBan(
+  const rewrittenSingleText = rewriteSalesLinksAntiBan(
     resolveSpintaxDeterministic(fullCaptionText, seed),
     seed
-  );
+  )
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 
-  const urlRegex = /(https?:\/\/[^\s]+)/gi;
-  const urlsFound = rewrittenText.match(urlRegex) || [];
-
-  // Se não houver link na mensagem, envia normalmente em 1 balão
-  if (urlsFound.length === 0) {
-    return sendWhatsAppImageSafe({
-      jidOrNumber,
-      caption: rewrittenText,
-      mediaUrl,
-      fileSeed: seed,
-    });
-  }
-
-  const primaryUrl = urlsFound[0];
-  const lines = rewrittenText.split(/\r?\n/);
-  const captionLinesWithoutUrl = [];
-  const footerOptOutLines = [];
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.includes(primaryUrl)) continue;
-    // Remove linha isolada de chamada imediata de link ("👉 Acesse a página...") do balão 1 para ir junto ao link no balão 2
-    if (/^(?:👉|🔗|📥)\s*(?:acesse|confira|veja|visit|explore|access)/i.test(trimmed)) continue;
-    if (/^_\(.*(?:parar|stop).*\)_$/i.test(trimmed)) {
-      footerOptOutLines.push(trimmed);
-      continue;
-    }
-    captionLinesWithoutUrl.push(line);
-  }
-
-  const bubble1Caption = captionLinesWithoutUrl.join('\n').replace(/\n{3,}/g, '\n\n').trim();
-  const leadPhrasesPt = [
-    'Aqui está o acesso direto para você conhecer:',
-    'Segue o link da página oficial para você ver com calma:',
-    'Deixo aqui o link direto das edições:',
-    'Você pode ver todas as capas e detalhes por aqui:',
-  ];
-  const leadPhrasesEn = [
-    'Here is the direct link so you can take a look at your own pace:',
-    'Sharing the official page link with you right here:',
-    'You can browse the editions and covers directly here:',
-    'Here is the page access whenever you have a quiet moment:',
-  ];
-  const leadList = isIntl ? leadPhrasesEn : leadPhrasesPt;
-  const leadPick =
-    leadList[parseInt(shortDeterministicHash(seed).slice(0, 2), 16) % leadList.length];
-
-  const optOutLine = footerOptOutLines[0] || '';
-  const bubble2Text = optOutLine
-    ? `${leadPick}\n${primaryUrl}\n\n${optOutLine}`
-    : `${leadPick}\n${primaryUrl}`;
-
-  // 1º Balão: Capa Oficial + Apresentação Editorial Pessoal (100% sem link na imagem)
-  const mediaRes = await sendWhatsAppImageSafe({
-    jidOrNumber,
-    caption: bubble1Caption,
-    mediaUrl,
-    fileSeed: seed,
-  });
-
-  // Pausa orgânica humana entre a imagem e o envio do link (2.9s a 5.2s)
-  const betweenBubblesPauseMs = randomBetween(2900, 5200);
-  await sleep(betweenBubblesPauseMs);
-
-  // 2º Balão: Link Editorial Limpo com OpenGraph Preview
   const linkRes = await sendWhatsAppTextSafe({
     jidOrNumber,
-    text: bubble2Text,
+    text: rewrittenSingleText,
   });
 
   return {
-    messageId: linkRes?.messageId || mediaRes?.messageId || null,
-    remoteJid: linkRes?.remoteJid || mediaRes?.remoteJid || jidOrNumber,
-    totalCadenceMs:
-      (mediaRes?.totalCadenceMs || 0) + betweenBubblesPauseMs + (linkRes?.totalCadenceMs || 0),
-    deliveredFinalText: `${bubble1Caption}\n\n${bubble2Text}`,
+    messageId: linkRes?.messageId || null,
+    remoteJid: linkRes?.remoteJid || jidOrNumber,
+    totalCadenceMs: linkRes?.totalCadenceMs || 0,
+    deliveredFinalText: rewrittenSingleText,
   };
 }
 
 /**
- * Monta automaticamente a Etapa 2 (Capa Oficial + Apresentação Editorial + Link Protegido)
- * assim que o contato responde positivamente ao convite humano sem link (Modo Blindado 2 Etapas).
- * Como o contato acabou de responder, a janela oficial de 24h da Meta está ABERTA e o link fica 100% clicável em azul!
+ * Monta automaticamente a Etapa 2 (1 Mensagem Única Enxuta com Saudação + Link Protegido c/ Card de Preview)
+ * assim que o contato responde positivamente ao convite humano sem link (Modo Conversacional 2 Etapas).
  */
 export async function handleIncomingReplyForPendingEbookLink(remoteJid, incomingText = '') {
   if (!remoteJid || !remoteJid.endsWith('@s.whatsapp.net')) {
@@ -735,7 +668,7 @@ export async function handleIncomingReplyForPendingEbookLink(remoteJid, incoming
     return { handled: true, outcome: 'declined_politely', ebookSlug };
   }
 
-  // Contato respondeu positivamente (janela bidirecional de 24h aberta na Meta!) -> entrega Capa + Link Editorial Protegido
+  // Contato respondeu positivamente -> entrega 1 única mensagem enxuta com link + card de preview
   const { data: contact } = matchedLog.contact_id
     ? await supabaseAdmin
         .from('izaque_whatsapp_contacts')
@@ -756,13 +689,13 @@ export async function handleIncomingReplyForPendingEbookLink(remoteJid, incoming
   if (ebookSlug === 'loja-geral') {
     coverToUse = `${DEFAULT_APP_URL}${COMPLETE_BUNDLE_PRODUCT.coverUrl}`;
     step2Text = isIntl
-      ? `Thank you${firstName ? `, ${firstName}` : ''}! {Glad to share this with you|Here it is as promised}.\n\nThis is the *Official ISAAC® Essential Bilingual Library*, authored by mentor *Thiago Prata* — featuring *8 segmented volumes* in *Portuguese + British English* inside the same PDF, custom illustrations, and a *personal dedication bearing your name* in the bottom margin.\n\n${protectedUrl}`
-      : `Que alegria${firstName ? `, ${firstName}` : ''}! {Obrigado pelo retorno|Combinado, te mando aqui agora}.\n\nEsta é a *Biblioteca Oficial ISAAC® Essential*, escrita pelo mentor *Thiago Prata* — são *8 volumes segmentados* em edição *Bilíngue (Português + Inglês Britânico no mesmo PDF)*, com ilustrações exclusivas e *dedicatória personalizada com o seu nome* na margem inferior.\n\n${protectedUrl}`;
+      ? `Thank you${firstName ? `, ${firstName}` : ''}! {Here is the official page link|Sharing the direct link} to the *ISAAC® Essential Bilingual eBooks* (by *Thiago Prata*) so you can {take a look at your own pace|browse the editions whenever you wish}:\n${protectedUrl}`
+      : `Obrigado${firstName ? `, ${firstName}` : ''}! {Segue o link da página oficial|Aqui está o acesso direto} dos *eBooks ISAAC® Essential* (por *Thiago Prata*) para você {ver com calma|conhecer todas as edições}:\n${protectedUrl}`;
   } else if (ebookSlug === 'colecao-completa') {
     coverToUse = `${DEFAULT_APP_URL}${COMPLETE_BUNDLE_PRODUCT.coverUrl}`;
     step2Text = isIntl
-      ? `Thank you${firstName ? `, ${firstName}` : ''}! {Glad to share it with you|Here are the details as promised}.\n\nThis is the *Complete ISAAC® Essential Collection (All 8 Volumes in 1 Master PDF)* by mentor *Thiago Prata*, in a full *Bilingual Edition (Portuguese + British English)* with a personal dedication in your name.\n\n${protectedUrl}`
-      : `Que ótimo${firstName ? `, ${firstName}` : ''}! {Obrigado por responder|Te envio aqui conforme combinado}.\n\nEsta é a *Coleção Completa ISAAC® Essential (os 8 livros reunidos em 1 Arquivo PDF Único)* do mentor *Thiago Prata*, em edição *Bilíngue (Português + Inglês Britânico)* com dedicatória nominal especial.\n\n${protectedUrl}`;
+      ? `Thank you${firstName ? `, ${firstName}` : ''}! {Here is the official page link|Sharing the direct link} to the *Complete ISAAC® Essential 8-in-1 Bilingual Collection* (by *Thiago Prata*) so you can take a look at your own pace:\n${protectedUrl}`
+      : `Obrigado${firstName ? `, ${firstName}` : ''}! {Segue o link da página oficial|Aqui está o acesso direto} da *Coleção Completa ISAAC® Essential — 8 eBooks em PDF Único* (por *Thiago Prata*) para você ver com calma:\n${protectedUrl}`;
   } else {
     const prod = findEbookProductBySlug(ebookSlug);
     const volTitlePt = prod?.title || 'Edição ISAAC® Essential';
@@ -771,11 +704,10 @@ export async function handleIncomingReplyForPendingEbookLink(remoteJid, incoming
       coverToUse = `${DEFAULT_APP_URL}${prod.coverUrl}`;
     }
     step2Text = isIntl
-      ? `Thank you${firstName ? `, ${firstName}` : ''}! {Glad to send this over|Here it is as promised}.\n\nHere is the bilingual edition *"${volTitleEn}"* authored by mentor *Thiago Prata* (ISAAC® Essential), featuring both *Portuguese and British English* in the same PDF and a personal dedication in your name.\n\n${protectedUrl}`
-      : `Perfeito${firstName ? `, ${firstName}` : ''}! {Obrigado pelo retorno|Segue aqui conforme combinado}.\n\nEsta é a leitura bilíngue *"${volTitlePt}"*, escrita pelo mentor *Thiago Prata* (ISAAC® Essential), com *Português + Inglês Britânico no mesmo PDF* e dedicatória especial com o seu nome.\n\n${protectedUrl}`;
+      ? `Thank you${firstName ? `, ${firstName}` : ''}! {Here is the official page link|Sharing the direct link} for *${volTitleEn}* (*ISAAC® Essential*, by *Thiago Prata*) so you can take a look at your own pace:\n${protectedUrl}`
+      : `Obrigado${firstName ? `, ${firstName}` : ''}! {Segue o link da página oficial|Aqui está o acesso direto} do eBook *${volTitlePt}* (*ISAAC® Essential*, por *Thiago Prata*) para você ver com calma:\n${protectedUrl}`;
   }
 
-  // Marca imediatamente antes do envio para garantir idempotência caso o contato mande 2 mensagens seguidas ("Oi" + "Sim")
   await supabaseAdmin
     .from('izaque_whatsapp_outreach_logs')
     .update({
@@ -785,12 +717,10 @@ export async function handleIncomingReplyForPendingEbookLink(remoteJid, incoming
 
   await sleep(randomBetween(1800, 3600));
 
-  const delivery = await sendProtectedEbookTwoBubbleDelivery({
+  const delivery = await sendProtectedEbookSingleLinkDelivery({
     jidOrNumber: remoteJid,
     fullCaptionText: step2Text,
-    mediaUrl: coverToUse,
     seed: `${remoteJid}:step2:${matchedLog.id}`,
-    isIntl,
   });
 
   await supabaseAdmin
@@ -1468,23 +1398,26 @@ async function hasRecentInbound24hWindow(jid, appUserId = null) {
   return false;
 }
 
-function buildDirectStep2TextForOpenWindow(ebookSlug, firstName, protectedUrl, isIntl) {
+function buildDirectStep2TextForOpenWindow(ebookSlug, firstName, protectedUrl, isIntl, contactOrPhone = '') {
+  const greeting = getGreetingForContact(contactOrPhone, isIntl);
+  const salutation = firstName ? `${greeting}, ${firstName}!` : `${greeting}!`;
+
   if (ebookSlug === 'colecao-completa') {
     return isIntl
-      ? `Hello${firstName ? `, ${firstName}` : ''}! {Great to connect with you here|Sharing something special with you today}.\n\nHere is the *Complete ISAAC® Essential Bilingual Collection (All 8 Volumes in 1 Master PDF)* authored by mentor *Thiago Prata*, featuring *Portuguese + British English* in the same file and a *personal dedication bearing your name*.\n\n${protectedUrl}`
-      : `Olá${firstName ? `, ${firstName}` : ''}! {Que bom falar com você por aqui|Compartilho uma novidade especial com você hoje}.\n\nEsta é a *Coleção Completa ISAAC® Essential (os 8 livros reunidos em 1 PDF Único)* escrita pelo mentor *Thiago Prata*, em edição *Bilíngue (Português + Inglês Britânico no mesmo PDF)* e com *dedicatória personalizada com o seu nome*.\n\n${protectedUrl}`;
+      ? `${salutation} {Here is the official page link|Sharing the direct link} to the *Complete ISAAC® Essential 8-in-1 Bilingual Collection* (by *Thiago Prata*) so you can {take a look at your own pace|explore it whenever you wish}:\n${protectedUrl}\n\n_(If you prefer not to receive updates here, simply reply "stop".)_`
+      : `${salutation} {Segue o link da página oficial|Deixo aqui o acesso direto|Compartilho com você o link} da *Coleção Completa ISAAC® Essential — 8 eBooks em PDF Único* (por *Thiago Prata*) para você {ver com calma|conhecer os detalhes}:\n${protectedUrl}\n\n_(Se preferir não receber novidades por aqui, basta responder "parar".)_`;
   }
   if (ebookSlug && ebookSlug !== 'loja-geral') {
     const prod = findEbookProductBySlug(ebookSlug);
     const titlePt = prod?.title || 'Edição ISAAC® Essential';
     const titleEn = prod?.enGb?.title || titlePt;
     return isIntl
-      ? `Hello${firstName ? `, ${firstName}` : ''}! {Great to connect with you|Sharing this new reading with you}.\n\nHere is the bilingual edition *"${titleEn}"* authored by mentor *Thiago Prata* (ISAAC® Essential), featuring *Portuguese + British English* in the same PDF and a personal dedication in your name.\n\n${protectedUrl}`
-      : `Olá${firstName ? `, ${firstName}` : ''}! {Que bom falar com você|Compartilho esta leitura especial com você}.\n\nEsta é a edição bilíngue *"${titlePt}"*, escrita pelo mentor *Thiago Prata* (ISAAC® Essential), com *Português + Inglês Britânico no mesmo PDF* e dedicatória nominal especial.\n\n${protectedUrl}`;
+      ? `${salutation} {Here is the official page link|Sharing the direct link} for *${titleEn}* (*ISAAC® Essential Series*, by *Thiago Prata*) so you can {take a look at your own pace|see the details whenever you wish}:\n${protectedUrl}\n\n_(If you prefer not to receive updates here, simply reply "stop".)_`
+      : `${salutation} {Segue o link da página oficial|Deixo aqui o acesso direto} do eBook *${titlePt}* (Série *ISAAC® Essential*, por *Thiago Prata*) para você {ver com calma|conhecer a edição}:\n${protectedUrl}\n\n_(Se preferir não receber novidades por aqui, basta responder "parar".)_`;
   }
   return isIntl
-    ? `Hello${firstName ? `, ${firstName}` : ''}! {Great to connect with you here|Sharing our new reading collection with you}.\n\nHere is the *Official ISAAC® Essential Bilingual Library* authored by mentor *Thiago Prata* — featuring *8 segmented volumes* in *Portuguese + British English* inside the same PDF, custom illustrations, and a *personal dedication bearing your name*.\n\n${protectedUrl}`
-    : `Olá${firstName ? `, ${firstName}` : ''}! {Que bom falar com você por aqui|Compartilho nossa biblioteca oficial com você}.\n\nEsta é a *Biblioteca Oficial de eBooks ISAAC® Essential*, escrita pelo mentor *Thiago Prata* — são *8 volumes segmentados* em edição *Bilíngue (Português + Inglês Britânico no mesmo PDF)*, com ilustrações exclusivas e *dedicatória personalizada com o seu nome*.\n\n${protectedUrl}`;
+    ? `${salutation} {Here is the official page link|Sharing the direct access link|Here is the link} to the *ISAAC® Essential Bilingual eBooks* (by *Thiago Prata*) so you can {take a look at your own pace|browse the editions whenever you wish}:\n${protectedUrl}\n\n_(If you prefer not to receive updates here, simply reply "stop".)_`
+    : `${salutation} {Segue o link da página oficial|Deixo aqui o acesso direto|Compartilho com você o link oficial} dos *eBooks ISAAC® Essential* (por *Thiago Prata*) para você {ver com calma|conhecer todas as edições}:\n${protectedUrl}\n\n_(Se preferir não receber novidades por aqui, basta responder "parar".)_`;
 }
 
 /**
@@ -1682,14 +1615,13 @@ export async function executeSingleOutreachLogItem(logItem, campaign, safetyCfg,
           shieldSlug,
           identity.firstName,
           protectedUrl,
-          isIntlTarget
+          isIntlTarget,
+          contact || check.jid
         );
-        sendResult = await sendProtectedEbookTwoBubbleDelivery({
+        sendResult = await sendProtectedEbookSingleLinkDelivery({
           jidOrNumber: check.jid,
           fullCaptionText: openWinText,
-          mediaUrl: cleanCover,
           seed,
-          isIntl: isIntlTarget,
         });
         finalMessageText = sendResult.deliveredFinalText || openWinText;
         finalMediaUrl = `${cleanCover}#link_delivered:${shieldSlug}`;
@@ -1706,16 +1638,12 @@ export async function executeSingleOutreachLogItem(logItem, campaign, safetyCfg,
         finalMediaUrl = `${cleanCover}#awaiting_link_reply:${shieldSlug}`;
       }
     } else if (isEbookCoverCampaign) {
-      // MODO EDITORIAL EM 2 BALÕES PROTEGIDOS:
-      // Balão 1: Capa Oficial + texto humano SEM URL na imagem
-      // Balão 2 (após pausa humana): Link editorial limpo (/biblioteca, /leituras ou /acervo + token único ?v=xxxxxx)
+      // MENSAGEM ÚNICA ENXUTA COM LINK EDITORIAL + CARD DE CAPA NATIVO (1 ÚNICO BALÃO):
       const cleanCover = stripMediaUrlMeta(rawMediaMeta);
-      sendResult = await sendProtectedEbookTwoBubbleDelivery({
+      sendResult = await sendProtectedEbookSingleLinkDelivery({
         jidOrNumber: check.jid,
         fullCaptionText: finalMessageText,
-        mediaUrl: cleanCover,
         seed,
-        isIntl: isIntlTarget,
       });
       finalMessageText =
         sendResult.deliveredFinalText ||

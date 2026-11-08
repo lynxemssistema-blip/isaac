@@ -258,7 +258,7 @@ export default function AdminEvolutionContacts({ currentUser }) {
   const [quickEbookSlug, setQuickEbookSlug] = useState('loja-geral');
   const [sendingBulkEbook, setSendingBulkEbook] = useState(false);
   const [showBulkEbookShieldModal, setShowBulkEbookShieldModal] = useState(false);
-  const [ebookLinkMode, setEbookLinkMode] = useState('two_step_shield'); // 'two_step_shield' | 'two_bubble_direct'
+  const [ebookLinkMode, setEbookLinkMode] = useState('single_clean_link'); // 'single_clean_link' | 'two_step_shield'
   const [ebookSafeDailyLimit, setEbookSafeDailyLimit] = useState(30);
 
   useEffect(() => {
@@ -303,29 +303,11 @@ _(Se preferir não receber convites por aqui, basta responder "parar".)_`,
 {May I share the library link here so you can browse the covers at your own pace?|Would you like me to send the page link right here?} Simply reply *"yes"* or 👍!
 
 _(If you prefer not to receive updates here, simply reply "stop".)_`,
-          ptMsg: `{saudacao}, {nome}! {Tudo bem com você?|Espero que seu dia esteja sendo excelente.|Como estão as coisas por aí?}
-
-{Quero compartilhar com você|Separei para você conhecer} a *Biblioteca Oficial de eBooks ISAAC® Essential*, escrita pelo mentor *Thiago Prata* — idealizador e criador da Mentoria e do App ISAAC®.
-
-📚 *{Destaques das edições|O que preparamos nesta coleção}:*
-• *8 volumes temáticos* de leitura clara, profunda e aplicável ao dia a dia (ou a Coleção Completa reunida em *1 PDF Único*)
-• Edição *Bilíngue (Português + Inglês Britânico no mesmo PDF)* com ilustrações autorais e páginas pautadas de reflexão
-• *Dedicatória personalizada com o seu nome* impressa na margem inferior do PDF + entrega automática no E-mail e WhatsApp
-
-👉 Veja todas as capas e temas na página oficial:
+          ptMsg: `{saudacao}, {nome}! {Segue o link da página oficial|Deixo aqui o acesso direto|Compartilho com você o link oficial} dos *eBooks ISAAC® Essential* (por *Thiago Prata*) para você {ver com calma|conhecer todas as edições}:
 ${storeUrl}
 
 _(Se preferir não receber novidades por aqui, basta responder "parar".)_`,
-          enMsg: `{saudacao}, {nome}! {How are you doing?|I hope your week is going well.|Wishing you a great day!}
-
-{I would love to share with you|Sharing a special reading recommendation with you today:} the *Official ISAAC® Essential Bilingual Library*, authored by *Thiago Prata* — Mentor and Creator of the ISAAC® Mentoring App.
-
-📚 *{Inside the collection|What makes these editions special}:*
-• *8 focused volumes* crafted for practical mental clarity (available individually or united in *1 Single Master PDF*)
-• Full *Bilingual Edition (Portuguese + British English in the same PDF)* with custom illustrations and ruled reflection pages
-• *Personalised dedication bearing your name* printed in the bottom margin + instant delivery via Email and WhatsApp
-
-👉 Explore the official library and covers here:
+          enMsg: `{saudacao}, {nome}! {Here is the official page link|Sharing the direct access link|Here is the link} to the *ISAAC® Essential Bilingual eBooks* (by *Thiago Prata*) so you can {take a look at your own pace|browse the editions whenever you wish}:
 ${storeUrl}
 
 _(If you prefer not to receive updates here, simply reply "stop".)_`,
@@ -356,29 +338,11 @@ _(Se preferir não receber novidades por aqui, responda "parar".)_`,
 {May I send you the official page link here so you can take a look?|Would you like me to share the collection page right here?} Simply reply *"yes"* or 👍!
 
 _(If you prefer not to receive updates here, simply reply "stop".)_`,
-          ptMsg: `{saudacao}, {nome}! {Tudo bem com você?|Espero que esteja tudo ótimo por aí.}
-
-{Quero compartilhar com você|Apresento com alegria} a *Coleção Completa ISAAC® Essential (os 8 Volumes em PDF Único)*, escrita pelo mentor *Thiago Prata* — idealizador e criador da Mentoria e do App ISAAC®.
-
-📚 *{O que acompanha esta edição especial|Detalhes da Coleção Completa}:*
-• *PDF Único Consolidado* reunindo integralmente todos os *8 eBooks da série*
-• Edição *Bilíngue (Português + Inglês Britânico no mesmo arquivo)* com ilustrações e caderno prático de exercícios
-• *Dedicatória nominal exclusiva para você* na margem inferior das páginas + envio imediato por E-mail e WhatsApp
-
-👉 Acesse a página dedicada da Coleção Completa:
+          ptMsg: `{saudacao}, {nome}! {Segue o link da página oficial|Deixo aqui o acesso direto|Compartilho com você o link} da *Coleção Completa ISAAC® Essential — 8 eBooks em PDF Único* (por *Thiago Prata*) para você {ver com calma|conhecer os detalhes}:
 ${bundleUrl}
 
 _(Se preferir não receber novidades por aqui, basta responder "parar".)_`,
-          enMsg: `{saudacao}, {nome}! {How are you doing?|Hope your week is going well.}
-
-{I am delighted to share with you|Sharing with you today} the *Complete ISAAC® Essential Collection (All 8 Volumes in a Single PDF)*, authored by *Thiago Prata* — Mentor and Creator of the ISAAC® Mentoring App.
-
-📚 *{Edition highlights|What is included in this master edition}:*
-• *Single Consolidated PDF* containing all *8 complete volumes*
-• *Bilingual Edition (Portuguese + British English inside the same PDF)* with custom illustrations and ruled reflection pages
-• *Personalised dedication to you* along the bottom margin + instant delivery via Email and WhatsApp
-
-👉 View the dedicated collection page here:
+          enMsg: `{saudacao}, {nome}! {Here is the official page link|Sharing the direct link} to the *Complete ISAAC® Essential 8-in-1 Bilingual Collection* (by *Thiago Prata*) so you can {take a look at your own pace|explore it whenever you wish}:
 ${bundleUrl}
 
 _(If you prefer not to receive updates here, simply reply "stop".)_`,
@@ -392,7 +356,6 @@ _(If you prefer not to receive updates here, simply reply "stop".)_`,
 
       const volNum = String(book.volumeNumber || 1).padStart(2, '0');
       const enTitle = book.enTitle || book.en?.title || book.title;
-      const enSub = book.enSubtitle || book.en?.subtitle || book.subtitle;
       const dedicatedUrl = `${baseOrigin}/biblioteca/${book.slug}`;
       const coverImg = book.coverUrl?.startsWith('http')
         ? book.coverUrl
@@ -419,35 +382,11 @@ _(Se preferir não receber comunicados no WhatsApp, responda "parar".)_`,
 {May I send you the page link here so you can see the cover and chapters?|Would you like me to share the link right here?} Simply reply *"yes"* or 👍!
 
 _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
-        ptMsg: `{saudacao}, {nome}! {Tudo bem com você?|Espero que esteja tendo uma ótima semana.}
-
-{Compartilho com você|Acaba de sair} o *Volume ${volNum} da Coleção ISAAC® Essential*, escrito pelo mentor *Thiago Prata* (criador da Mentoria e do App ISAAC®):
-
-📘 *${book.title}*
-_${book.subtitle}_
-
-✨ *{Destaques desta leitura|O que você encontra nesta edição}:*
-• Conteúdo *Bilíngue (Português + Inglês Britânico no mesmo PDF)* com ilustrações editoriais e exercícios práticos
-• *Dedicatória exclusiva com o seu nome* na margem inferior do PDF
-• Entrega imediata no seu E-mail e WhatsApp após confirmação
-
-👉 Veja a capa e os capítulos na página oficial:
+        ptMsg: `{saudacao}, {nome}! {Segue o link da página oficial|Deixo aqui o acesso direto} do *eBook Vol. ${volNum} — ${book.title}* (Série *ISAAC® Essential*, por *Thiago Prata*) para você {ver com calma|conhecer a edição}:
 ${dedicatedUrl}
 
 _(Se preferir não receber comunicados no WhatsApp, responda "parar".)_`,
-        enMsg: `{saudacao}, {nome}! {How are you doing?|Wishing you a wonderful week.}
-
-{Sharing with you today|Introducing} *Volume ${volNum} of the ISAAC® Essential Collection*, authored by *Thiago Prata* (Mentor & Creator of the ISAAC® App):
-
-📘 *${enTitle}*
-_${enSub}_
-
-✨ *{Edition highlights|Inside this volume}:*
-• Complete *Bilingual Single PDF (Portuguese + British English in the same file)* with custom illustrations and practical frameworks
-• *Personalised dedication bearing your name* in the bottom margin of every page
-• Instant download link delivered to your Email and WhatsApp
-
-👉 Explore the dedicated page for this volume here:
+        enMsg: `{saudacao}, {nome}! {Here is the official page link|Sharing the direct link} for *eBook Vol. ${volNum} — ${enTitle}* (*ISAAC® Essential Series*, by *Thiago Prata*) so you can {take a look at your own pace|see the details whenever you wish}:
 ${dedicatedUrl}
 
 _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
@@ -463,17 +402,17 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
     if (!payload) return;
 
     setQuickEbookSlug(slug);
-    setUnregisteredImageUrl(`${payload.coverImg}#shield=${payload.slug}`);
-    setCampTitle(`🛡️ ${payload.campaignTitle}`);
-    setUnregisteredTemplate(payload.twoStepPtMsg);
-    setRegisteredTemplate(payload.twoStepPtMsg);
-    setIntlUnregisteredTemplate(payload.twoStepEnMsg);
-    setIntlRegisteredTemplate(payload.twoStepEnMsg);
+    setUnregisteredImageUrl(payload.coverImg);
+    setCampTitle(`📘 ${payload.campaignTitle}`);
+    setUnregisteredTemplate(payload.ptMsg);
+    setRegisteredTemplate(payload.ptMsg);
+    setIntlUnregisteredTemplate(payload.enMsg);
+    setIntlRegisteredTemplate(payload.enMsg);
     setMinDelaySec(52);
     setMaxDelaySec(118);
     setDailyLimit(Math.min(overview.safety?.dailyLimit || 40, 30));
     setRespectWindow(true);
-    showToast(`${payload.campaignTitle} carregada em Modo Blindado Anti-Ban (2 Etapas + proteção de link)!`);
+    showToast(`${payload.campaignTitle} carregada em Mensagem Única Enxuta + Link Protegido c/ Preview!`);
   };
 
   const handleDirectSendEbookPage = async (contact) => {
@@ -495,7 +434,7 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
       if (res.outcome === 'sent') {
         const langBadge = isIntl ? ' (em Inglês Britânico 🇬🇧)' : '';
         showToast(
-          `Página dos eBooks (${payload.shortLabel})${langBadge} enviada em 2 balões protegidos (Capa + Link Editorial) para ${
+          `Mensagem única enxuta (${payload.shortLabel})${langBadge} enviada com link e card de capa para ${
             contact.formatted_phone || phone
           }!`
         );
@@ -512,7 +451,7 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
 
   const handleOpenBulkEbookShieldModal = () => {
     if (selectedContactIds.length === 0 || sendingBulkEbook) return;
-    setEbookLinkMode(selectedContactIds.length >= 15 ? 'two_step_shield' : 'two_bubble_direct');
+    setEbookLinkMode('single_clean_link');
     setEbookSafeDailyLimit(Math.min(overview.safety?.dailyLimit || 40, 30));
     setShowBulkEbookShieldModal(true);
   };
@@ -528,13 +467,13 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
       setErrorMsg('');
       const res = await createAdminWhatsappCampaignApi({
         title: isShieldMode
-          ? `🛡️ [Blindado 2 Etapas] ${payload.campaignTitle}`
-          : `📘 [2 Balões Protegidos] ${payload.campaignTitle}`,
+          ? `🛡️ [2 Etapas] ${payload.campaignTitle}`
+          : `📘 [Mensagem Única] ${payload.campaignTitle}`,
         audienceType: 'selected',
         contactIds: selectedContactIds,
         scheduledAt: new Date().toISOString(),
-        minDelaySec: isShieldMode ? 52 : 58,
-        maxDelaySec: isShieldMode ? 118 : 128,
+        minDelaySec: 52,
+        maxDelaySec: 118,
         dailyLimit: safeCap,
         windowStartHhmm: windowStart || '08:30',
         windowEndHhmm: windowEnd || '20:00',
@@ -552,8 +491,8 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
       setShowBulkEbookShieldModal(false);
       showToast(
         isShieldMode
-          ? `🛡️ Fila Blindada iniciada com Zero Perda! ${res.queuedCount} contato(s) protegidos (Etapa 1 sem link frio → Capa + Link entregues automaticamente na resposta!).`
-          : `📘 Fila Editorial em 2 Balões iniciada! ${res.queuedCount} contato(s) na cadência segura (${safeCap}/dia, fuso local por país).`
+          ? `🛡️ Fila iniciada! ${res.queuedCount} contato(s) protegidos (Etapa 1 sem link → Mensagem única c/ link entregue na resposta).`
+          : `📘 Fila de Mensagem Única iniciada! ${res.queuedCount} contato(s) receberão apenas o balão enxuto com Saudação + Link Oficial c/ Card.`
       );
       setSelectedContactIds([]);
       setSubTab('control');
@@ -2691,11 +2630,11 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
                             {String(log.media_url || '').includes('#awaiting_link_reply:')
                               ? '🛡️⏳ Etapa 1 Enviada (Aguardando "Sim"/👍 p/ Link)'
                               : String(log.media_url || '').includes('#link_delivered:')
-                              ? '🛡️✅ Respondeu → Capa + Link Editorial Entregue!'
+                              ? '📘✅ Mensagem Única + Link c/ Card Entregue!'
                               : String(log.media_url || '').includes('#declined_politely:')
                               ? '🤝 Recusa Educada Respeitada'
                               : String(log.media_url || '').includes('/ebooks/covers/')
-                              ? '📘 Capa + Link Editorial (2 Balões)'
+                              ? '📘 Mensagem Única + Link c/ Card'
                               : log.flow_type === 'unregistered_invite_image'
                               ? '🖼️ Imagem ISAAC + Convite'
                               : '🤝 Integração + Planos'}
@@ -2727,7 +2666,7 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
         </div>
       )}
 
-      {/* MODAL PRÉ-VOO DE PROTEÇÃO DA LINHA E BLINDAGEM DOS LINKS DE VENDA (LOTES COMO 501 CONTATOS) */}
+      {/* MODAL PRÉ-VOO DE PROTEÇÃO DA LINHA E ENVIO ÚNICO ENXUTO C/ CARD DE PREVIEW */}
       {showBulkEbookShieldModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="w-full max-w-2xl rounded-3xl bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700/80 shadow-2xl overflow-hidden">
@@ -2738,10 +2677,10 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-serif font-bold">
-                    Blindagem Anti-Bloqueio Meta &amp; Zero Perda ({selectedContactIds.length} contatos)
+                    Disparo em Mensagem Única Protegida ({selectedContactIds.length} contatos)
                   </h3>
                   <p className="text-xs text-indigo-200 mt-0.5">
-                    Proteção máxima para a linha do WhatsApp e especialmente para os links de venda dos eBooks.
+                    Envia apenas 1 mensagem enxuta com saudação pelo nome + link oficial com card de pré-visualização.
                   </p>
                 </div>
               </div>
@@ -2757,9 +2696,9 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
             <div className="p-5 space-y-4 max-h-[78vh] overflow-y-auto">
               <div className="space-y-2.5">
                 <label
-                  onClick={() => setEbookLinkMode('two_step_shield')}
+                  onClick={() => setEbookLinkMode('single_clean_link')}
                   className={`block p-3.5 rounded-2xl border-2 cursor-pointer transition ${
-                    ebookLinkMode === 'two_step_shield'
+                    ebookLinkMode === 'single_clean_link'
                       ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/30'
                       : 'border-stone-200 dark:border-slate-700 hover:border-emerald-400'
                   }`}
@@ -2768,26 +2707,25 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
                     <div className="text-xs font-bold text-emerald-950 dark:text-emerald-200 flex items-center gap-1.5">
                       <input
                         type="radio"
-                        checked={ebookLinkMode === 'two_step_shield'}
-                        onChange={() => setEbookLinkMode('two_step_shield')}
+                        checked={ebookLinkMode === 'single_clean_link'}
+                        onChange={() => setEbookLinkMode('single_clean_link')}
                         className="accent-emerald-600"
                       />
-                      <span>🛡️ Modo Blindado em 2 Etapas — Zero Link Frio (Recomendado p/ 501 Contatos)</span>
+                      <span>📘 Mensagem Única Enxuta — Saudação pelo Nome + Link Oficial c/ Card de Preview (Padrão)</span>
                     </div>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-600 text-white shrink-0">
-                      Risco Mínimo Meta
+                      1 Mensagem Direta
                     </span>
                   </div>
                   <p className="text-[11px] text-stone-600 dark:text-stone-300 mt-1.5 leading-relaxed">
-                    <strong>Etapa 1:</strong> Envia convite pessoal e humano em PT-BR ou EN-GB <strong>100% sem URL fria e sem gatilhos de preço</strong> (<em>&ldquo;Posso te mandar o acesso da página por aqui? Só responder &lsquo;sim&rsquo; ou 👍&rdquo;</em>).<br />
-                    <strong>Etapa 2 Automática no Webhook:</strong> No instante em que o contato responde ou reage com 👍, a <strong>Janela Oficial de 24h da Meta abre</strong> (tornando o link clicável em azul no celular dele e removendo o alerta de spam!) e o sistema entrega sozinho a <strong>Capa Oficial + Link Editorial Protegido</strong>. <em>(Contatos que já falaram conosco nas últimas 22h já recebem direto!)</em>
+                    Envia <strong>somente 1 única mensagem</strong> saudando pelo primeiro nome (PT-BR p/ Brasil e EN-GB p/ internacionais) + link limpo rotacionado (<code>/biblioteca</code>, <code>/leituras</code> ou <code>/acervo?v=...</code>), que já carrega automaticamente o card visual com a capa e descrição no WhatsApp — sem mandar segunda mensagem!
                   </p>
                 </label>
 
                 <label
-                  onClick={() => setEbookLinkMode('two_bubble_direct')}
+                  onClick={() => setEbookLinkMode('two_step_shield')}
                   className={`block p-3.5 rounded-2xl border-2 cursor-pointer transition ${
-                    ebookLinkMode === 'two_bubble_direct'
+                    ebookLinkMode === 'two_step_shield'
                       ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/30'
                       : 'border-stone-200 dark:border-slate-700 hover:border-indigo-400'
                   }`}
@@ -2795,14 +2733,14 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
                   <div className="text-xs font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
                     <input
                       type="radio"
-                      checked={ebookLinkMode === 'two_bubble_direct'}
-                      onChange={() => setEbookLinkMode('two_bubble_direct')}
+                      checked={ebookLinkMode === 'two_step_shield'}
+                      onChange={() => setEbookLinkMode('two_step_shield')}
                       className="accent-indigo-600"
                     />
-                    <span>📘 Modo Editorial Direto em 2 Balões (Indicados p/ Lotes Pequenos / Contatos Quentes)</span>
+                    <span>🛡️ Opcional: Perguntar &ldquo;Posso enviar?&rdquo; antes do Link (p/ Contatos Frios)</span>
                   </div>
                   <p className="text-[11px] text-stone-600 dark:text-stone-300 mt-1.5 leading-relaxed">
-                    Separa a <strong>Capa sem link</strong> no 1º balão, aguarda digitação humana (3s–5s) e envia o link limpo (<code>/biblioteca</code>, <code>/leituras</code> ou <code>/acervo</code> + token único por pessoa, sem palavras <code>/loja/</code> ou <code>OFF</code>) no 2º balão.
+                    Para contatos sem conversa recente, pergunta primeiro sem URL e, quando respondem &ldquo;sim&rdquo; ou 👍, envia automaticamente essa mesma <strong>1 única mensagem enxuta</strong> com o link e card.
                   </p>
                 </label>
               </div>
