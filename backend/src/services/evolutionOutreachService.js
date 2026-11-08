@@ -1,9 +1,14 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { supabaseAdmin } from '../config/supabase.js';
 import { invalidateCache } from '../utils/memoryCache.js';
+import {
+  COMPLETE_BUNDLE_PRODUCT,
+  findEbookProductBySlug,
+} from '../data/superadminEbooksCatalog.js';
 import {
   normalizeBrazilPhone,
   normalizeWhatsAppPhone,
@@ -189,6 +194,48 @@ function getBrtTimeInfo(date = new Date()) {
 }
 
 /**
+ * Calcula a hora local exata do país do destinatário (ex: Australia/Sydney p/ +61, Europe/London p/ +44, America/Sao_Paulo p/ +55)
+ * para NUNCA disparar links de venda de madrugada no país do contato (principal gatilho de denúncia/bloqueio na Meta).
+ */
+export function getRecipientLocalHhmm(contactOrPhone, date = new Date()) {
+  const isIntl = isInternationalContact(contactOrPhone);
+  let tz = TIMEZONE;
+  if (isIntl) {
+    const raw =
+      typeof contactOrPhone === 'string'
+        ? contactOrPhone
+        : contactOrPhone?.phone_digits || contactOrPhone?.jid || '';
+    const digits = String(raw).split('@')[0].replace(/\D/g, '');
+    const matchedTz = DDI_TIMEZONES.find((item) => digits.startsWith(item.prefix));
+    tz = matchedTz ? matchedTz.tz : 'Europe/London';
+  }
+
+  try {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    const parts = Object.fromEntries(fmt.formatToParts(date).map((p) => [p.type, p.value]));
+    const hourNum = Number(parts.hour === '24' ? 0 : parts.hour);
+    return {
+      tz,
+      hhmm: `${String(hourNum).padStart(2, '0')}:${parts.minute}`,
+    };
+  } catch {
+    return { tz: TIMEZONE, hhmm: getBrtTimeInfo(date).hhmm };
+  }
+}
+
+export function isContactWithinLocalWindow(contactOrPhone, startHhmm = '08:30', endHhmm = '20:00', date = new Date()) {
+  const { hhmm } = getRecipientLocalHhmm(contactOrPhone, date);
+  const safeStart = startHhmm || '08:30';
+  const safeEnd = endHhmm || '20:00';
+  return hhmm >= safeStart && hhmm <= safeEnd;
+}
+
+/**
  * Analisa se o nome do contato possui um Primeiro Nome próprio válido e retorna o Primeiro Nome formatado.
  * Rejeita vazios, emojis, números de telefone, letras isoladas ("M", "A."), siglas sem vogal ("CP", "RD", "M.A.G") e termos genéricos.
  */
@@ -309,8 +356,27 @@ function getEvoConfig() {
   };
 }
 
+function stripMediaUrlMeta(mediaUrl = '') {
+  return String(mediaUrl || '')
+    .trim()
+    .split('#')[0]
+    .split('?')[0];
+}
+
+export function extractTwoStepShieldSlug(mediaUrl = '') {
+  const raw = String(mediaUrl || '').trim();
+  const match = raw.match(/#(?:shield|two_step_shield)=([a-z0-9_-]+)/i);
+  return match ? match[1].toLowerCase() : null;
+}
+
+export function extractAwaitingReplySlug(mediaUrl = '') {
+  const raw = String(mediaUrl || '').trim();
+  const match = raw.match(/#awaiting_link_reply:([a-z0-9_-]+)/i);
+  return match ? match[1].toLowerCase() : null;
+}
+
 function loadLocalCoverImageBase64(mediaUrl = '') {
-  const cleanUrl = String(mediaUrl || '').trim();
+  const cleanUrl = stripMediaUrlMeta(mediaUrl);
   const ebookCoverMatch = cleanUrl.match(/\/ebooks\/covers\/([a-z0-9_-]+\.(?:jpg|jpeg|png))$/i);
   if (ebookCoverMatch) {
     const coverFile = ebookCoverMatch[1];
@@ -349,25 +415,123 @@ function loadLocalCoverImageBase64(mediaUrl = '') {
   return null;
 }
 
+function shortDeterministicHash(seed = '') {
+  return crypto
+    .createHash('sha256')
+    .update(String(seed || Date.now()))
+    .digest('hex')
+    .slice(0, 6);
+}
+
+/**
+ * Resolve blocos Spintax {opção A|opção B|opção C} de forma determinística por destinatário + dia,
+ * garantindo que cada contato receba uma redação humana exclusiva (anti-hash Meta).
+ */
+export function resolveSpintaxDeterministic(rawText = '', seed = '') {
+  const text = String(rawText || '');
+  if (!text) return '';
+
+  let blockIndex = 0;
+  return text.replace(/\{([^{}|]+\|[^{}]+)\}/g, (_, group) => {
+    const options = group.split('|').map((s) => s.trim()).filter(Boolean);
+    if (options.length === 0) return '';
+    const h = crypto
+      .createHash('md5')
+      .update(`${seed}:b${blockIndex++}`)
+      .digest();
+    const pick = h.readUInt16BE(0) % options.length;
+    return options[pick];
+  });
+}
+
+const EDITORIAL_SALES_ROUTE_PREFIXES = ['biblioteca', 'leituras', 'acervo'];
+
+/**
+ * Gera URL editorial limpa no domínio oficial SSL (sem a palavra comercial "/loja/" e sem encurtadores externos),
+ * rotacionando entre /biblioteca, /leituras e /acervo + token único por destinatário (?v=xxxxxx)
+ * para blindar o link de venda contra marcação de hash repetido na Meta!
+ */
+export function buildProtectedEbookSalesUrl(slugOrMode = 'loja-geral', seed = '') {
+  const cfg = getEvoConfig();
+  const baseOrigin = (cfg.appUrl || DEFAULT_APP_URL).replace(/\/$/, '');
+  const token = shortDeterministicHash(`${seed}:${new Date().toISOString().slice(0, 10)}`);
+  const routeIdx = parseInt(token.slice(0, 2), 16) % EDITORIAL_SALES_ROUTE_PREFIXES.length;
+  const routePrefix = EDITORIAL_SALES_ROUTE_PREFIXES[routeIdx];
+  const cleanSlug = String(slugOrMode || 'loja-geral').trim().toLowerCase();
+
+  if (!cleanSlug || cleanSlug === 'loja-geral') {
+    return `${baseOrigin}/${routePrefix}?v=${token}`;
+  }
+  return `${baseOrigin}/${routePrefix}/${encodeURIComponent(cleanSlug)}?v=${token}`;
+}
+
+/**
+ * Reescreve automaticamente qualquer link /loja/ebooks, /biblioteca, /leituras ou /acervo dentro da mensagem
+ * para a rota editorial rotacionada + token único por destinatário.
+ */
+export function rewriteSalesLinksAntiBan(rawText = '', seed = '') {
+  const text = String(rawText || '');
+  if (!text) return '';
+  return text.replace(
+    /https?:\/\/isaac\.lynxems\.com\.br\/(?:loja\/ebooks|biblioteca|leituras|acervo)(?:\/([a-z0-9_-]+))?(?:\?[a-z0-9=&_-]*)?/gi,
+    (_, slugPart) => buildProtectedEbookSalesUrl(slugPart || 'loja-geral', seed)
+  );
+}
+
+let cachedConnCheck = { at: 0, connected: true };
+export async function isEvolutionInstanceConnected() {
+  const now = Date.now();
+  if (now - cachedConnCheck.at < 15_000) {
+    return cachedConnCheck.connected;
+  }
+  const cfg = getEvoConfig();
+  if (!cfg.apiKey) return false;
+  try {
+    const resp = await fetch(
+      `${cfg.baseUrl}/instance/connectionState/${encodeURIComponent(cfg.instanceName)}`,
+      { headers: { apikey: cfg.apiKey } }
+    );
+    if (!resp.ok) {
+      cachedConnCheck = { at: now, connected: false };
+      return false;
+    }
+    const json = await resp.json();
+    const state = String(json?.instance?.state || json?.state || '').toLowerCase();
+    const isOpen = state === 'open' || state === 'connected';
+    cachedConnCheck = { at: now, connected: isOpen };
+    return isOpen;
+  } catch {
+    cachedConnCheck = { at: now, connected: false };
+    return false;
+  }
+}
+
 /**
  * Envia Imagem + Legenda via Evolution API v2 (/message/sendMedia/:instance) com cadência humana Anti-Ban
+ * e nome de arquivo variado por envio (evita assinatura repetida de mídia idêntica).
  */
-export async function sendWhatsAppImageSafe({ jidOrNumber, caption, mediaUrl }) {
+export async function sendWhatsAppImageSafe({ jidOrNumber, caption, mediaUrl, fileSeed = '' }) {
   const cfg = getEvoConfig();
   if (!cfg.apiKey) {
     throw new Error('EVOLUTION_API_KEY não configurada no servidor.');
   }
 
-  const interRequestJitterMs = randomBetween(280, 450);
+  const interRequestJitterMs = randomBetween(340, 680);
   await sleep(interRequestJitterMs);
 
-  const typingPresenceMs = randomBetween(1800, 3200);
+  const typingPresenceMs = randomBetween(2400, 4600);
+  const cleanMediaUrl = stripMediaUrlMeta(mediaUrl) || DEFAULT_ISAAC_IMAGE_URL;
 
-  let mediaPayload = mediaUrl || DEFAULT_ISAAC_IMAGE_URL;
-  const localBase64 = loadLocalCoverImageBase64(mediaPayload);
+  let mediaPayload = cleanMediaUrl;
+  const localBase64 = loadLocalCoverImageBase64(cleanMediaUrl);
   if (localBase64) {
     mediaPayload = localBase64;
   }
+
+  const uniqueTag = shortDeterministicHash(`${jidOrNumber}:${fileSeed || Date.now()}`).slice(0, 5);
+  const dynamicFileName = cleanMediaUrl.includes('/ebooks/covers/')
+    ? `edicao-isaac-${uniqueTag}.jpg`
+    : `isaac-${uniqueTag}.jpg`;
 
   const resp = await fetch(`${cfg.baseUrl}/message/sendMedia/${encodeURIComponent(cfg.instanceName)}`, {
     method: 'POST',
@@ -381,7 +545,7 @@ export async function sendWhatsAppImageSafe({ jidOrNumber, caption, mediaUrl }) 
       mimetype: 'image/jpeg',
       caption: caption || '',
       media: mediaPayload,
-      fileName: 'mentoria-isaac.jpg',
+      fileName: dynamicFileName,
       delay: typingPresenceMs,
     }),
   });
@@ -406,6 +570,237 @@ export async function sendWhatsAppImageSafe({ jidOrNumber, caption, mediaUrl }) 
     totalCadenceMs: interRequestJitterMs + typingPresenceMs,
     raw: parsed,
   };
+}
+
+/**
+ * Envio Humano Blindado em 2 Balões para páginas de eBooks:
+ * Balão 1: Envia a Capa Oficial + apresentação pessoal SEM LINK na legenda da imagem (elimina o principal score de spam da Meta!).
+ * Pausa humana de digitação (2.8s a 5.1s).
+ * Balão 2: Envia uma mensagem curta e natural com a URL editorial limpa (/biblioteca, /leituras ou /acervo + token único) com linkPreview nativo!
+ */
+export async function sendProtectedEbookTwoBubbleDelivery({
+  jidOrNumber,
+  fullCaptionText,
+  mediaUrl,
+  seed = '',
+  isIntl = false,
+}) {
+  const rewrittenText = rewriteSalesLinksAntiBan(
+    resolveSpintaxDeterministic(fullCaptionText, seed),
+    seed
+  );
+
+  const urlRegex = /(https?:\/\/[^\s]+)/gi;
+  const urlsFound = rewrittenText.match(urlRegex) || [];
+
+  // Se não houver link na mensagem, envia normalmente em 1 balão
+  if (urlsFound.length === 0) {
+    return sendWhatsAppImageSafe({
+      jidOrNumber,
+      caption: rewrittenText,
+      mediaUrl,
+      fileSeed: seed,
+    });
+  }
+
+  const primaryUrl = urlsFound[0];
+  const lines = rewrittenText.split(/\r?\n/);
+  const captionLinesWithoutUrl = [];
+  const footerOptOutLines = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.includes(primaryUrl)) continue;
+    // Remove linha isolada de chamada imediata de link ("👉 Acesse a página...") do balão 1 para ir junto ao link no balão 2
+    if (/^(?:👉|🔗|📥)\s*(?:acesse|confira|veja|visit|explore|access)/i.test(trimmed)) continue;
+    if (/^_\(.*(?:parar|stop).*\)_$/i.test(trimmed)) {
+      footerOptOutLines.push(trimmed);
+      continue;
+    }
+    captionLinesWithoutUrl.push(line);
+  }
+
+  const bubble1Caption = captionLinesWithoutUrl.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  const leadPhrasesPt = [
+    'Aqui está o acesso direto para você conhecer:',
+    'Segue o link da página oficial para você ver com calma:',
+    'Deixo aqui o link direto das edições:',
+    'Você pode ver todas as capas e detalhes por aqui:',
+  ];
+  const leadPhrasesEn = [
+    'Here is the direct link so you can take a look at your own pace:',
+    'Sharing the official page link with you right here:',
+    'You can browse the editions and covers directly here:',
+    'Here is the page access whenever you have a quiet moment:',
+  ];
+  const leadList = isIntl ? leadPhrasesEn : leadPhrasesPt;
+  const leadPick =
+    leadList[parseInt(shortDeterministicHash(seed).slice(0, 2), 16) % leadList.length];
+
+  const optOutLine = footerOptOutLines[0] || '';
+  const bubble2Text = optOutLine
+    ? `${leadPick}\n${primaryUrl}\n\n${optOutLine}`
+    : `${leadPick}\n${primaryUrl}`;
+
+  // 1º Balão: Capa Oficial + Apresentação Editorial Pessoal (100% sem link na imagem)
+  const mediaRes = await sendWhatsAppImageSafe({
+    jidOrNumber,
+    caption: bubble1Caption,
+    mediaUrl,
+    fileSeed: seed,
+  });
+
+  // Pausa orgânica humana entre a imagem e o envio do link (2.9s a 5.2s)
+  const betweenBubblesPauseMs = randomBetween(2900, 5200);
+  await sleep(betweenBubblesPauseMs);
+
+  // 2º Balão: Link Editorial Limpo com OpenGraph Preview
+  const linkRes = await sendWhatsAppTextSafe({
+    jidOrNumber,
+    text: bubble2Text,
+  });
+
+  return {
+    messageId: linkRes?.messageId || mediaRes?.messageId || null,
+    remoteJid: linkRes?.remoteJid || mediaRes?.remoteJid || jidOrNumber,
+    totalCadenceMs:
+      (mediaRes?.totalCadenceMs || 0) + betweenBubblesPauseMs + (linkRes?.totalCadenceMs || 0),
+    deliveredFinalText: `${bubble1Caption}\n\n${bubble2Text}`,
+  };
+}
+
+/**
+ * Monta automaticamente a Etapa 2 (Capa Oficial + Apresentação Editorial + Link Protegido)
+ * assim que o contato responde positivamente ao convite humano sem link (Modo Blindado 2 Etapas).
+ * Como o contato acabou de responder, a janela oficial de 24h da Meta está ABERTA e o link fica 100% clicável em azul!
+ */
+export async function handleIncomingReplyForPendingEbookLink(remoteJid, incomingText = '') {
+  if (!remoteJid || !remoteJid.endsWith('@s.whatsapp.net')) {
+    return { handled: false };
+  }
+
+  const cleanMsg = String(incomingText || '').trim();
+  if (!cleanMsg) return { handled: false };
+
+  const comparable = extractComparablePhoneKey(remoteJid);
+  const since30dIso = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+
+  // Busca se este contato possui algum convite Etapa 1 aguardando resposta para entregar o link dos eBooks
+  const { data: recentLogs } = await supabaseAdmin
+    .from('izaque_whatsapp_outreach_logs')
+    .select('*')
+    .eq('status', 'sent')
+    .like('media_url', '%#awaiting_link_reply:%')
+    .gte('sent_at', since30dIso)
+    .order('sent_at', { ascending: false })
+    .limit(40);
+
+  if (!recentLogs || recentLogs.length === 0) {
+    return { handled: false };
+  }
+
+  const matchedLog = recentLogs.find((row) => {
+    if (row.jid === remoteJid) return true;
+    const rowComp = extractComparablePhoneKey(row.jid || row.phone_digits);
+    return Boolean(comparable && rowComp && comparable === rowComp);
+  });
+
+  if (!matchedLog) {
+    return { handled: false };
+  }
+
+  const ebookSlug = extractAwaitingReplySlug(matchedLog.media_url) || 'loja-geral';
+  const baseCoverUrl = stripMediaUrlMeta(matchedLog.media_url);
+  const isIntl = isInternationalContact(remoteJid);
+
+  // Verifica se a resposta foi uma recusa educada ("não", "no", "agora não", "not now")
+  const politeDeclineRegex =
+    /^(?:n[aã]o|nn|no|nope|nah|not\s+now|no\s+thanks|no\s+thank\s+you|agora\s+n[aã]o|obrigad[oa]\s+mas\s+n[aã]o|depois)\b/i;
+  if (politeDeclineRegex.test(cleanMsg) && cleanMsg.length <= 35) {
+    await supabaseAdmin
+      .from('izaque_whatsapp_outreach_logs')
+      .update({
+        media_url: `${baseCoverUrl}#declined_politely:${ebookSlug}`,
+      })
+      .eq('id', matchedLog.id);
+
+    await sleep(randomBetween(1500, 2800));
+    await sendWhatsAppTextSafe({
+      jidOrNumber: remoteJid,
+      text: isIntl
+        ? 'No problem at all! Thank you for replying, and wishing you a wonderful week ahead.'
+        : 'Imagina, fique super à vontade! Muito obrigado por responder e desejo uma excelente semana para você.',
+    }).catch(() => {});
+
+    return { handled: true, outcome: 'declined_politely', ebookSlug };
+  }
+
+  // Contato respondeu positivamente (janela bidirecional de 24h aberta na Meta!) -> entrega Capa + Link Editorial Protegido
+  const { data: contact } = matchedLog.contact_id
+    ? await supabaseAdmin
+        .from('izaque_whatsapp_contacts')
+        .select('*')
+        .eq('id', matchedLog.contact_id)
+        .maybeSingle()
+    : { data: null };
+
+  const identity = resolveContactIdentity(
+    contact || { push_name: matchedLog.recipient_name, jid: remoteJid }
+  );
+  const firstName = identity.firstName;
+  const protectedUrl = buildProtectedEbookSalesUrl(ebookSlug, remoteJid);
+
+  let coverToUse = baseCoverUrl || `${DEFAULT_APP_URL}${COMPLETE_BUNDLE_PRODUCT.coverUrl}`;
+  let step2Text = '';
+
+  if (ebookSlug === 'loja-geral') {
+    coverToUse = `${DEFAULT_APP_URL}${COMPLETE_BUNDLE_PRODUCT.coverUrl}`;
+    step2Text = isIntl
+      ? `Thank you${firstName ? `, ${firstName}` : ''}! {Glad to share this with you|Here it is as promised}.\n\nThis is the *Official ISAAC® Essential Bilingual Library*, authored by mentor *Thiago Prata* — featuring *8 segmented volumes* in *Portuguese + British English* inside the same PDF, custom illustrations, and a *personal dedication bearing your name* in the bottom margin.\n\n${protectedUrl}`
+      : `Que alegria${firstName ? `, ${firstName}` : ''}! {Obrigado pelo retorno|Combinado, te mando aqui agora}.\n\nEsta é a *Biblioteca Oficial ISAAC® Essential*, escrita pelo mentor *Thiago Prata* — são *8 volumes segmentados* em edição *Bilíngue (Português + Inglês Britânico no mesmo PDF)*, com ilustrações exclusivas e *dedicatória personalizada com o seu nome* na margem inferior.\n\n${protectedUrl}`;
+  } else if (ebookSlug === 'colecao-completa') {
+    coverToUse = `${DEFAULT_APP_URL}${COMPLETE_BUNDLE_PRODUCT.coverUrl}`;
+    step2Text = isIntl
+      ? `Thank you${firstName ? `, ${firstName}` : ''}! {Glad to share it with you|Here are the details as promised}.\n\nThis is the *Complete ISAAC® Essential Collection (All 8 Volumes in 1 Master PDF)* by mentor *Thiago Prata*, in a full *Bilingual Edition (Portuguese + British English)* with a personal dedication in your name.\n\n${protectedUrl}`
+      : `Que ótimo${firstName ? `, ${firstName}` : ''}! {Obrigado por responder|Te envio aqui conforme combinado}.\n\nEsta é a *Coleção Completa ISAAC® Essential (os 8 livros reunidos em 1 Arquivo PDF Único)* do mentor *Thiago Prata*, em edição *Bilíngue (Português + Inglês Britânico)* com dedicatória nominal especial.\n\n${protectedUrl}`;
+  } else {
+    const prod = findEbookProductBySlug(ebookSlug);
+    const volTitlePt = prod?.title || 'Edição ISAAC® Essential';
+    const volTitleEn = prod?.enGb?.title || volTitlePt;
+    if (prod?.coverUrl) {
+      coverToUse = `${DEFAULT_APP_URL}${prod.coverUrl}`;
+    }
+    step2Text = isIntl
+      ? `Thank you${firstName ? `, ${firstName}` : ''}! {Glad to send this over|Here it is as promised}.\n\nHere is the bilingual edition *"${volTitleEn}"* authored by mentor *Thiago Prata* (ISAAC® Essential), featuring both *Portuguese and British English* in the same PDF and a personal dedication in your name.\n\n${protectedUrl}`
+      : `Perfeito${firstName ? `, ${firstName}` : ''}! {Obrigado pelo retorno|Segue aqui conforme combinado}.\n\nEsta é a leitura bilíngue *"${volTitlePt}"*, escrita pelo mentor *Thiago Prata* (ISAAC® Essential), com *Português + Inglês Britânico no mesmo PDF* e dedicatória especial com o seu nome.\n\n${protectedUrl}`;
+  }
+
+  // Marca imediatamente antes do envio para garantir idempotência caso o contato mande 2 mensagens seguidas ("Oi" + "Sim")
+  await supabaseAdmin
+    .from('izaque_whatsapp_outreach_logs')
+    .update({
+      media_url: `${coverToUse}#link_delivered:${ebookSlug}`,
+    })
+    .eq('id', matchedLog.id);
+
+  await sleep(randomBetween(1800, 3600));
+
+  const delivery = await sendProtectedEbookTwoBubbleDelivery({
+    jidOrNumber: remoteJid,
+    fullCaptionText: step2Text,
+    mediaUrl: coverToUse,
+    seed: `${remoteJid}:step2:${matchedLog.id}`,
+    isIntl,
+  });
+
+  await supabaseAdmin
+    .from('izaque_whatsapp_outreach_logs')
+    .update({
+      message_sent: `${matchedLog.message_sent || ''}\n\n--- [ETAPA 2 ENTREGUE APÓS RESPOSTA] ---\n${delivery.deliveredFinalText || step2Text}`,
+    })
+    .eq('id', matchedLog.id);
+
+  return { handled: true, outcome: 'link_delivered_after_reply', ebookSlug };
 }
 
 /**
@@ -1037,15 +1432,73 @@ export async function buildRegisteredPlansMessage(contact, customTemplate = '', 
   return `${opening}${recentTopicHint}\n\nAgora sua conta está integrada ao nosso canal e queremos lembrar como funcionam os nossos *2 planos* para você aproveitar cada recurso da melhor forma:\n\n✅ *Plano Gratuito (R$ 0,00 — Sempre Livre):*\n• Acesso 100% liberado no App Web em texto e voz\n• Agente Orquestrador ISAAC + todos os Mentores Especialistas\n• Memória evolutiva contínua e Laboratório do Incômodo Criativo\n• Sem cartão de crédito e sem vínculo financeiro\n\n💬 *Plano Pago — ISAAC no WhatsApp (R$ 14,99 / vencimento mensal):*\n• Tudo do Plano Gratuito liberado no App\n• Conversa direta aqui pelo *WhatsApp em Texto e Áudio* com o Agente Orquestrador ISAAC\n• Reconhecimento automático pelo seu telefone e sincronização imediata no mesmo chat do App\n• Assinatura mensal segura via Asaas (PIX, Cartão ou Boleto)\n\n👉 Acesse sua mentoria ou veja os detalhes dos planos aqui:\nhttps://isaac.lynxems.com.br/#planos\n\n_(Se preferir não receber comunicados no WhatsApp, basta responder "parar".)_`;
 }
 
+function deterministicRangeFromSeed(minVal, maxVal, seed = '') {
+  const low = Math.floor(Math.min(minVal, maxVal));
+  const high = Math.floor(Math.max(minVal, maxVal));
+  if (high <= low) return low;
+  const h = crypto.createHash('md5').update(String(seed || 'isaac')).digest();
+  return low + (h.readUInt32BE(0) % (high - low + 1));
+}
+
+async function hasRecentInbound24hWindow(jid, appUserId = null) {
+  const since22hIso = new Date(Date.now() - 22 * 3600 * 1000).toISOString();
+  try {
+    if (appUserId) {
+      const { data: prof } = await supabaseAdmin
+        .from('izaque_profiles')
+        .select('last_whatsapp_inbound_at')
+        .eq('id', appUserId)
+        .maybeSingle();
+      if (prof?.last_whatsapp_inbound_at && prof.last_whatsapp_inbound_at >= since22hIso) {
+        return true;
+      }
+    }
+    if (jid) {
+      const { count } = await supabaseAdmin
+        .from('izaque_whatsapp_webhook_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('remote_jid', jid)
+        .eq('from_me', false)
+        .gte('created_at', since22hIso);
+      if ((count || 0) > 0) return true;
+    }
+  } catch {
+    // fallback conservador: trata como janela fria
+  }
+  return false;
+}
+
+function buildDirectStep2TextForOpenWindow(ebookSlug, firstName, protectedUrl, isIntl) {
+  if (ebookSlug === 'colecao-completa') {
+    return isIntl
+      ? `Hello${firstName ? `, ${firstName}` : ''}! {Great to connect with you here|Sharing something special with you today}.\n\nHere is the *Complete ISAAC® Essential Bilingual Collection (All 8 Volumes in 1 Master PDF)* authored by mentor *Thiago Prata*, featuring *Portuguese + British English* in the same file and a *personal dedication bearing your name*.\n\n${protectedUrl}`
+      : `Olá${firstName ? `, ${firstName}` : ''}! {Que bom falar com você por aqui|Compartilho uma novidade especial com você hoje}.\n\nEsta é a *Coleção Completa ISAAC® Essential (os 8 livros reunidos em 1 PDF Único)* escrita pelo mentor *Thiago Prata*, em edição *Bilíngue (Português + Inglês Britânico no mesmo PDF)* e com *dedicatória personalizada com o seu nome*.\n\n${protectedUrl}`;
+  }
+  if (ebookSlug && ebookSlug !== 'loja-geral') {
+    const prod = findEbookProductBySlug(ebookSlug);
+    const titlePt = prod?.title || 'Edição ISAAC® Essential';
+    const titleEn = prod?.enGb?.title || titlePt;
+    return isIntl
+      ? `Hello${firstName ? `, ${firstName}` : ''}! {Great to connect with you|Sharing this new reading with you}.\n\nHere is the bilingual edition *"${titleEn}"* authored by mentor *Thiago Prata* (ISAAC® Essential), featuring *Portuguese + British English* in the same PDF and a personal dedication in your name.\n\n${protectedUrl}`
+      : `Olá${firstName ? `, ${firstName}` : ''}! {Que bom falar com você|Compartilho esta leitura especial com você}.\n\nEsta é a edição bilíngue *"${titlePt}"*, escrita pelo mentor *Thiago Prata* (ISAAC® Essential), com *Português + Inglês Britânico no mesmo PDF* e dedicatória nominal especial.\n\n${protectedUrl}`;
+  }
+  return isIntl
+    ? `Hello${firstName ? `, ${firstName}` : ''}! {Great to connect with you here|Sharing our new reading collection with you}.\n\nHere is the *Official ISAAC® Essential Bilingual Library* authored by mentor *Thiago Prata* — featuring *8 segmented volumes* in *Portuguese + British English* inside the same PDF, custom illustrations, and a *personal dedication bearing your name*.\n\n${protectedUrl}`
+    : `Olá${firstName ? `, ${firstName}` : ''}! {Que bom falar com você por aqui|Compartilho nossa biblioteca oficial com você}.\n\nEsta é a *Biblioteca Oficial de eBooks ISAAC® Essential*, escrita pelo mentor *Thiago Prata* — são *8 volumes segmentados* em edição *Bilíngue (Português + Inglês Britânico no mesmo PDF)*, com ilustrações exclusivas e *dedicatória personalizada com o seu nome*.\n\n${protectedUrl}`;
+}
+
 /**
- * 3. EXECUÇÃO UNITÁRIA CONTROLADA DE UM ITEM DE ENVIO (COM TRAVA DE SEGURANÇA E LOG)
+ * 3. EXECUÇÃO UNITÁRIA CONTROLADA DE UM ITEM DE ENVIO (COM TRAVA DE SEGURANÇA, ZERO PERDA E PROTEÇÃO DE LINKS)
  */
 export async function executeSingleOutreachLogItem(logItem, campaign, safetyCfg, { bypassCooldown = false } = {}) {
   const nowIso = new Date().toISOString();
 
-  // Barreira 0: Evolution global habilitada?
+  // Barreira 0: Evolution global habilitada? (Se desativada temporariamente em lote, mantém na fila sem perder!)
   const evoEnabled = await isEvolutionEnabledInDatabase();
   if (!evoEnabled) {
+    if (!bypassCooldown) {
+      return { outcome: 'deferred_evolution_disabled' };
+    }
     await supabaseAdmin
       .from('izaque_whatsapp_outreach_logs')
       .update({
@@ -1056,7 +1509,12 @@ export async function executeSingleOutreachLogItem(logItem, campaign, safetyCfg,
     return { outcome: 'failed', reason: 'evolution_disabled' };
   }
 
-  // Barreira 1 (CRÍTICA): TRAVA DE SEGURANÇA — SÓ PERMITE NÚMEROS AUTORIZADOS (31995574906)
+  // Barreira 0b: Instância WhatsApp conectada neste exato segundo? (Zero perda em oscilação de rede/QR)
+  if (!bypassCooldown && !(await isEvolutionInstanceConnected())) {
+    return { outcome: 'deferred_reconnecting' };
+  }
+
+  // Barreira 1 (CRÍTICA): TRAVA DE SEGURANÇA — SÓ PERMITE NÚMEROS AUTORIZADOS QUANDO ATIVA
   if (!isPhoneAllowedBySafetyLock(logItem.jid || logItem.phone_digits, safetyCfg)) {
     await supabaseAdmin
       .from('izaque_whatsapp_outreach_logs')
@@ -1099,24 +1557,50 @@ export async function executeSingleOutreachLogItem(logItem, campaign, safetyCfg,
     return { outcome: 'skipped_opt_out' };
   }
 
-  // Barreira 3: Cooldown Anti-Spam por contato
-  if (!bypassCooldown && safetyCfg.cooldownHours > 0 && contact?.last_outreach_at) {
-    const elapsedMs = Date.now() - new Date(contact.last_outreach_at).getTime();
-    const minCooldownMs = safetyCfg.cooldownHours * 3600 * 1000;
-    if (elapsedMs < minCooldownMs) {
+  const rawConfiguredMedia = String(logItem.media_url || campaign?.unregistered_image_url || '').trim();
+  const isEbookDispatch = rawConfiguredMedia.includes('/ebooks/covers/');
+  const effectiveCooldownHours = isEbookDispatch
+    ? Math.max(24, Number(safetyCfg.cooldownHours) || 24)
+    : Number(safetyCfg.cooldownHours) || 0;
+
+  // Barreira 3: Cooldown Anti-Spam com REAGENDAMENTO AUTOMÁTICO (ZERO PERDA DE CONTATOS!)
+  if (!bypassCooldown && effectiveCooldownHours > 0 && contact?.last_outreach_at) {
+    const lastMs = new Date(contact.last_outreach_at).getTime();
+    const minCooldownMs = effectiveCooldownHours * 3600 * 1000;
+    if (Number.isFinite(lastMs) && Date.now() - lastMs < minCooldownMs) {
+      const safeNextIso = new Date(lastMs + minCooldownMs + randomBetween(12, 48) * 60_000).toISOString();
       await supabaseAdmin
         .from('izaque_whatsapp_outreach_logs')
         .update({
-          status: 'skipped_cooldown',
-          error_reason: `Proteção Anti-Ban: contato já recebeu disparo nas últimas ${safetyCfg.cooldownHours}h.`,
+          status: 'queued',
+          scheduled_for: safeNextIso,
+          error_reason: `Reagendado automaticamente p/ ${new Date(safeNextIso).toLocaleString('pt-BR')} (intervalo seguro de ${effectiveCooldownHours}h por contato — zero perda).`,
         })
         .eq('id', logItem.id);
-      return { outcome: 'skipped_cooldown' };
+      return { outcome: 'rescheduled_cooldown', scheduledFor: safeNextIso };
     }
   }
 
-  // Barreira 4: Validação prévia de número WhatsApp ativo na Evolution
-  const check = await resolveWhatsAppJid(logItem.phone_digits || logItem.jid);
+  // Barreira 4: Validação prévia de número WhatsApp ativo na Evolution (protegida contra falha transitória de rede)
+  let check;
+  try {
+    check = await resolveWhatsAppJid(logItem.phone_digits || logItem.jid);
+  } catch (jidErr) {
+    if (!bypassCooldown) {
+      const retryIso = new Date(Date.now() + 12 * 60_000).toISOString();
+      await supabaseAdmin
+        .from('izaque_whatsapp_outreach_logs')
+        .update({
+          status: 'queued',
+          scheduled_for: retryIso,
+          error_reason: `[Aguardando Evolution] Reagendado automaticamente (+12min): ${String(jidErr?.message || '').slice(0, 180)}`,
+        })
+        .eq('id', logItem.id);
+      return { outcome: 'retrying_transient', error: jidErr.message };
+    }
+    throw jidErr;
+  }
+
   if (!check.exists || !check.jid) {
     await supabaseAdmin
       .from('izaque_whatsapp_outreach_logs')
@@ -1140,6 +1624,7 @@ export async function executeSingleOutreachLogItem(logItem, campaign, safetyCfg,
     let finalMediaUrl = logItem.media_url || null;
     const savedTemplates = await getSavedOutreachTemplates();
     const isIntlTarget = isInternationalContact(contact || { jid: check.jid, phone_digits: logItem.phone_digits });
+    const seed = `${check.jid}:${campaign?.id || logItem.id}`;
 
     if (logItem.flow_type === 'unregistered_invite_image') {
       const effectiveUnregTpl = isIntlTarget
@@ -1157,12 +1642,6 @@ export async function executeSingleOutreachLogItem(logItem, campaign, safetyCfg,
         campaign?.unregistered_image_url ||
         savedTemplates.unregisteredImageUrl ||
         DEFAULT_ISAAC_IMAGE_URL;
-
-      sendResult = await sendWhatsAppImageSafe({
-        jidOrNumber: check.jid,
-        caption: finalMessageText,
-        mediaUrl: finalMediaUrl,
-      });
     } else {
       const effectiveRegTpl = isIntlTarget
         ? campaign?.intl_registered_template || savedTemplates.intlRegisteredTemplate || ''
@@ -1178,44 +1657,111 @@ export async function executeSingleOutreachLogItem(logItem, campaign, safetyCfg,
           effectiveRegTpl,
           { forceIntl: isIntlTarget }
         ));
-
       const campaignCoverUrl = String(campaign?.unregistered_image_url || finalMediaUrl || '').trim();
-      const isEbookCoverCampaign = campaignCoverUrl.includes('/ebooks/covers/');
-
-      if (isEbookCoverCampaign) {
+      if (campaignCoverUrl.includes('/ebooks/covers/')) {
         finalMediaUrl = campaignCoverUrl;
-        sendResult = await sendWhatsAppImageSafe({
+      }
+    }
+
+    const rawMediaMeta = String(finalMediaUrl || campaign?.unregistered_image_url || '').trim();
+    const shieldSlug = extractTwoStepShieldSlug(rawMediaMeta);
+    const isEbookCoverCampaign = rawMediaMeta.includes('/ebooks/covers/');
+
+    if (shieldSlug) {
+      // MODO BLINDADO 2 ETAPAS (RECOMENDADO P/ LOTES COMO 501 CONTATOS):
+      // Se o contato JÁ falou conosco nas últimas 22h, a janela oficial de 24h da Meta já está aberta -> entrega direto!
+      // Caso contrário (contato frio/inativo), envia Etapa 1 100% SEM LINK FRIO pedindo um "sim" ou 👍,
+      // e o webhook entrega Capa + Link Editorial automaticamente no segundo em que ele responder!
+      const openWindow = await hasRecentInbound24hWindow(check.jid, logItem.app_user_id || contact?.app_user_id);
+      const cleanCover = stripMediaUrlMeta(rawMediaMeta) || `${DEFAULT_APP_URL}${COMPLETE_BUNDLE_PRODUCT.coverUrl}`;
+
+      if (openWindow) {
+        const identity = resolveContactIdentity(contact || { push_name: logItem.recipient_name, jid: check.jid });
+        const protectedUrl = buildProtectedEbookSalesUrl(shieldSlug, seed);
+        const openWinText = buildDirectStep2TextForOpenWindow(
+          shieldSlug,
+          identity.firstName,
+          protectedUrl,
+          isIntlTarget
+        );
+        sendResult = await sendProtectedEbookTwoBubbleDelivery({
           jidOrNumber: check.jid,
-          caption: finalMessageText,
-          mediaUrl: campaignCoverUrl,
+          fullCaptionText: openWinText,
+          mediaUrl: cleanCover,
+          seed,
+          isIntl: isIntlTarget,
         });
+        finalMessageText = sendResult.deliveredFinalText || openWinText;
+        finalMediaUrl = `${cleanCover}#link_delivered:${shieldSlug}`;
       } else {
+        const step1CleanText = resolveSpintaxDeterministic(finalMessageText, seed)
+          .replace(/https?:\/\/[^\s]+/gi, '')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
         sendResult = await sendWhatsAppTextSafe({
           jidOrNumber: check.jid,
-          text: finalMessageText,
+          text: step1CleanText,
         });
+        finalMessageText = step1CleanText;
+        finalMediaUrl = `${cleanCover}#awaiting_link_reply:${shieldSlug}`;
       }
+    } else if (isEbookCoverCampaign) {
+      // MODO EDITORIAL EM 2 BALÕES PROTEGIDOS:
+      // Balão 1: Capa Oficial + texto humano SEM URL na imagem
+      // Balão 2 (após pausa humana): Link editorial limpo (/biblioteca, /leituras ou /acervo + token único ?v=xxxxxx)
+      const cleanCover = stripMediaUrlMeta(rawMediaMeta);
+      sendResult = await sendProtectedEbookTwoBubbleDelivery({
+        jidOrNumber: check.jid,
+        fullCaptionText: finalMessageText,
+        mediaUrl: cleanCover,
+        seed,
+        isIntl: isIntlTarget,
+      });
+      finalMessageText =
+        sendResult.deliveredFinalText ||
+        rewriteSalesLinksAntiBan(resolveSpintaxDeterministic(finalMessageText, seed), seed);
+      finalMediaUrl = cleanCover;
+    } else if (logItem.flow_type === 'unregistered_invite_image') {
+      finalMessageText = resolveSpintaxDeterministic(finalMessageText, seed);
+      finalMediaUrl = stripMediaUrlMeta(finalMediaUrl || DEFAULT_ISAAC_IMAGE_URL);
+      sendResult = await sendWhatsAppImageSafe({
+        jidOrNumber: check.jid,
+        caption: finalMessageText,
+        mediaUrl: finalMediaUrl,
+        fileSeed: seed,
+      });
+    } else {
+      finalMessageText = resolveSpintaxDeterministic(finalMessageText, seed);
+      sendResult = await sendWhatsAppTextSafe({
+        jidOrNumber: check.jid,
+        text: finalMessageText,
+      });
+    }
 
-      // Integração direta com o usuário no App (registra também no Mural de Notificações In-App)
-      const targetUserId = logItem.app_user_id || contact?.app_user_id;
-      if (targetUserId) {
-        await supabaseAdmin
-          .from('izaque_user_notifications')
-          .insert({
-            user_id: targetUserId,
-            title: isEbookCoverCampaign
-              ? isIntlTarget
-                ? 'New Bilingual eBook by Thiago Prata — ISAAC®'
-                : 'Novo eBook Bilíngue por Thiago Prata — ISAAC®'
-              : isIntlTarget
-                ? 'Discover ISAAC Free & WhatsApp Plans'
-                : 'Conheça os Planos Grátis & WhatsApp do ISAAC',
-            content: finalMessageText,
-            is_read: false,
-          })
-          .then(() => {})
-          .catch(() => {});
-      }
+    // Integração direta com o usuário no App (registra também no Mural de Notificações In-App)
+    const targetUserId = logItem.app_user_id || contact?.app_user_id;
+    if (targetUserId && (logItem.flow_type !== 'unregistered_invite_image' || isEbookCoverCampaign)) {
+      const inAppUrl = buildProtectedEbookSalesUrl(shieldSlug || 'loja-geral', seed);
+      const inAppContent =
+        shieldSlug && !finalMessageText.includes('http')
+          ? `${finalMessageText}\n\n${inAppUrl}`
+          : finalMessageText;
+      await supabaseAdmin
+        .from('izaque_user_notifications')
+        .insert({
+          user_id: targetUserId,
+          title: isEbookCoverCampaign
+            ? isIntlTarget
+              ? 'New Bilingual eBook by Thiago Prata — ISAAC®'
+              : 'Novo eBook Bilíngue por Thiago Prata — ISAAC®'
+            : isIntlTarget
+              ? 'Discover ISAAC Free & WhatsApp Plans'
+              : 'Conheça os Planos Grátis & WhatsApp do ISAAC',
+          content: inAppContent,
+          is_read: false,
+        })
+        .then(() => {})
+        .catch(() => {});
     }
 
     const sentAtIso = new Date().toISOString();
@@ -1250,13 +1796,66 @@ export async function executeSingleOutreachLogItem(logItem, campaign, safetyCfg,
       messageId: sendResult.messageId,
       jid: check.jid,
       flowType: logItem.flow_type,
+      twoStepAwaitingReply: Boolean(shieldSlug && String(finalMediaUrl || '').includes('#awaiting_link_reply:')),
     };
   } catch (err) {
+    const errMsg = String(err?.message || 'Erro no disparo Evolution API.');
+
+    // Disjuntor de Emergência Anti-Bloqueio Meta: se detectar rate-limit/restrição (429, 403, spam), pausa a campanha na hora e preserva o contato na fila!
+    const isMetaRateOrRestriction =
+      /(?:HTTP\s*(?:429|403)|rate[\s_-]*limit|too\s+many\s+requests|spam|restrict|ban|blocked|temporarily\s+unavailable)/i.test(
+        errMsg
+      );
+
+    if (!bypassCooldown && isMetaRateOrRestriction) {
+      const safeResumeIso = new Date(Date.now() + 2 * 3600 * 1000).toISOString();
+      await supabaseAdmin
+        .from('izaque_whatsapp_outreach_logs')
+        .update({
+          status: 'queued',
+          scheduled_for: safeResumeIso,
+          error_reason: `[PAUSA DE PROTEÇÃO DA LINHA] Campanha pausada preventivamente: ${errMsg.slice(0, 200)}`,
+        })
+        .eq('id', logItem.id);
+
+      if (campaign?.id) {
+        await supabaseAdmin
+          .from('izaque_whatsapp_outreach_campaigns')
+          .update({ status: 'paused', updated_at: nowIso })
+          .eq('id', campaign.id);
+      }
+
+      return { outcome: 'paused_circuit_breaker', error: errMsg };
+    }
+
+    // Reenvio Automático Zero-Perda p/ oscilações transitórias de internet / container Evolution (até 3 tentativas c/ +15min)
+    const isTransientError =
+      /(?:fetch\s+failed|ECONN|ETIMEDOUT|ENOTFOUND|socket|HTTP\s*(?:500|502|503|504)|Connection\s+Closed|not\s+connected|timed?\s*out|disconnec)/i.test(
+        errMsg
+      );
+    const prevRetryMatch = String(logItem.error_reason || '').match(/\[retry:(\d+)\]/i);
+    const prevRetries = prevRetryMatch ? Number(prevRetryMatch[1]) : 0;
+
+    if (!bypassCooldown && isTransientError && prevRetries < 3) {
+      const nextRetry = prevRetries + 1;
+      const retryAtIso = new Date(Date.now() + 15 * 60_000 * nextRetry).toISOString();
+      await supabaseAdmin
+        .from('izaque_whatsapp_outreach_logs')
+        .update({
+          status: 'queued',
+          scheduled_for: retryAtIso,
+          error_reason: `[retry:${nextRetry}] Reconexão automática agendada (+${15 * nextRetry}min): ${errMsg.slice(0, 190)}`,
+        })
+        .eq('id', logItem.id);
+
+      return { outcome: 'retrying_transient', retryAttempt: nextRetry, error: errMsg };
+    }
+
     await supabaseAdmin
       .from('izaque_whatsapp_outreach_logs')
       .update({
         status: 'failed',
-        error_reason: err.message?.slice(0, 300) || 'Erro no disparo Evolution API.',
+        error_reason: errMsg.slice(0, 300),
       })
       .eq('id', logItem.id);
 
@@ -1270,7 +1869,7 @@ export async function executeSingleOutreachLogItem(logItem, campaign, safetyCfg,
         .eq('id', contact.id);
     }
 
-    return { outcome: 'failed', error: err.message };
+    return { outcome: 'failed', error: errMsg };
   }
 }
 
@@ -1353,10 +1952,34 @@ export async function createOrScheduleOutreachCampaign({
     candidates = pagedRes.data || [];
   }
 
-  // Filtra apenas contatos permitidos pela trava quando restrito, para nunca enfileirar disparos indevidos em massa
-  const filteredContacts = safetyCfg.restrictedMode
+  // Filtra apenas contatos permitidos pela trava quando restrito
+  const allowedCandidates = safetyCfg.restrictedMode
     ? (candidates || []).filter((c) => isPhoneAllowedBySafetyLock(c.jid || c.phone_digits, safetyCfg))
     : candidates || [];
+
+  // Deduplicação estrita por telefone comparável (nunca envia 2x para o mesmo número no mesmo lote)
+  const seenPhones = new Set();
+  const dedupedContacts = [];
+  for (const c of allowedCandidates) {
+    const compKey = extractComparablePhoneKey(c.jid || c.phone_digits) || c.jid || c.id;
+    if (seenPhones.has(compKey)) continue;
+    seenPhones.add(compKey);
+    dedupedContacts.push(c);
+  }
+
+  // Ordenação Warm-First Anti-Ban: prioriza usuários já cadastrados no App e contatos salvos na agenda c/ nome próprio,
+  // gerando respostas positivas logo nos primeiros envios e elevando o Trust Score do número na Meta!
+  const filteredContacts = dedupedContacts.sort((a, b) => {
+    const scoreA =
+      (a.is_registered_user ? 4 : 0) +
+      (a.is_saved_in_phone ? 2 : 0) +
+      (a.has_valid_name ? 1 : 0);
+    const scoreB =
+      (b.is_registered_user ? 4 : 0) +
+      (b.is_saved_in_phone ? 2 : 0) +
+      (b.has_valid_name ? 1 : 0);
+    return scoreB - scoreA;
+  });
 
   if (filteredContacts.length === 0) {
     throw new Error(
@@ -1366,9 +1989,20 @@ export async function createOrScheduleOutreachCampaign({
     );
   }
 
+  const isBulkEbookCampaign =
+    resolvedImageUrl.includes('/ebooks/covers/') && filteredContacts.length > 1;
+
   const schedDate = scheduledAt ? new Date(scheduledAt) : new Date();
-  const safeMinDelay = Math.max(8, Number(minDelaySec) || 18);
-  const safeMaxDelay = Math.max(safeMinDelay + 5, Number(maxDelaySec) || 38);
+  const safeMinDelay = isBulkEbookCampaign
+    ? Math.max(48, Number(minDelaySec) || 52)
+    : Math.max(12, Number(minDelaySec) || 18);
+  const safeMaxDelay = isBulkEbookCampaign
+    ? Math.max(safeMinDelay + 35, Number(maxDelaySec) || 118)
+    : Math.max(safeMinDelay + 8, Number(maxDelaySec) || 38);
+  const safeDailyLimit = isBulkEbookCampaign
+    ? Math.min(safetyCfg.dailyLimit || 40, Math.max(1, Number(dailyLimit) || 30))
+    : Math.max(1, Number(dailyLimit) || safetyCfg.dailyLimit || 40);
+  const effectiveRespectWindow = isBulkEbookCampaign ? true : Boolean(respectWindow);
 
   const { data: campaign, error: campErr } = await supabaseAdmin
     .from('izaque_whatsapp_outreach_campaigns')
@@ -1379,10 +2013,10 @@ export async function createOrScheduleOutreachCampaign({
       scheduled_at: schedDate.toISOString(),
       min_delay_sec: safeMinDelay,
       max_delay_sec: safeMaxDelay,
-      daily_limit: Math.max(1, Number(dailyLimit) || safetyCfg.dailyLimit || 40),
+      daily_limit: safeDailyLimit,
       window_start_hhmm: windowStartHhmm || '08:30',
       window_end_hhmm: windowEndHhmm || '20:00',
-      respect_window: Boolean(respectWindow),
+      respect_window: effectiveRespectWindow,
       unregistered_image_url: resolvedImageUrl,
       unregistered_template: resolvedUnregisteredTemplate,
       registered_template: resolvedRegisteredTemplate,
@@ -1396,11 +2030,14 @@ export async function createOrScheduleOutreachCampaign({
 
   if (campErr) throw campErr;
 
-  // Escalonamento progressivo de horários individuais (scheduled_for) respeitando a regra Anti-Ban da Meta
+  // Escalonamento progressivo de horários individuais (scheduled_for) com pausas orgânicas a cada 7 envios
   let cursorMs = schedDate.getTime();
   const queueRows = filteredContacts.map((contact, idx) => {
     if (idx > 0) {
       cursorMs += randomBetween(safeMinDelay * 1000, safeMaxDelay * 1000);
+      if (isBulkEbookCampaign && idx % 7 === 0) {
+        cursorMs += randomBetween(14 * 60_000, 22 * 60_000);
+      }
     }
     const flowType =
       forceFlowType === 'unregistered_invite_image' || forceFlowType === 'registered_plans_integration'
@@ -1419,7 +2056,10 @@ export async function createOrScheduleOutreachCampaign({
       is_registered_user: Boolean(contact.is_registered_user),
       flow_type: flowType,
       status: 'queued',
-      media_url: flowType === 'unregistered_invite_image' ? resolvedImageUrl : null,
+      media_url:
+        flowType === 'unregistered_invite_image' || resolvedImageUrl.includes('/ebooks/covers/')
+          ? resolvedImageUrl
+          : null,
       scheduled_for: new Date(cursorMs).toISOString(),
     };
   });
@@ -1431,10 +2071,11 @@ export async function createOrScheduleOutreachCampaign({
     if (logsErr) throw logsErr;
   }
 
-  // Se agendado para agora (<= +5s), dispara o primeiro tick assíncrono
+  // Se agendado para agora (<= +5s), dispara o primeiro tick assíncrono (mantendo proteção de cooldown em lotes!)
   if (schedDate.getTime() <= Date.now() + 5000) {
+    const allowBypassSingle = queueRows.length === 1;
     setImmediate(() => {
-      processOutreachQueueTick({ bypassCooldown: true }).catch((e) =>
+      processOutreachQueueTick({ bypassCooldown: allowBypassSingle }).catch((e) =>
         console.warn('⚠️ [Outreach Immediate Tick]:', e.message)
       );
     });
@@ -1566,18 +2207,25 @@ export async function sendDirectOutreachPreview({
 }
 
 /**
- * 6. ATUALIZAR CONTADORES E STATUS DA CAMPANHA
+ * 6. ATUALIZAR CONTADORES E STATUS DA CAMPANHA (PRESERVANDO PAUSAS DE PROTEÇÃO)
  */
 async function refreshCampaignCounters(campaignId) {
-  const logsRes = await fetchPaginatedSupabaseRows(
-    () =>
-      supabaseAdmin
-        .from('izaque_whatsapp_outreach_logs')
-        .select('status')
-        .eq('campaign_id', campaignId)
-        .order('id', { ascending: true }),
-    6000
-  );
+  const [{ data: currentCamp }, logsRes] = await Promise.all([
+    supabaseAdmin
+      .from('izaque_whatsapp_outreach_campaigns')
+      .select('status')
+      .eq('id', campaignId)
+      .maybeSingle(),
+    fetchPaginatedSupabaseRows(
+      () =>
+        supabaseAdmin
+          .from('izaque_whatsapp_outreach_logs')
+          .select('status')
+          .eq('campaign_id', campaignId)
+          .order('id', { ascending: true }),
+      6000
+    ),
+  ]);
 
   const list = logsRes.data || [];
   const queued = list.filter((l) => l.status === 'queued' || l.status === 'sending').length;
@@ -1590,11 +2238,16 @@ async function refreshCampaignCounters(campaignId) {
 
   const isDone = queued === 0;
   const nowIso = new Date().toISOString();
+  const nextStatus = isDone
+    ? 'completed'
+    : currentCamp?.status === 'paused' || currentCamp?.status === 'cancelled'
+      ? currentCamp.status
+      : 'running';
 
   await supabaseAdmin
     .from('izaque_whatsapp_outreach_campaigns')
     .update({
-      status: isDone ? 'completed' : 'running',
+      status: nextStatus,
       sent_count: sent,
       blocked_safety_count: blocked,
       skipped_count: skipped,
@@ -1606,7 +2259,12 @@ async function refreshCampaignCounters(campaignId) {
 }
 
 /**
- * 7. MOTOR DE FILA ANTI-BAN AGENDADO (PROCESSA 1 ENVIO POR CICLO RESPEITANDO JANELA E LIMITE DIÁRIO)
+ * 7. MOTOR DE FILA ANTI-BAN PERSISTENTE E ZERO-PERDA:
+ * - Verifica conexão ativa da Evolution antes de tirar qualquer item da fila
+ * - Teto Global 24h + Teto por Campanha 24h + Teto Horário Móvel (máx. 10/hora)
+ * - Cadência real dinâmica calculada sobre o último `sent_at` (elimina disparo fixo de 20s após virada de dia!)
+ * - Pausa humana "Coffee Break" (14 a 22 min) a cada 7 envios
+ * - Janela de fuso horário local por PAÍS do destinatário (Austrália +61, Reino Unido +44, Brasil +55, etc.)
  */
 let isProcessingTick = false;
 let outreachInterval = null;
@@ -1619,21 +2277,63 @@ export async function processOutreachQueueTick({ bypassCooldown = false } = {}) 
     const evoEnabled = await isEvolutionEnabledInDatabase();
     if (!evoEnabled) return { skipped: 'evolution_disabled' };
 
+    // Pré-checagem de saúde da instância WhatsApp: se desconectada, aguarda silenciosamente com 0% de perda na fila!
+    if (!(await isEvolutionInstanceConnected())) {
+      return { skipped: 'whatsapp_reconnecting_zero_loss' };
+    }
+
+    // Varredura leve de recuperação automática para compradores de eBook pagos que aguardavam reconexão (Zero Perda Pós-Compra)
+    import('./ebookStoreService.js')
+      .then((m) => m.retryPendingPaidEbookDeliveries?.())
+      .catch(() => {});
+
     const safetyCfg = await getOutreachSafetyConfig();
     const now = new Date();
+    const nowMs = now.getTime();
     const nowIso = now.toISOString();
-    const { hhmm } = getBrtTimeInfo(now);
 
-    // Verifica limite diário global nas últimas 24h (Proteção Anti-Ban Meta)
-    const since24hIso = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-    const { count: sentLast24h } = await supabaseAdmin
-      .from('izaque_whatsapp_outreach_logs')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'sent')
-      .gte('sent_at', since24hIso);
+    const since24hIso = new Date(nowMs - 24 * 3600 * 1000).toISOString();
+    const since6hIso = new Date(nowMs - 6 * 3600 * 1000).toISOString();
+    const since1hIso = new Date(nowMs - 3600 * 1000).toISOString();
+
+    const [
+      { count: sentLast24h },
+      { count: sentLast1h },
+      { count: sentLast6h },
+      { data: lastSentRow },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from('izaque_whatsapp_outreach_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'sent')
+        .gte('sent_at', since24hIso),
+      supabaseAdmin
+        .from('izaque_whatsapp_outreach_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'sent')
+        .gte('sent_at', since1hIso),
+      supabaseAdmin
+        .from('izaque_whatsapp_outreach_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'sent')
+        .gte('sent_at', since6hIso),
+      supabaseAdmin
+        .from('izaque_whatsapp_outreach_logs')
+        .select('id, sent_at, campaign_id')
+        .eq('status', 'sent')
+        .not('sent_at', 'is', null)
+        .order('sent_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
 
     if ((sentLast24h || 0) >= safetyCfg.dailyLimit) {
       return { skipped: 'daily_limit_reached', sentLast24h };
+    }
+
+    // Teto horário móvel Anti-Ban (máximo 10 disparos por hora corrida em qualquer circunstância de lote)
+    if (!bypassCooldown && (sentLast1h || 0) >= 10) {
+      return { skipped: 'hourly_cap_protection', sentLast1h };
     }
 
     // Busca campanhas agendadas ou em andamento cujo horário já chegou
@@ -1652,11 +2352,43 @@ export async function processOutreachQueueTick({ bypassCooldown = false } = {}) 
     let processedCount = 0;
 
     for (const camp of activeCampaigns) {
-      if (camp.respect_window) {
-        const startW = camp.window_start_hhmm || '08:30';
-        const endW = camp.window_end_hhmm || '20:00';
-        if (hhmm < startW || hhmm > endW) {
-          continue;
+      // Verifica teto diário específico da campanha nas últimas 24h
+      const effectiveCampDailyCap = Math.min(
+        safetyCfg.dailyLimit,
+        Math.max(1, Number(camp.daily_limit) || safetyCfg.dailyLimit)
+      );
+      const { count: campSentLast24h } = await supabaseAdmin
+        .from('izaque_whatsapp_outreach_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('campaign_id', camp.id)
+        .eq('status', 'sent')
+        .gte('sent_at', since24hIso);
+
+      if ((campSentLast24h || 0) >= effectiveCampDailyCap) {
+        continue;
+      }
+
+      // Cadência Real Dinâmica baseada no último `sent_at` + Pausa Humana Coffee-Break a cada 7 envios!
+      if (!bypassCooldown && lastSentRow?.sent_at) {
+        const lastSentMs = new Date(lastSentRow.sent_at).getTime();
+        if (Number.isFinite(lastSentMs)) {
+          const isEbookCamp = String(camp.unregistered_image_url || '').includes('/ebooks/covers/');
+          const minSec = isEbookCamp
+            ? Math.max(48, Number(camp.min_delay_sec) || 52)
+            : Math.max(12, Number(camp.min_delay_sec) || 18);
+          const maxSec = Math.max(
+            minSec + 25,
+            Number(camp.max_delay_sec) || (isEbookCamp ? 118 : 38)
+          );
+
+          const isCoffeeBreakTurn = (sentLast6h || 0) > 0 && (sentLast6h || 0) % 7 === 0;
+          const requiredGapMs = isCoffeeBreakTurn
+            ? deterministicRangeFromSeed(14 * 60_000, 22 * 60_000, `coffee:${lastSentRow.id}`)
+            : deterministicRangeFromSeed(minSec * 1000, maxSec * 1000, `gap:${lastSentRow.id}`);
+
+          if (nowMs - lastSentMs < requiredGapMs) {
+            continue;
+          }
         }
       }
 
@@ -1667,18 +2399,17 @@ export async function processOutreachQueueTick({ bypassCooldown = false } = {}) 
           .eq('id', camp.id);
       }
 
-      // Pega APENAS 1 item da fila cujo scheduled_for já chegou (cadência orgânica humana)
-      const { data: nextItems } = await supabaseAdmin
+      // Busca lote de candidatos prontos na fila para selecionar o primeiro cujo PAÍS esteja em horário comercial humano (08:30–20:00 local)
+      const { data: readyCandidates } = await supabaseAdmin
         .from('izaque_whatsapp_outreach_logs')
         .select('*')
         .eq('campaign_id', camp.id)
         .eq('status', 'queued')
         .lte('scheduled_for', nowIso)
         .order('scheduled_for', { ascending: true })
-        .limit(1);
+        .limit(120);
 
-      if (!nextItems || nextItems.length === 0) {
-        // Verifica se toda a fila da campanha já encerrou
+      if (!readyCandidates || readyCandidates.length === 0) {
         const { count: remaining } = await supabaseAdmin
           .from('izaque_whatsapp_outreach_logs')
           .select('id', { count: 'exact', head: true })
@@ -1691,7 +2422,48 @@ export async function processOutreachQueueTick({ bypassCooldown = false } = {}) 
         continue;
       }
 
-      await executeSingleOutreachLogItem(nextItems[0], camp, safetyCfg, { bypassCooldown });
+      const startW = camp.window_start_hhmm || '08:30';
+      const endW = camp.window_end_hhmm || '20:00';
+      const targetItem = camp.respect_window
+        ? readyCandidates.find((item) =>
+            isContactWithinLocalWindow(
+              { jid: item.jid, phone_digits: item.phone_digits },
+              startW,
+              endW,
+              now
+            )
+          )
+        : readyCandidates[0];
+
+      if (!targetItem) {
+        // Todos os contatos prontos estão fora do horário diurno em seus respectivos países (ex: madrugada na Austrália ou no Brasil) -> aguarda sem perder ninguém!
+        continue;
+      }
+
+      const execRes = await executeSingleOutreachLogItem(targetItem, camp, safetyCfg, { bypassCooldown });
+
+      // Disjuntor de 3 falhas consecutivas na mesma campanha -> pausa preventiva para inspeção
+      if (execRes.outcome === 'failed') {
+        const { data: recentAttempted } = await supabaseAdmin
+          .from('izaque_whatsapp_outreach_logs')
+          .select('status')
+          .eq('campaign_id', camp.id)
+          .neq('status', 'queued')
+          .order('id', { ascending: false })
+          .limit(3);
+
+        if (
+          recentAttempted &&
+          recentAttempted.length === 3 &&
+          recentAttempted.every((r) => r.status === 'failed')
+        ) {
+          await supabaseAdmin
+            .from('izaque_whatsapp_outreach_campaigns')
+            .update({ status: 'paused', updated_at: new Date().toISOString() })
+            .eq('id', camp.id);
+        }
+      }
+
       await refreshCampaignCounters(camp.id);
       processedCount += 1;
       break; // Apenas 1 disparo por ciclo para nunca gerar rajadas simultâneas na Meta

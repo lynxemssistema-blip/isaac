@@ -343,7 +343,7 @@ export function detectWhatsAppPermissionIntent(rawText) {
   if (!clean) return null;
   const lower = clean.toLowerCase().replace(/[.!?]+$/g, '').trim();
 
-  // 1. Comandos diretos isolados
+  // 1. Comandos diretos isolados (PT-BR + EN-GB)
   const exactOptOutCommands = [
     'parar',
     'sair',
@@ -351,6 +351,12 @@ export function detectWhatsAppPermissionIntent(rawText) {
     'stop',
     'descadastrar',
     'unsubscribe',
+    'opt out',
+    'opt-out',
+    'remove me',
+    'no messages',
+    'stop messages',
+    'please stop',
     'parar mensagens',
     'parar lembretes',
     'cancelar lembretes',
@@ -360,9 +366,9 @@ export function detectWhatsAppPermissionIntent(rawText) {
     return 'opt_out';
   }
 
-  // 2. Frases naturais pedindo para parar de receber mensagens/lembretes no WhatsApp
+  // 2. Frases naturais pedindo para parar de receber mensagens/lembretes no WhatsApp (PT-BR + Inglês)
   const naturalOptOutRegex =
-    /(?:n[aã]o\s+quero\s+(?:mais\s+)?receber|par(?:ar|e)\s+de\s+(?:me\s+)?(?:mandar|enviar)\s+(?:mensage[nm]|msg|lembrete|aviso|notifica|zap|whats)|n[aã]o\s+(?:me\s+)?(?:mande|envie)\s+(?:mais\s+)?(?:mensage[nm]|msg|lembrete|aviso|nada)|cancel(?:ar|e)\s+(?:a\s+permiss[aã]o|os?\s+lembretes?|as?\s+mensagens?|a\s+mensagem|notifica[cç][oõ]es)|desativ(?:ar|e)\s+(?:os?\s+lembretes?|as?\s+mensagens?|o\s+envio)|tir(?:ar|e)\s+meu\s+n[uú]mero|remov(?:er|a)\s+meu\s+n[uú]mero|prefiro\s+(?:usar|conversar)\s+s[oó]\s+pelo\s+(?:app|site|aplicativo))/i;
+    /(?:n[aã]o\s+quero\s+(?:mais\s+)?receber|par(?:ar|e)\s+de\s+(?:me\s+)?(?:mandar|enviar)\s+(?:mensage[nm]|msg|lembrete|aviso|notifica|zap|whats)|n[aã]o\s+(?:me\s+)?(?:mande|envie)\s+(?:mais\s+)?(?:mensage[nm]|msg|lembrete|aviso|nada)|cancel(?:ar|e)\s+(?:a\s+permiss[aã]o|os?\s+lembretes?|as?\s+mensagens?|a\s+mensagem|notifica[cç][oõ]es)|desativ(?:ar|e)\s+(?:os?\s+lembretes?|as?\s+mensagens?|o\s+envio)|tir(?:ar|e)\s+meu\s+n[uú]mero|remov(?:er|a)\s+meu\s+n[uú]mero|prefiro\s+(?:usar|conversar)\s+s[oó]\s+pelo\s+(?:app|site|aplicativo)|(?:do\s+not|don'?t)\s+(?:send|message|text)\s+me|stop\s+(?:sending|messaging|texting)|remove\s+my\s+number|take\s+me\s+off\s+(?:the|your)\s+list)/i;
 
   if (naturalOptOutRegex.test(clean)) {
     return 'opt_out';
@@ -866,6 +872,8 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
       messageObj?.ephemeralMessage?.message?.audioMessage
   );
 
+  const reactionEmoji = String(messageObj?.reactionMessage?.text || '').trim() || null;
+
   let messageText =
     messageObj?.conversation ||
     messageObj?.extendedTextMessage?.text ||
@@ -943,16 +951,28 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
     }
   }
 
-  // 0. Opt-out / Opt-in também sincronizado na tabela izaque_whatsapp_contacts (inclusive não cadastrados)
+  // 0. Opt-out / Opt-in também sincronizado na tabela izaque_whatsapp_contacts (inclusive não cadastrados) + cancelamento imediato de fila pendente
   if (messageText) {
     const universalIntent = detectWhatsAppPermissionIntent(messageText);
     if (universalIntent === 'opt_out') {
-      await supabaseAdmin
-        .from('izaque_whatsapp_contacts')
-        .update({ opt_out: true, updated_at: new Date().toISOString() })
-        .eq('jid', remoteJid)
-        .then(() => {})
-        .catch(() => {});
+      await Promise.all([
+        supabaseAdmin
+          .from('izaque_whatsapp_contacts')
+          .update({ opt_out: true, updated_at: new Date().toISOString() })
+          .eq('jid', remoteJid)
+          .then(() => {})
+          .catch(() => {}),
+        supabaseAdmin
+          .from('izaque_whatsapp_outreach_logs')
+          .update({
+            status: 'skipped_opt_out',
+            error_reason: 'Cancelado na fila imediatamente após pedido de opt-out do contato.',
+          })
+          .eq('jid', remoteJid)
+          .eq('status', 'queued')
+          .then(() => {})
+          .catch(() => {}),
+      ]);
 
       if (!matchedProfile) {
         if (evoEnabled) {
@@ -1030,6 +1050,39 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
   // Se o SuperAdmin desativou a função da Evolution API no painel, encerra aqui sem responder no chat
   if (!evoEnabled) {
     return { eventType, matchedUserId: matchedProfile?.id || null, remoteJid, skipped: 'disabled_by_superadmin' };
+  }
+
+  // 1B. MODO BLINDADO 2 ETAPAS (PROTEÇÃO DE LINKS DE VENDA NA META):
+  // Se este contato estava aguardando resposta à Etapa 1 ("Posso te mandar o link? Responda 'sim' ou 👍"),
+  // a resposta dele acabou de abrir a Janela Oficial Bidirecional de 24h da Meta -> entrega Capa + Link Editorial automaticamente!
+  const inboundSignalForEbook = messageText || reactionEmoji;
+  if (inboundSignalForEbook) {
+    try {
+      const { handleIncomingReplyForPendingEbookLink } = await import('./evolutionOutreachService.js');
+      const step2Res = await handleIncomingReplyForPendingEbookLink(remoteJid, inboundSignalForEbook);
+      if (step2Res?.handled) {
+        if (matchedProfile?.id) {
+          await supabaseAdmin
+            .from('izaque_profiles')
+            .update({
+              whatsapp_jid: remoteJid,
+              last_whatsapp_inbound_at: new Date().toISOString(),
+            })
+            .eq('id', matchedProfile.id)
+            .then(() => {})
+            .catch(() => {});
+        }
+        return {
+          eventType,
+          matchedUserId: matchedProfile?.id || null,
+          remoteJid,
+          action: step2Res.outcome,
+          ebookSlug: step2Res.ebookSlug,
+        };
+      }
+    } catch (step2Err) {
+      console.error('⚠️ [Evolution Step-2 eBook Link]:', step2Err.message);
+    }
   }
 
   // Ignora mensagens vazias (ex: figurinhas, reações sem texto)

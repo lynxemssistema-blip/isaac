@@ -263,3 +263,4 @@ export async function ensureUngroupedIsaacWebhookCustomerGrouped(asaasCustomerId
     console.warn('⚠️ [Asaas Group Sync] Aviso leve ao verificar grupo do cliente no webhook:', err.message);
   }
 }
+

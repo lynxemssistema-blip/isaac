@@ -125,7 +125,7 @@ function parseSuperAdminEbooksLocation() {
 function parseEbookStoreLocation() {
   if (typeof window === 'undefined') return null;
   const pathname = window.location.pathname || '/';
-  const match = pathname.match(/^\/loja\/ebooks(?:\/([^/?#]+))?\/?$/i);
+  const match = pathname.match(/^\/(?:loja\/ebooks|biblioteca|leituras|acervo)(?:\/([^/?#]+))?\/?$/i);
   if (match) {
     return { slug: decodeURIComponent(match[1] || '').trim() };
   }

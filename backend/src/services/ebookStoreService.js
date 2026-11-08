@@ -16,8 +16,13 @@ import {
   resolveWhatsAppJid,
   sendWhatsAppTextSafe,
   isEvolutionEnabledInDatabase,
+  randomBetween,
+  sleep,
 } from './evolutionService.js';
-import { sendWhatsAppImageSafe } from './evolutionOutreachService.js';
+import {
+  sendWhatsAppImageSafe,
+  isEvolutionInstanceConnected,
+} from './evolutionOutreachService.js';
 import {
   getAsaasConfig,
   sanitizeCpfCnpj,
@@ -319,6 +324,10 @@ async function deliverOrderViaWhatsApp(order, { appUrl = DEFAULT_APP_URL } = {})
     return { sent: false, reason: 'evolution_disabled' };
   }
 
+  if (!(await isEvolutionInstanceConnected())) {
+    return { sent: false, reason: 'evolution_reconnecting_deferred' };
+  }
+
   const jidInfo = await resolveWhatsAppJid(order.buyer_phone);
   if (!jidInfo?.exists || !jidInfo?.jid) {
     return { sent: false, reason: jidInfo?.reason || 'not_on_whatsapp' };
@@ -334,22 +343,33 @@ async function deliverOrderViaWhatsApp(order, { appUrl = DEFAULT_APP_URL } = {})
     : items[0]?.coverUrl || COMPLETE_BUNDLE_PRODUCT.coverUrl;
   const fullCoverUrl = `${cleanBase}${primaryCoverPath}`;
 
-  const messageText = order.is_international_phone
-    ? `Hello, *${firstName}*! ✨\n\nYour payment for the *ISAAC® Essential Bilingual Collection* (authored by *Thiago Prata*) has been confirmed!\n\nYour personalised PDF edition — featuring both *Portuguese and British English* in the same volume and a personal dedication to *${cleanFullName}* in the bottom margin — is ready for immediate download:\n\n📥 *Download your eBook(s) here:*\n${portalUrl}\n\nWarm regards,\n*Thiago Prata — ISAAC® Mentoring*`
-    : `Olá, *${firstName}*! ✨\n\nSeu pagamento na *Biblioteca Oficial ISAAC® Essential* (autor: *Thiago Prata*) foi confirmado com sucesso!\n\nSeu exemplar em PDF Bilíngue (*Português + Inglês Britânico no mesmo arquivo*), com ilustrações exclusivas e *dedicatória especial para ${cleanFullName} na margem inferior das páginas*, já está liberado para baixar:\n\n📥 *Clique aqui para baixar seu(s) PDF(s):*\n${portalUrl}\n\nExcelente leitura e clareza na sua caminhada!\n*Thiago Prata — Mentoria ISAAC®*`;
+  // Balão 1: Capa Oficial + Agradecimento nominal SEM URL na legenda da imagem (proteção Anti-Spam Meta)
+  const bubble1Caption = order.is_international_phone
+    ? `Hello, *${firstName}*! ✨\n\nThank you very much — your order in the *ISAAC® Essential Bilingual Library* (authored by mentor *Thiago Prata*) has been confirmed!\n\nYour personalised PDF edition — featuring both *Portuguese and British English* in the same volume and a personal dedication to *${cleanFullName}* in the bottom margin — is ready right below.`
+    : `Olá, *${firstName}*! ✨\n\nMuito obrigado! Seu pedido na *Biblioteca Oficial ISAAC® Essential* (autor: *Thiago Prata*) foi confirmado com sucesso!\n\nSeu exemplar em PDF Bilíngue (*Português + Inglês Britânico no mesmo arquivo*), com ilustrações exclusivas e *dedicatória especial para ${cleanFullName} na margem inferior das páginas*, já está pronto logo abaixo.`;
+
+  const bubble2Link = order.is_international_phone
+    ? `📥 Here is your personal access link to download your PDF(s) whenever you wish:\n${portalUrl}\n\nWarm regards,\n*Thiago Prata — ISAAC® Mentoring*`
+    : `📥 Aqui está o seu link exclusivo para baixar seu(s) PDF(s) sempre que desejar:\n${portalUrl}\n\nExcelente leitura e clareza na sua caminhada!\n*Thiago Prata — Mentoria ISAAC®*`;
 
   try {
     await sendWhatsAppImageSafe({
       jidOrNumber: jidInfo.jid,
-      caption: messageText,
+      caption: bubble1Caption,
       mediaUrl: fullCoverUrl,
+      fileSeed: order.id,
     });
-    return { sent: true, mode: 'image_with_caption', jid: jidInfo.jid };
+    await sleep(randomBetween(2400, 4200));
+    await sendWhatsAppTextSafe({
+      jidOrNumber: jidInfo.jid,
+      text: bubble2Link,
+    });
+    return { sent: true, mode: 'two_bubble_protected', jid: jidInfo.jid };
   } catch (imgErr) {
     console.warn('⚠️ [eBook WhatsApp Delivery] Fallback para texto puro:', imgErr.message);
     await sendWhatsAppTextSafe({
       jidOrNumber: jidInfo.jid,
-      text: messageText,
+      text: `${bubble1Caption}\n\n${bubble2Link}`,
     });
     return { sent: true, mode: 'text_fallback', jid: jidInfo.jid };
   }
@@ -468,9 +488,43 @@ export async function getAndSyncEbookOrderByToken(downloadToken) {
     } catch (syncErr) {
       console.warn('⚠️ [eBook Order Sync] Falha leve ao consultar Asaas:', syncErr.message);
     }
+  } else if (
+    order.status === 'paid' &&
+    (!order.email_sent_at || (order.buyer_phone && !order.whatsapp_sent_at))
+  ) {
+    // Recuperação automática zero-perda caso o WhatsApp/SMTP estivesse reconectando no segundo exato do pagamento
+    return await fulfillPaidEbookOrder(order.id);
   }
 
   return serializePublicOrder(order, cfg.appUrl);
+}
+
+let lastPaidDeliverySweepAt = 0;
+export async function retryPendingPaidEbookDeliveries() {
+  const now = Date.now();
+  if (now - lastPaidDeliverySweepAt < 4 * 60_000) return;
+  lastPaidDeliverySweepAt = now;
+
+  try {
+    const since48hIso = new Date(now - 48 * 3600 * 1000).toISOString();
+    const { data: pendingDeliveries } = await supabaseAdmin
+      .from('izaque_ebook_orders')
+      .select('id, buyer_email, buyer_phone, email_sent_at, whatsapp_sent_at')
+      .eq('status', 'paid')
+      .gte('paid_at', since48hIso)
+      .limit(10);
+
+    for (const ord of pendingDeliveries || []) {
+      const missingEmail = Boolean(ord.buyer_email && !ord.email_sent_at);
+      const missingWa = Boolean(ord.buyer_phone && !ord.whatsapp_sent_at);
+      if (missingEmail || missingWa) {
+        await fulfillPaidEbookOrder(ord.id);
+        break; // 1 pedido recuperado por varredura p/ manter cadência suave
+      }
+    }
+  } catch (sweepErr) {
+    console.warn('⚠️ [eBook Zero-Loss Sweep]:', sweepErr.message);
+  }
 }
 
 /**

@@ -1180,17 +1180,20 @@ export async function serveSeoHtml(req, res, distPath) {
       pageTitle = 'Tema não encontrado — Mentoria ISAAC';
     }
   }
-  // ROTA LOJA PÚBLICA DE EBOOKS (/loja/ebooks e /loja/ebooks/:slug)
-  else if (/^\/loja\/ebooks(?:\/([^/?#]+))?\/?$/i.test(pathname)) {
-    const match = pathname.match(/^\/loja\/ebooks(?:\/([^/?#]+))?\/?$/i);
-    const rawSlug = match?.[1] ? decodeURIComponent(match[1]).trim().toLowerCase() : '';
+  // ROTA LOJA PÚBLICA E ROTAS EDITORIAIS ANTI-BAN DE EBOOKS (/loja/ebooks, /biblioteca, /leituras, /acervo e /:slug)
+  else if (/^\/(?:loja\/ebooks|biblioteca|leituras|acervo)(?:\/([^/?#]+))?\/?$/i.test(pathname)) {
+    const match = pathname.match(/^\/(loja\/ebooks|biblioteca|leituras|acervo)(?:\/([^/?#]+))?\/?$/i);
+    const routePrefix = String(match?.[1] || 'loja/ebooks').toLowerCase();
+    const isEditorialAlias = routePrefix !== 'loja/ebooks';
+    const rawSlug = match?.[2] ? decodeURIComponent(match[2]).trim().toLowerCase() : '';
 
     if (!rawSlug) {
       pageTitle = `${EBOOK_COLLECTION_META.collectionTitle} — Autor: Thiago Prata`;
-      pageDescription =
-        'Adquira os eBooks oficiais Bilíngues (Português + Inglês Britânico no mesmo PDF) da Metodologia ISAAC® por Thiago Prata. Volumes individuais por R$ 19,90 ou Pacote Completo com 30% OFF (R$ 111,44).';
+      pageDescription = isEditorialAlias
+        ? 'Conheça os volumes oficiais Bilíngues (Português e Inglês Britânico no mesmo PDF) da Metodologia ISAAC® por Thiago Prata, com ilustrações e dedicatória personalizada.'
+        : 'Adquira os eBooks oficiais Bilíngues (Português + Inglês Britânico no mesmo PDF) da Metodologia ISAAC® por Thiago Prata. Volumes individuais por R$ 19,90 ou Pacote Completo com 30% OFF (R$ 111,44).';
       canonicalUrl = `${baseUrl}/loja/ebooks`;
-      ogType = 'website';
+      ogType = isEditorialAlias ? 'article' : 'website';
       ogImageUrl = `${baseUrl}${COMPLETE_BUNDLE_PRODUCT.coverUrl}`;
       jsonLdGraph = [
         orgEntity,
@@ -1213,10 +1216,12 @@ export async function serveSeoHtml(req, res, distPath) {
       const ebookProd = findEbookProductBySlug(rawSlug);
       if (ebookProd) {
         const priceFmt = ebookProd.formattedPrice || (ebookProd.isBundle ? 'R$ 111,44' : 'R$ 19,90');
-        pageTitle = `${ebookProd.title} (${priceFmt}) — Thiago Prata | Mentoria ISAAC®`;
+        pageTitle = isEditorialAlias
+          ? `${ebookProd.title} — Thiago Prata | Mentoria ISAAC®`
+          : `${ebookProd.title} (${priceFmt}) — Thiago Prata | Mentoria ISAAC®`;
         pageDescription = `${ebookProd.subtitle} Edição Bilíngue Português + Inglês Britânico no mesmo PDF, com ilustrações e dedicatória personalizada. Autor: Thiago Prata.`;
         canonicalUrl = `${baseUrl}/loja/ebooks/${encodeURIComponent(ebookProd.slug)}`;
-        ogType = 'product';
+        ogType = isEditorialAlias ? 'book' : 'product';
         ogImageUrl = `${baseUrl}${ebookProd.coverUrl}`;
         jsonLdGraph = [
           orgEntity,
