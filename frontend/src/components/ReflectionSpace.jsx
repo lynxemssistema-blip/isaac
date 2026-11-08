@@ -56,7 +56,6 @@ import { fetchSystemSettings } from '../services/adminApi';
 import { ambientAudio } from '../services/ambientAudioService';
 import { humanVoiceService, unlockHtmlAudioElement } from '../services/voiceService';
 import { THEMES, saveAppTheme, getCurrentTheme } from '../services/themeService';
-import { supabase } from '../services/supabase';
 
 const LazyUserSettingsModal = React.lazy(() => import('./UserSettingsModal'));
 
@@ -549,18 +548,29 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
     };
   }, [user?.id]);
 
-  // Sincronização em tempo real com conversas realizadas pelo WhatsApp (mesma sessão / mesmo chat)
+  // Sincronização contínua via HTTPS (sem depender de WebSocket Realtime do Supabase Self-Hosted)
+  // Atualiza conversas originadas pelo WhatsApp ao focar a guia e a cada 15s enquanto a aba estiver visível
   useEffect(() => {
     if (!user?.id || !activeSessionId) return;
 
+    let cancelled = false;
     const refreshCurrentSessionSilently = async () => {
-      if (isReflecting) return;
+      if (cancelled || isReflecting || document.visibilityState !== 'visible') return;
       try {
         const latest = await fetchChatHistory(user.id, activeSessionId);
-        if (Array.isArray(latest) && latest.length > 0) {
-          setReflections((prev) => (latest.length >= prev.length ? latest : prev));
-        }
-      } catch {}
+        if (cancelled || !Array.isArray(latest) || latest.length === 0) return;
+        setReflections((prev) => {
+          if (latest.length < prev.length) return prev;
+          const prevLastId = prev[prev.length - 1]?.id;
+          const nextLastId = latest[latest.length - 1]?.id;
+          if (latest.length === prev.length && prevLastId === nextLastId) {
+            return prev;
+          }
+          return latest;
+        });
+      } catch {
+        // Silencioso em segundo plano
+      }
     };
 
     const handleVisibilityOrFocus = () => {
@@ -571,27 +581,13 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
 
     window.addEventListener('focus', handleVisibilityOrFocus);
     document.addEventListener('visibilitychange', handleVisibilityOrFocus);
-
-    const channel = supabase
-      .channel(`sync-whatsapp-chat-${activeSessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'izaque_messages',
-          filter: `session_id=eq.${activeSessionId}`,
-        },
-        () => {
-          refreshCurrentSessionSilently();
-        }
-      )
-      .subscribe();
+    const syncTimer = window.setInterval(refreshCurrentSessionSilently, 15000);
 
     return () => {
+      cancelled = true;
       window.removeEventListener('focus', handleVisibilityOrFocus);
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
-      supabase.removeChannel(channel);
+      window.clearInterval(syncTimer);
     };
   }, [user?.id, activeSessionId, isReflecting]);
 
