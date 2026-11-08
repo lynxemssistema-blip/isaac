@@ -9,6 +9,7 @@ import TermsOfUseModal, { TERMS_VERSION } from './components/TermsOfUseModal';
 import { AlertTriangle, LifeBuoy, Loader2 } from 'lucide-react';
 import { applyAppTheme, getCurrentTheme } from './services/themeService';
 import { fetchSystemSettings, acceptTermsOfUseApi } from './services/adminApi';
+import { humanVoiceService } from './services/voiceService';
 
 // Proteção anti-404 de chunks em novos deploys (recarrega silenciosamente 1x se o hash do arquivo mudou)
 if (typeof window !== 'undefined') {
@@ -162,6 +163,10 @@ export default function App() {
 
       if (data) {
         setProfile(data);
+        const isEdsonOrMaster =
+          String(data.email || currentUser.email || '').toLowerCase() === 'edsonmanoel2012@gmail.com' ||
+          data.role === 'master';
+
         // Sincroniza preferências do banco de dados (Supabase) com o localStorage e estado local
         if (data.preferences && typeof data.preferences === 'object') {
           const p = data.preferences;
@@ -175,18 +180,22 @@ export default function App() {
           if (p.ambient_volume !== undefined) localStorage.setItem('izaque_ambient_volume', p.ambient_volume.toString());
           if (p.ambient_enabled !== undefined) localStorage.setItem('izaque_ambient_enabled', p.ambient_enabled ? 'true' : 'false');
           if (p.immersive_voice !== undefined) localStorage.setItem('izaque_immersive_voice', p.immersive_voice ? 'true' : 'false');
-          if (p.voice_engine) localStorage.setItem('izaque_voice_engine', p.voice_engine);
-          if (p.gemini_voice) localStorage.setItem('izaque_gemini_voice', p.gemini_voice);
-          if (p.voice_gender) localStorage.setItem('izaque_voice_gender', p.voice_gender);
-          if (p.voice_rate !== undefined) localStorage.setItem('izaque_voice_rate', p.voice_rate.toString());
-          if (p.voice_pitch !== undefined) localStorage.setItem('izaque_voice_pitch', p.voice_pitch.toString());
-          if (p.voice_uri) localStorage.setItem('izaque_voice_uri', p.voice_uri);
           if (p.app_theme) {
             localStorage.setItem('izaque_app_theme', p.app_theme);
             applyAppTheme(p.app_theme);
           }
-          if (p.prefer_browser !== undefined) {
-            localStorage.setItem('izaque_voice_prefer_browser', p.prefer_browser ? 'true' : 'false');
+
+          // REGRA MESTRE: Parâmetros de voz/leitor seguem SEMPRE os ajustes do Edson para todos os casos
+          if (isEdsonOrMaster) {
+            humanVoiceService.saveSettings({
+              voiceEngine: p.voice_engine || 'gemini',
+              geminiVoice: p.gemini_voice || 'Aoede',
+              voiceURI: p.voice_uri ?? '',
+              gender: p.voice_gender || 'male',
+              rate: p.voice_rate !== undefined ? Number(p.voice_rate) : 0.90,
+              pitch: p.voice_pitch !== undefined ? Number(p.voice_pitch) : 0.95,
+              preferBrowser: p.prefer_browser !== undefined ? Boolean(p.prefer_browser) : (p.voice_engine === 'browser'),
+            });
           }
 
           window.dispatchEvent(new Event('storage'));
@@ -257,17 +266,15 @@ export default function App() {
         applyAppTheme(themeToApply);
         localStorage.setItem('izaque_app_theme', themeToApply);
 
-        // Define trilha e voz padrão se o usuário for novo
+        // Aplica SEMPRE os parâmetros globais de voz/áudio herdados da conta do Edson para todos os casos
+        humanVoiceService.applySystemMasterSettings(res);
+
+        // Define trilha e guia padrão se o usuário for novo
         if (!localStorage.getItem('izaque_ambient_track') && res.default_ambient_track) {
           localStorage.setItem('izaque_ambient_track', res.default_ambient_track);
         }
-        if (!localStorage.getItem('izaque_gemini_voice') && res.default_gemini_voice) {
-          localStorage.setItem('izaque_gemini_voice', res.default_gemini_voice);
-        }
-        if (!localStorage.getItem('izaque_voice_engine') && res.default_voice_engine) {
-          localStorage.setItem('izaque_voice_engine', res.default_voice_engine);
-        }
         if (!localStorage.getItem('izaque_guide_name') && res.default_guide_name) {
+          localStorage.setItem('isaac_guide_name', res.default_guide_name);
           localStorage.setItem('izaque_guide_name', res.default_guide_name);
           setGuideName(res.default_guide_name);
         }
@@ -281,6 +288,7 @@ export default function App() {
     const handleSystemSettingsUpdated = (e) => {
       if (e.detail) {
         setSystemSettings(e.detail);
+        humanVoiceService.applySystemMasterSettings(e.detail);
         if (!e.detail.show_theme_selector && e.detail.default_theme) {
           applyAppTheme(e.detail.default_theme);
           localStorage.setItem('izaque_app_theme', e.detail.default_theme);
@@ -751,6 +759,7 @@ export default function App() {
             onClose={() => setIsSettingsOpen(false)}
             user={user}
             profile={profile}
+            systemSettings={systemSettings}
             onProfileUpdated={(updated) => setProfile(updated)}
             onGuideNameChanged={(newName) => {
               setGuideName(newName);

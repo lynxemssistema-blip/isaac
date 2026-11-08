@@ -4,7 +4,10 @@ import { fileURLToPath } from 'url';
 import { supabaseAdmin } from '../config/supabase.js';
 import {
   normalizeBrazilPhone,
+  normalizeWhatsAppPhone,
   extractComparablePhoneKey,
+  parseUniversalPhone,
+  formatUniversalPhoneDisplay,
   resolveWhatsAppJid,
   sendWhatsAppTextSafe,
   isEvolutionEnabledInDatabase,
@@ -297,9 +300,10 @@ export async function syncEvolutionContactsToDatabase() {
     if (jid === '0@s.whatsapp.net' || jid === cfg.instanceJid) continue;
 
     const rawDigits = jid.split('@')[0].replace(/\D/g, '');
-    if (rawDigits.length < 10) continue;
+    if (rawDigits.length < 8 || rawDigits.length > 15) continue;
 
-    const comparable = extractComparablePhoneKey(rawDigits) || rawDigits;
+    // Passa o JID completo para preservar números internacionais (ex: 61434484212@s.whatsapp.net da Austrália)
+    const comparable = extractComparablePhoneKey(jid) || `intl:${rawDigits}`;
     const matchedProfile = profileByComparableKey.get(comparable) || null;
     const existing = existingByJid.get(jid) || null;
 
@@ -801,7 +805,7 @@ export async function sendDirectOutreachPreview({
       contact_id: contact?.id || null,
       app_user_id: contact?.app_user_id || null,
       jid: check.jid,
-      phone_digits: normalizeBrazilPhone(phone),
+      phone_digits: normalizeWhatsAppPhone(phone),
       recipient_name: contact?.app_full_name || contact?.push_name || check.whatsappName || phone,
       is_registered_user: Boolean(contact?.is_registered_user),
       flow_type: flowType,
@@ -1010,12 +1014,16 @@ export async function getOutreachDashboardOverview({ search = '', filter = 'all'
     contactsQuery = contactsQuery.gt('outreach_count', 0);
   } else if (filter === 'allowed_only' && safetyCfg.restrictedMode) {
     contactsQuery = contactsQuery.in('comparable_phone', safetyCfg.allowedComparableKeys);
+  } else if (filter === 'international') {
+    contactsQuery = contactsQuery.not('phone_digits', 'like', '55%');
   }
 
   if (search && search.trim()) {
     const term = search.trim().replace(/[%_]/g, '');
+    const digitsOnly = term.replace(/\D/g, '');
+    const digitsClause = digitsOnly.length >= 4 ? `,phone_digits.ilike.%${digitsOnly}%` : '';
     contactsQuery = contactsQuery.or(
-      `push_name.ilike.%${term}%,app_full_name.ilike.%${term}%,phone_digits.ilike.%${term}%,app_email.ilike.%${term}%`
+      `push_name.ilike.%${term}%,app_full_name.ilike.%${term}%,phone_digits.ilike.%${term}%,app_email.ilike.%${term}%${digitsClause}`
     );
   }
 
@@ -1063,11 +1071,18 @@ export async function getOutreachDashboardOverview({ search = '', filter = 'all'
       .limit(60),
   ]);
 
-  // Garante que o contato autorizado (31995574906) apareça no topo da listagem para fácil visualização/teste
-  const contactsList = (contactsRes.data || []).map((c) => ({
-    ...c,
-    is_allowed_by_safety_lock: isPhoneAllowedBySafetyLock(c.jid || c.phone_digits, safetyCfg),
-  }));
+  // Garante que o contato autorizado (31995574906) apareça no topo da listagem e formata telefones BR + Internacionais (+61 Austrália, etc.)
+  const contactsList = (contactsRes.data || []).map((c) => {
+    const phoneMeta = parseUniversalPhone(c.jid || c.phone_digits);
+    return {
+      ...c,
+      formatted_phone: phoneMeta.displayFormatted || c.phone_digits,
+      is_international: !phoneMeta.isBrazil,
+      country_name: phoneMeta.country || (phoneMeta.isBrazil ? 'Brasil' : 'Internacional'),
+      country_flag: phoneMeta.flag || (phoneMeta.isBrazil ? '🇧🇷' : '🌏'),
+      is_allowed_by_safety_lock: isPhoneAllowedBySafetyLock(c.jid || c.phone_digits, safetyCfg),
+    };
+  });
 
   contactsList.sort((a, b) => {
     if (a.is_allowed_by_safety_lock !== b.is_allowed_by_safety_lock) {
@@ -1113,3 +1128,4 @@ export function startEvolutionOutreachScheduler() {
     outreachInterval.unref();
   }
 }
+

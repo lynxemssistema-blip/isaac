@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Feather, Shield, Wind, LogOut, Heart, Home, Edit3, Sparkles, LifeBuoy, Sliders, Palette, Compass, MessageCircle } from 'lucide-react';
 import { THEMES, saveAppTheme, getCurrentTheme } from '../services/themeService';
 import { updateUserProfile } from '../services/api';
@@ -29,6 +30,7 @@ export default function Navbar({
 
   const [currentTheme, setCurrentTheme] = useState(() => getCurrentTheme());
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
+  const themeBtnRef = useRef(null);
 
   useEffect(() => {
     const handleThemeEvent = (e) => {
@@ -161,15 +163,16 @@ export default function Navbar({
         </nav>
 
         {/* ÁREA DO USUÁRIO OU ENTRADA */}
-        <div className="flex items-center space-x-1.5 sm:space-x-2.5">
+        <div className="flex items-center space-x-1 sm:space-x-2">
           {/* SELETOR RÁPIDO DE TEMA VISUAL (PC & DESKTOP — SEMPRE VISÍVEL PARA SUPERADMIN) */}
           {(isSuperAdmin || (systemSettings ? systemSettings.show_theme_selector !== false : true)) && (
             <div className="relative">
               <button
+                ref={themeBtnRef}
                 type="button"
                 onClick={() => setIsThemeMenuOpen((prev) => !prev)}
                 title={`Mudar Estilo Visual (Atual: ${THEMES.find((t) => t.id === currentTheme)?.name || 'Esmeralda'})`}
-                className={`p-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+                className={`p-1.5 sm:p-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
                   isThemeMenuOpen
                     ? 'bg-teal-700/15 text-teal-800 dark:text-teal-300 ring-1 ring-teal-500/40'
                     : 'text-stone-500 hover:text-teal-700 dark:hover:text-teal-400 hover:bg-stone-200/60 dark:hover:bg-slate-800'
@@ -181,13 +184,30 @@ export default function Navbar({
                 </span>
               </button>
 
-              {isThemeMenuOpen && (
+              {isThemeMenuOpen && typeof document !== 'undefined' && createPortal(
                 <>
                   <div
-                    className="fixed inset-0 z-40"
+                    className="fixed inset-0 z-[90] bg-stone-950/20 sm:bg-transparent"
                     onClick={() => setIsThemeMenuOpen(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-56 p-2 rounded-2xl bg-white dark:bg-slate-800 border border-stone-200 dark:border-slate-700 shadow-2xl z-50 space-y-1 text-stone-800 dark:text-stone-100">
+                  <div
+                    style={
+                      window.innerWidth < 640
+                        ? {
+                            position: 'fixed',
+                            top: 'calc(max(0.5rem, env(safe-area-inset-top, 0px)) + 3.75rem)',
+                            left: '0.75rem',
+                            right: '0.75rem',
+                          }
+                        : {
+                            position: 'fixed',
+                            top: `${Math.max(60, (themeBtnRef.current?.getBoundingClientRect().bottom || 56) + 8)}px`,
+                            left: `${Math.max(12, Math.min(window.innerWidth - 252, (themeBtnRef.current?.getBoundingClientRect().right || 260) - 240))}px`,
+                            width: '240px',
+                          }
+                    }
+                    className="p-2 rounded-2xl bg-white dark:bg-slate-800 border border-stone-200 dark:border-slate-700 shadow-2xl z-[95] space-y-1 text-stone-800 dark:text-stone-100"
+                  >
                     <div className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-stone-400">
                       Estilos Visuais
                     </div>
@@ -204,7 +224,7 @@ export default function Navbar({
                             if (user?.id) {
                               updateUserProfile(user.id, {
                                 preferences: {
-                                  ...(user.preferences || {}),
+                                  ...(profile?.preferences || {}),
                                   app_theme: t.id,
                                 },
                               }).catch(() => {});
@@ -233,18 +253,19 @@ export default function Navbar({
                       );
                     })}
                   </div>
-                </>
+                </>,
+                document.body
               )}
             </div>
           )}
 
-          {/* BOTÃO DE PREFERÊNCIAS / CONFIGURAÇÕES (SEMPRE VISÍVEL PARA SUPERADMIN) */}
+          {/* BOTÃO DE PREFERÊNCIAS / CONFIGURAÇÕES (NO MOBILE JÁ ESTÁ NA BARRA INFERIOR) */}
           {onOpenSettings && (isSuperAdmin || (systemSettings ? systemSettings.show_settings_button !== false : true)) && (
             <button
               type="button"
               onClick={onOpenSettings}
               title="Configurações e Preferências Sensoriais (Voz Neural Gemini, Áudio Ambiente e Ajustes)"
-              className="p-2 text-stone-500 hover:text-teal-700 dark:hover:text-teal-400 hover:bg-stone-200/60 dark:hover:bg-slate-800 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+              className="hidden sm:flex p-2 text-stone-500 hover:text-teal-700 dark:hover:text-teal-400 hover:bg-stone-200/60 dark:hover:bg-slate-800 rounded-xl transition items-center gap-1.5 cursor-pointer"
             >
               <Sliders className="w-4 h-4" />
               <span className="hidden lg:inline text-xs font-serif">Configurações</span>
@@ -252,14 +273,14 @@ export default function Navbar({
           )}
 
           {user ? (
-            <div className="flex items-center space-x-1.5 sm:space-x-2">
+            <div className="flex items-center space-x-1 sm:space-x-2">
               {/* Botão Planos & WhatsApp (R$ 0 Grátis vs R$ 14,99 Pago) */}
               {onOpenWhatsappPlan && (
                 <button
                   type="button"
                   onClick={onOpenWhatsappPlan}
                   title="Ver Planos (Gratuito e Pago R$ 14,99/mês via Asaas)"
-                  className={`px-2.5 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 cursor-pointer border ${
+                  className={`hidden sm:flex px-2.5 py-1.5 rounded-xl text-xs font-medium transition items-center gap-1.5 cursor-pointer border ${
                     profile?.role === 'master' ||
                     (profile?.plan_id === 'whatsapp_monthly' && profile?.plan_status === 'active')
                       ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100'
@@ -279,7 +300,7 @@ export default function Navbar({
                 type="button"
                 onClick={onOpenFeedback}
                 title="Suporte Oficial Lynx (Sugestões ou Reclamações)"
-                className="p-2 text-stone-500 hover:text-teal-700 dark:hover:text-teal-400 hover:bg-stone-200/60 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
+                className="p-1.5 sm:p-2 text-stone-500 hover:text-teal-700 dark:hover:text-teal-400 hover:bg-stone-200/60 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
               >
                 <LifeBuoy className="w-4 h-4" />
               </button>
@@ -318,7 +339,7 @@ export default function Navbar({
                   type="button"
                   onClick={onOpenOnboarding}
                   title="Alterar o nome do seu Guia"
-                  className="p-2 text-stone-500 hover:text-teal-700 dark:hover:text-teal-400 hover:bg-stone-200/60 dark:hover:bg-slate-800 rounded-xl transition"
+                  className="hidden sm:inline-flex p-2 text-stone-500 hover:text-teal-700 dark:hover:text-teal-400 hover:bg-stone-200/60 dark:hover:bg-slate-800 rounded-xl transition"
                 >
                   <Edit3 className="w-4 h-4" />
                 </button>
@@ -327,7 +348,7 @@ export default function Navbar({
               <button
                 onClick={onLogout}
                 title="Sair com segurança"
-                className="p-2 text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-stone-200/60 dark:hover:bg-slate-800 rounded-xl transition"
+                className="p-1.5 sm:p-2 text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-stone-200/60 dark:hover:bg-slate-800 rounded-xl transition"
               >
                 <LogOut className="w-4 h-4" />
               </button>

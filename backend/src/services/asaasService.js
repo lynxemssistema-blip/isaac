@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../config/supabase.js';
+import { parseUniversalPhone } from '../utils/phoneUtils.js';
 import { invalidateAuthCache } from '../middlewares/authMiddleware.js';
 import { sendWhatsAppTextSafe, resolveWhatsAppJid, isEvolutionEnabledInDatabase } from './evolutionService.js';
 
@@ -63,13 +64,12 @@ export function sanitizeCpfCnpj(raw) {
 }
 
 export function sanitizeBrazilMobileForAsaas(rawPhone) {
-  let digits = String(rawPhone || '').replace(/\D/g, '');
-  if (digits.startsWith('55') && digits.length >= 12) {
-    digits = digits.slice(2);
+  const parsed = parseUniversalPhone(rawPhone);
+  // Asaas aceita apenas celular nacional BR no campo opcional mobilePhone; números internacionais (ex: +61 Austrália) são mantidos no perfil do App sem quebrar o checkout Asaas
+  if (!parsed.isValid || !parsed.isBrazil) {
+    return '';
   }
-  if (digits.startsWith('0') && digits.length >= 11) {
-    digits = digits.slice(1);
-  }
+  let digits = parsed.e164Digits.slice(2);
   if (digits.length === 10) {
     digits = `${digits.slice(0, 2)}9${digits.slice(2)}`;
   }

@@ -39,9 +39,9 @@ import {
 } from 'lucide-react';
 import {
   sendChatMessage,
+  sendChatMessageStream,
   sendAudioChatMessage,
   fetchActiveAgents,
-  fetchVoiceAudio,
   fetchChatHistory,
   clearChatHistory,
   cleanTextForSpeech,
@@ -54,10 +54,44 @@ import {
 } from '../services/api';
 import { fetchSystemSettings } from '../services/adminApi';
 import { ambientAudio } from '../services/ambientAudioService';
-import { humanVoiceService } from '../services/voiceService';
+import { humanVoiceService, unlockHtmlAudioElement } from '../services/voiceService';
 import { THEMES, saveAppTheme, getCurrentTheme } from '../services/themeService';
 import { supabase } from '../services/supabase';
-import UserSettingsModal from './UserSettingsModal';
+
+const LazyUserSettingsModal = React.lazy(() => import('./UserSettingsModal'));
+
+const CHAT_VIRTUAL_WINDOW_STEP = 30;
+
+/**
+ * Skeleton Screen Assimétrico de Bolhas de Chat (Feedback Visual Assíncrono sem travamento)
+ */
+function ChatHistorySkeleton() {
+  return (
+    <div className="space-y-4 py-2 animate-pulse" aria-label="Carregando histórico da conversa">
+      <div className="flex flex-col items-start">
+        <div className="w-[82%] sm:w-96 p-4 rounded-3xl rounded-tl-sm bg-white/80 dark:bg-slate-800/70 border border-stone-200/70 dark:border-slate-700/60 space-y-2.5">
+          <div className="h-2.5 w-24 rounded-full bg-stone-200 dark:bg-slate-700" />
+          <div className="h-3 w-full rounded-full bg-stone-200/90 dark:bg-slate-700/80" />
+          <div className="h-3 w-5/6 rounded-full bg-stone-200/80 dark:bg-slate-700/70" />
+          <div className="h-3 w-2/3 rounded-full bg-stone-200/70 dark:bg-slate-700/60" />
+        </div>
+      </div>
+      <div className="flex flex-col items-end">
+        <div className="w-[68%] sm:w-72 p-4 rounded-3xl rounded-tr-sm bg-teal-700/20 dark:bg-teal-600/20 border border-teal-600/20 space-y-2">
+          <div className="h-3 w-full rounded-full bg-teal-700/25 dark:bg-teal-400/20" />
+          <div className="h-3 w-3/4 rounded-full bg-teal-700/20 dark:bg-teal-400/15" />
+        </div>
+      </div>
+      <div className="flex flex-col items-start">
+        <div className="w-[88%] sm:w-[28rem] p-4 rounded-3xl rounded-tl-sm bg-white/80 dark:bg-slate-800/70 border border-stone-200/70 dark:border-slate-700/60 space-y-2.5">
+          <div className="h-2.5 w-28 rounded-full bg-stone-200 dark:bg-slate-700" />
+          <div className="h-3 w-full rounded-full bg-stone-200/90 dark:bg-slate-700/80" />
+          <div className="h-3 w-11/12 rounded-full bg-stone-200/80 dark:bg-slate-700/70" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Indicador de Reflexão Humanizado
@@ -186,6 +220,15 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
     const raw = localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac';
     return /^izaque$/i.test(String(raw).trim()) ? 'Isaac' : raw;
   });
+
+  useEffect(() => {
+    const syncGuideName = () => {
+      const raw = localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac';
+      setGuideName(/^izaque$/i.test(String(raw).trim()) ? 'Isaac' : raw);
+    };
+    window.addEventListener('storage', syncGuideName);
+    return () => window.removeEventListener('storage', syncGuideName);
+  }, []);
 
   const [reflections, setReflections] = useState([
     {
@@ -560,6 +603,9 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
 
     try {
       setLoadingHistory(true);
+      setVisibleWindowSize(CHAT_VIRTUAL_WINDOW_STEP);
+      isUserNearBottomRef.current = true;
+      setShowScrollBottomPill(false);
       setActiveSessionId(sessionId);
       localStorage.setItem('izaque_active_session_id', sessionId);
       setIsSessionsDrawerOpen(false);
@@ -738,6 +784,47 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
   const audioChunksRef = useRef([]);
   const timerIntervalRef = useRef(null);
   const endRef = useRef(null);
+  const chatScrollRef = useRef(null);
+  const isUserNearBottomRef = useRef(true);
+  const [showScrollBottomPill, setShowScrollBottomPill] = useState(false);
+  const [streamingMessageId, setStreamingMessageId] = useState(null);
+  const [visibleWindowSize, setVisibleWindowSize] = useState(CHAT_VIRTUAL_WINDOW_STEP);
+
+  const handleChatScroll = () => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const nearBottom = distanceFromBottom < 140;
+    isUserNearBottomRef.current = nearBottom;
+    setShowScrollBottomPill(!nearBottom && reflections.length > 2);
+  };
+
+  const scrollToLatestSmooth = (instant = false) => {
+    const el = chatScrollRef.current;
+    isUserNearBottomRef.current = true;
+    setShowScrollBottomPill(false);
+    if (el) {
+      el.scrollTo({
+        top: el.scrollHeight,
+        behavior: instant ? 'auto' : 'smooth',
+      });
+    } else {
+      endRef.current?.scrollIntoView({ behavior: instant ? 'auto' : 'smooth' });
+    }
+  };
+
+  const handleLoadOlderWindow = () => {
+    const el = chatScrollRef.current;
+    const prevHeight = el ? el.scrollHeight : 0;
+    const prevTop = el ? el.scrollTop : 0;
+    setVisibleWindowSize((prev) => prev + CHAT_VIRTUAL_WINDOW_STEP);
+    requestAnimationFrame(() => {
+      if (el) {
+        const heightDelta = el.scrollHeight - prevHeight;
+        el.scrollTop = prevTop + heightDelta;
+      }
+    });
+  };
 
   // Saudação contextual
   const getGreeting = () => {
@@ -764,9 +851,18 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
 
   const greeting = getGreeting();
 
+  // Prevenção de CLS no Streaming: ancora suavemente apenas se o usuário estiver acompanhando o final
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [reflections, isReflecting]);
+    if (!isUserNearBottomRef.current) return;
+    const el = chatScrollRef.current;
+    if (!el) return;
+    if (streamingMessageId) {
+      // Durante o streaming token a token, usa ajuste imediato sem animação concorrente para zero salto visual
+      el.scrollTop = el.scrollHeight;
+    } else {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    }
+  }, [reflections, isReflecting, streamingMessageId]);
 
   // Limpeza de áudio ao desmontar (HTML5 Audio e Web Speech API)
   useEffect(() => {
@@ -815,15 +911,16 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
     }
   };
 
-  // Tocar ou Pausar Voz do Mentor (Prioriza Voz Neural Humanizada com Ajustes do Usuário)
+  // Tocar ou Pausar Voz do Mentor (Usa parâmetros globais da voz do Edson + reprodução progressiva rápida)
   const handleToggleVoicePlay = async (messageId, text) => {
-    // Se já estiver tocando essa mensagem, pausa
-    if (activeVoiceMessageId === messageId) {
+    // Se já estiver tocando ou carregando essa mensagem, pausa imediatamente
+    if (activeVoiceMessageId === messageId || loadingVoiceId === messageId) {
       if (audioElementRef.current && !audioElementRef.current.paused) {
         audioElementRef.current.pause();
       }
       humanVoiceService.stop();
       setActiveVoiceMessageId(null);
+      setLoadingVoiceId(null);
       ambientAudio.restoreAfterSpeech(1.2);
       return;
     }
@@ -834,57 +931,35 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
     setActiveUserAudioId(null);
     humanVoiceService.stop();
 
-    // 1. Verifica a preferência de tecnologia de voz (Gemini Nativo vs Navegador Local)
-    const voiceEngine = localStorage.getItem('izaque_voice_engine') || 'gemini';
-    const preferBrowser = voiceEngine === 'browser' || localStorage.getItem('izaque_voice_prefer_browser') === 'true';
-
-    if (preferBrowser) {
-      playNativeSpeech(text, messageId);
-      return;
-    }
-
-    // 2. Modo Nativo Gemini: Voz Neural de Alta Fidelidade (Charon / Aoede / Kore)
-    const geminiVoice = localStorage.getItem('izaque_gemini_voice') || 'Charon';
-
     if (!audioElementRef.current) {
       audioElementRef.current = new Audio();
     }
     const audio = audioElementRef.current;
-    audio.pause();
+    // Desbloqueio síncrono para iOS Safari e Android Chrome dentro do gesto de clique
+    unlockHtmlAudioElement(audio);
     ambientAudio.initContext();
+    setLoadingVoiceId(messageId);
 
     try {
-      setLoadingVoiceId(messageId);
-      const voiceRes = await fetchVoiceAudio({ text, messageId, voiceName: geminiVoice });
-
-      if (voiceRes?.audioUrl && !voiceRes.useSpeechSynthesis) {
-        audio.src = voiceRes.audioUrl;
-        audio.currentTime = 0;
-
-        audio.onplay = () => {
+      await humanVoiceService.playSmartAudio(text, {
+        audioElement: audio,
+        isPreview: false,
+        onStart: () => {
           setActiveVoiceMessageId(messageId);
           setLoadingVoiceId(null);
           ambientAudio.duckForSpeech(0.04, 0.8);
-        };
-
-        audio.onended = () => {
+        },
+        onEnd: () => {
           setActiveVoiceMessageId(null);
+          setLoadingVoiceId(null);
           ambientAudio.restoreAfterSpeech(1.5);
-        };
-
-        audio.onerror = () => {
-          console.warn('⚠️ Erro ao reproduzir áudio Gemini, acionando sintetizador local...');
-          playNativeSpeech(voiceRes.cleanedText || text, messageId);
-        };
-
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          await playPromise;
-        }
-        return;
-      }
-
-      playNativeSpeech(voiceRes?.cleanedText || text, messageId);
+        },
+        onError: () => {
+          setActiveVoiceMessageId(null);
+          setLoadingVoiceId(null);
+          ambientAudio.restoreAfterSpeech(1.0);
+        },
+      });
     } catch (err) {
       console.warn('⚠️ Tentando fallback de voz local devido a:', err?.message);
       playNativeSpeech(text, messageId);
@@ -974,7 +1049,12 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
 
     setReflections((prev) => [...prev, userEntry]);
     if (directText === null) setInputVal('');
+    isUserNearBottomRef.current = true;
+    setShowScrollBottomPill(false);
     setIsReflecting(true);
+
+    const streamGuideId = `guide-${Date.now() + 1}`;
+    let streamBubbleInserted = false;
 
     try {
       const history = reflections
@@ -984,14 +1064,44 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
           content: r.content,
         }));
 
-      const res = await sendChatMessage({
-        message: text,
-        userId: user?.id || 'default_user_guest',
-        agentId: selectedAgentId,
-        history,
-        sessionId: activeSessionId,
-        guidedConversationId: activeGuidedTopic?.id || null,
-      });
+      const res = await sendChatMessageStream(
+        {
+          message: text,
+          userId: user?.id || 'default_user_guest',
+          agentId: selectedAgentId,
+          history,
+          sessionId: activeSessionId,
+          guidedConversationId: activeGuidedTopic?.id || null,
+        },
+        {
+          onMeta: (meta) => {
+            if (meta?.sessionId && meta.sessionId !== activeSessionId) {
+              setActiveSessionId(meta.sessionId);
+              localStorage.setItem('izaque_active_session_id', meta.sessionId);
+            }
+          },
+          onDelta: (_delta, fullSoFar) => {
+            if (!streamBubbleInserted) {
+              streamBubbleInserted = true;
+              setIsReflecting(false);
+              setStreamingMessageId(streamGuideId);
+              setReflections((prev) => [
+                ...prev,
+                {
+                  id: streamGuideId,
+                  role: 'guide',
+                  content: fullSoFar,
+                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                },
+              ]);
+            } else {
+              setReflections((prev) =>
+                prev.map((item) => (item.id === streamGuideId ? { ...item, content: fullSoFar } : item))
+              );
+            }
+          },
+        }
+      );
 
       if (res.sessionId && res.sessionId !== activeSessionId) {
         setActiveSessionId(res.sessionId);
@@ -1011,8 +1121,8 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
         }).catch(() => {});
       }
 
-      const guideEntry = {
-        id: (Date.now() + 1).toString(),
+      const finalGuideEntry = {
+        id: streamGuideId,
         role: 'guide',
         content: res.reply,
         agentUsed: res.agentUsed || null,
@@ -1021,14 +1131,23 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
 
-      setReflections((prev) => [...prev, guideEntry]);
+      if (streamBubbleInserted) {
+        setReflections((prev) =>
+          prev.map((item) => (item.id === streamGuideId ? finalGuideEntry : item))
+        );
+      } else {
+        setReflections((prev) => [...prev, finalGuideEntry]);
+      }
+
+      // Pré-aquece o 1º trecho de áudio em background no cache do navegador para clique instantâneo
+      humanVoiceService.prewarmFirstSegment(finalGuideEntry.content);
 
       // MODO IMERSIVO: Se ativado, toca automaticamente
       const isImmersive = localStorage.getItem('izaque_immersive_voice') === 'true';
       if (isImmersive) {
         setTimeout(() => {
-          handleToggleVoicePlay(guideEntry.id, guideEntry.content);
-        }, 500);
+          handleToggleVoicePlay(finalGuideEntry.id, finalGuideEntry.content);
+        }, 250);
       }
     } catch (err) {
       setReflections((prev) => [
@@ -1042,6 +1161,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
       ]);
     } finally {
       setIsReflecting(false);
+      setStreamingMessageId(null);
     }
   };
 
@@ -1095,14 +1215,9 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
         const audioBlob = new Blob(audioChunksRef.current, { type: actualMime });
         stream.getTracks().forEach((track) => track.stop());
 
-        // Converte para Base64 e processa
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-          const dataUrl = reader.result;
-          const base64Data = typeof dataUrl === 'string' ? dataUrl.split(',')[1] : '';
-          await processVoiceReflection(base64Data, recordingDuration, actualMime, dataUrl);
-        };
+        // Upload binário direto via multipart/form-data (sem sobrecarga de FileReader Base64 gigante)
+        const localObjectUrl = URL.createObjectURL(audioBlob);
+        await processVoiceReflection(audioBlob, recordingDuration, actualMime, localObjectUrl);
       };
 
       recorder.start();
@@ -1134,7 +1249,8 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
     }
   };
 
-  const processVoiceReflection = async (audioBase64, durationSeconds, mimeType = 'audio/webm', dataUrl = null) => {
+  const processVoiceReflection = async (audioPayload, durationSeconds, mimeType = 'audio/webm', dataUrl = null) => {
+    isUserNearBottomRef.current = true;
     setIsReflecting(true);
 
     try {
@@ -1146,7 +1262,8 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
         }));
 
       const res = await sendAudioChatMessage({
-        audioBase64,
+        audioBlob: audioPayload instanceof Blob ? audioPayload : null,
+        audioBase64: typeof audioPayload === 'string' ? audioPayload : null,
         mimeType,
         userId: user?.id || 'default_user_guest',
         agentId: selectedAgentId,
@@ -1197,12 +1314,15 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
 
       setReflections((prev) => [...prev, userAudioEntry, guideAudioEntry]);
 
+      // Pré-aquece o 1º trecho de áudio em background no cache do navegador para clique instantâneo
+      humanVoiceService.prewarmFirstSegment(guideAudioEntry.content);
+
       // MODO IMERSIVO: Se ativado, toca a resposta do guia automaticamente
       const isImmersive = localStorage.getItem('izaque_immersive_voice') === 'true';
       if (isImmersive) {
         setTimeout(() => {
           handleToggleVoicePlay(guideAudioEntry.id, guideAudioEntry.content);
-        }, 600);
+        }, 400);
       }
     } catch (err) {
       console.error(err);
@@ -1451,13 +1571,19 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
         isDocked ? 'flex-row max-w-[1600px]' : 'flex-col max-w-5xl'
       } h-full flex-1 w-full mx-auto bg-stone-50 dark:bg-slate-900 sm:border-x border-stone-200/80 dark:border-slate-800 transition-all duration-300 font-sans text-stone-800 dark:text-stone-100 overflow-hidden`}
     >
-      {/* MODAL DE CONFIGURAÇÕES DE USUÁRIO */}
-      <UserSettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        user={user}
-        onGuideNameChanged={(name) => setGuideName(name)}
-      />
+      {/* MODAL DE CONFIGURAÇÕES DE USUÁRIO (Fallback caso usado isoladamente sem App.jsx) */}
+      {!onEditGuideName && isSettingsOpen && (
+        <React.Suspense fallback={null}>
+          <LazyUserSettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            user={user}
+            profile={user}
+            systemSettings={systemSettings}
+            onGuideNameChanged={(name) => setGuideName(name)}
+          />
+        </React.Suspense>
+      )}
 
       {/* MODO FIXADO / PINADO (SIDEBAR LATERAL DOCKADA AO LADO DO CHAT EM TELAS DESKTOP) */}
       {isDocked && (
@@ -1644,7 +1770,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: -6 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-56 p-2 rounded-2xl bg-white dark:bg-slate-800 border border-stone-200 dark:border-slate-700 shadow-2xl z-40 space-y-1 text-stone-800 dark:text-stone-100"
+                      className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-24px)] p-2 rounded-2xl bg-white dark:bg-slate-800 border border-stone-200 dark:border-slate-700 shadow-2xl z-40 space-y-1 text-stone-800 dark:text-stone-100"
                     >
                       <div className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-stone-400">
                         Estilos Visuais
@@ -1701,7 +1827,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
           {canShowSettings && (
             <button
               type="button"
-              onClick={() => setIsSettingsOpen(true)}
+              onClick={() => (onEditGuideName ? onEditGuideName() : setIsSettingsOpen(true))}
               title="Ajustes de voz, nome e som ambiente"
               className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-white dark:bg-slate-800 hover:bg-stone-100 dark:hover:bg-slate-700 text-stone-600 dark:text-stone-300 text-xs font-medium transition flex items-center gap-1.5 border border-stone-200 dark:border-slate-700 shadow-sm active:scale-95 min-h-[36px] min-w-[36px] justify-center"
             >
@@ -1718,8 +1844,12 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
         <span className="truncate">{greeting.text}</span>
       </div>
 
-      {/* ÁREA DE MENSAGENS (LAYOUT ESTILO WHATSAPP ELEGANTE & TERAPÊUTICO) */}
-      <main className="flex-1 overflow-y-auto overscroll-contain px-3 sm:px-6 py-4 sm:py-6 space-y-4">
+      {/* ÁREA DE MENSAGENS (VIRTUALIZADA POR JANELA + ANCORAGEM INTELIGENTE ANTI-CLS) */}
+      <main
+        ref={chatScrollRef}
+        onScroll={handleChatScroll}
+        className="flex-1 overflow-y-auto overscroll-contain chat-scroll-container px-3 sm:px-6 py-4 sm:py-6 space-y-4 relative"
+      >
         {activeGuidedTopic && (
           <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/50 shadow-xs mb-2">
             <div className="flex items-start gap-2.5">
@@ -1749,133 +1879,169 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
           </div>
         )}
 
-        {loadingHistory && (
-          <div className="text-center py-4 text-xs text-stone-500 font-serif flex items-center justify-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin text-teal-700" />
-            <span>Resgatando conversas e áudios anteriores...</span>
-          </div>
-        )}
+        {loadingHistory ? (
+          <ChatHistorySkeleton />
+        ) : (
+          <>
+            {reflections.length > visibleWindowSize && (
+              <div className="flex justify-center py-1">
+                <button
+                  type="button"
+                  onClick={handleLoadOlderWindow}
+                  className="px-3.5 py-1.5 rounded-full text-[11px] font-medium bg-white/90 dark:bg-slate-800/90 border border-stone-200 dark:border-slate-700 text-teal-800 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-slate-700 transition shadow-2xs cursor-pointer"
+                >
+                  ↑ Carregar mensagens anteriores ({reflections.length - visibleWindowSize} arquivadas nesta conversa)
+                </button>
+              </div>
+            )}
 
-        {reflections.map((item) => {
-          const isUser = item.role === 'user';
-          const isVoicePlaying = activeVoiceMessageId === item.id;
-          const isVoiceLoading = loadingVoiceId === item.id;
+            {reflections.slice(-visibleWindowSize).map((item, idx, visibleArr) => {
+              const isUser = item.role === 'user';
+              const isVoicePlaying = activeVoiceMessageId === item.id;
+              const isVoiceLoading = loadingVoiceId === item.id;
+              const isStreamingThis = streamingMessageId === item.id;
+              const isRecentAnimated = idx >= visibleArr.length - 2 && !isStreamingThis;
+              const BubbleWrapper = isRecentAnimated ? motion.div : 'div';
+              const wrapperProps = isRecentAnimated
+                ? {
+                    initial: { opacity: 0, y: 8 },
+                    animate: { opacity: 1, y: 0 },
+                    transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+                  }
+                : {};
 
-          return (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
-            >
-              <div
-                className={`max-w-[92%] sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl transition-all shadow-sm ${
-                  isUser
-                    ? 'bg-teal-700 text-white rounded-tr-sm'
-                    : 'bg-white dark:bg-slate-800 text-stone-800 dark:text-stone-100 border border-stone-200/80 dark:border-slate-700/70 rounded-tl-sm'
-                }`}
-              >
-                {/* Cabeçalho do Balão */}
-                <div
-                  className={`flex items-center justify-between pb-1.5 mb-1.5 border-b text-[11px] ${
-                    isUser
-                      ? 'border-teal-600/60 text-teal-100'
-                      : 'border-stone-100 dark:border-slate-700/50 text-stone-400 dark:text-stone-400'
+              return (
+                <BubbleWrapper
+                  key={item.id}
+                  {...wrapperProps}
+                  className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} ${
+                    !isRecentAnimated && !isStreamingThis ? 'chat-bubble-virtualized' : ''
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="font-serif font-medium">{isUser ? 'Você' : guideName}</span>
-                    {!isUser && item.agentUsed?.name && item.agentUsed.slug !== 'izaque-master' && item.agentUsed.slug !== 'isaac-master' && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/40 font-serif flex items-center gap-1">
-                        {item.agentUsed.slug === 'pastor-joao-biblico' ? '📖 ' : item.agentUsed.slug === 'mentor-financeiro' ? '💰 ' : item.agentUsed.slug === 'mentora-lideranca' ? '👥 ' : '🌿 '}
-                        {item.agentUsed.name.split(' - ')[0]}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span>{item.timestamp}</span>
-                    {isUser && <CheckCheck className="w-3.5 h-3.5 text-teal-200" />}
-                  </div>
-                </div>
-
-                {/* Badges de Conexão: Memória Relembrada e Escrituras Bíblicas */}
-                {!isUser && (
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {item.memoriesRecalled > 0 && (
-                      <span className="text-[10px] font-medium text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 border border-teal-200/60 dark:border-teal-800/40 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                        🌿 Relembrando conversas passadas
-                      </span>
-                    )}
-                    {item.agentUsed?.slug === 'pastor-joao-biblico' && (
-                      <span className="text-[10px] font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/40 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                        📖 Fundamentado na Palavra de Deus (JFA)
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Áudio enviado pelo usuário com Player Interativo */}
-                {item.isVoice && (
-                  <div className="mb-2.5 p-2.5 sm:p-3 rounded-2xl bg-teal-800/60 border border-teal-600/50 flex items-center gap-3 text-xs shadow-sm">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleUserAudioPlay(item)}
-                      title={activeUserAudioId === item.id ? 'Pausar áudio enviado' : 'Ouvir o áudio que você enviou'}
-                      className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center shrink-0 transition transform active:scale-95 shadow-sm cursor-pointer"
+                  <div
+                    className={`max-w-[92%] sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl shadow-sm ${
+                      isUser
+                        ? 'bg-teal-700 text-white rounded-tr-sm'
+                        : 'bg-white dark:bg-slate-800 text-stone-800 dark:text-stone-100 border border-stone-200/80 dark:border-slate-700/70 rounded-tl-sm'
+                    }`}
+                  >
+                    {/* Cabeçalho do Balão */}
+                    <div
+                      className={`flex items-center justify-between pb-1.5 mb-1.5 border-b text-[11px] ${
+                        isUser
+                          ? 'border-teal-600/60 text-teal-100'
+                          : 'border-stone-100 dark:border-slate-700/50 text-stone-400 dark:text-stone-400'
+                      }`}
                     >
-                      {activeUserAudioId === item.id ? (
-                        <Pause className="w-4 h-4 fill-current" />
-                      ) : (
-                        <Play className="w-4 h-4 fill-current ml-0.5" />
-                      )}
-                    </button>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1 h-4">
-                        {[40, 75, 55, 90, 65, 45, 85, 60, 95, 50, 70, 40].map((h, i) => (
-                          <span
-                            key={i}
-                            className={`w-1 rounded-full bg-white transition-all duration-300 ${
-                              activeUserAudioId === item.id ? 'animate-pulse' : 'opacity-75'
-                            }`}
-                            style={{
-                              height: `${h}%`,
-                              animationDelay: `${i * 80}ms`,
-                            }}
-                          />
-                        ))}
+                      <div className="flex items-center gap-2">
+                        <span className="font-serif font-medium">{isUser ? 'Você' : guideName}</span>
+                        {!isUser && item.agentUsed?.name && item.agentUsed.slug !== 'izaque-master' && item.agentUsed.slug !== 'isaac-master' && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/40 font-serif flex items-center gap-1">
+                            {item.agentUsed.slug === 'pastor-joao-biblico' ? '📖 ' : item.agentUsed.slug === 'mentor-financeiro' ? '💰 ' : item.agentUsed.slug === 'mentora-lideranca' ? '👥 ' : '🌿 '}
+                            {item.agentUsed.name.split(' - ')[0]}
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center justify-between text-[10px] text-teal-100 font-mono mt-1">
-                        <span>{activeUserAudioId === item.id ? 'Reproduzindo seu áudio...' : 'Áudio gravado por você'}</span>
-                        <span>{item.durationSeconds ? `${item.durationSeconds}s` : ''}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span>{item.timestamp}</span>
+                        {isUser && <CheckCheck className="w-3.5 h-3.5 text-teal-200" />}
                       </div>
                     </div>
+
+                    {/* Badges de Conexão: Memória Relembrada e Escrituras Bíblicas */}
+                    {!isUser && (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {item.memoriesRecalled > 0 && (
+                          <span className="text-[10px] font-medium text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 border border-teal-200/60 dark:border-teal-800/40 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                            🌿 Relembrando conversas passadas
+                          </span>
+                        )}
+                        {item.agentUsed?.slug === 'pastor-joao-biblico' && (
+                          <span className="text-[10px] font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/40 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                            📖 Fundamentado na Palavra de Deus (JFA)
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Áudio enviado pelo usuário com Player Interativo */}
+                    {item.isVoice && (
+                      <div className="mb-2.5 p-2.5 sm:p-3 rounded-2xl bg-teal-800/60 border border-teal-600/50 flex items-center gap-3 text-xs shadow-sm">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleUserAudioPlay(item)}
+                          title={activeUserAudioId === item.id ? 'Pausar áudio enviado' : 'Ouvir o áudio que você enviou'}
+                          className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center shrink-0 transition transform active:scale-95 shadow-sm cursor-pointer"
+                        >
+                          {activeUserAudioId === item.id ? (
+                            <Pause className="w-4 h-4 fill-current" />
+                          ) : (
+                            <Play className="w-4 h-4 fill-current ml-0.5" />
+                          )}
+                        </button>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-1 h-4">
+                            {[40, 75, 55, 90, 65, 45, 85, 60, 95, 50, 70, 40].map((h, i) => (
+                              <span
+                                key={i}
+                                className={`w-1 rounded-full bg-white transition-all duration-300 ${
+                                  activeUserAudioId === item.id ? 'animate-pulse' : 'opacity-75'
+                                }`}
+                                style={{
+                                  height: `${h}%`,
+                                  animationDelay: `${i * 80}ms`,
+                                }}
+                              />
+                            ))}
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-teal-100 font-mono mt-1">
+                            <span>{activeUserAudioId === item.id ? 'Reproduzindo seu áudio...' : 'Áudio gravado por você'}</span>
+                            <span>{item.durationSeconds ? `${item.durationSeconds}s` : ''}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Conteúdo textual da mensagem com Tipografia Fluida Linear clamp() */}
+                    <p className="text-fluid-chat font-serif whitespace-pre-wrap">
+                      {item.content}
+                      {isStreamingThis && (
+                        <span className="inline-block w-1.5 h-4 ml-1 align-middle rounded-full bg-teal-600 dark:bg-teal-400 animate-pulse" />
+                      )}
+                    </p>
+
+                    {/* Botão para Ouvir a Reflexão do Guia com Voz Humanizada (exibido ao concluir o streaming) */}
+                    {!isUser && !isStreamingThis && (
+                      <VoiceReflectionButton
+                        text={item.content}
+                        messageId={item.id}
+                        isPlaying={isVoicePlaying}
+                        isAudioLoading={isVoiceLoading}
+                        onTogglePlay={() => handleToggleVoicePlay(item.id, item.content)}
+                      />
+                    )}
                   </div>
-                )}
-
-                {/* Conteúdo textual da mensagem (Transcreve a fala com perfeição) */}
-                <p className="text-sm sm:text-[15px] font-serif leading-relaxed whitespace-pre-wrap">
-                  {item.content}
-                </p>
-
-                {/* Botão para Ouvir a Reflexão do Guia com Voz Humanizada */}
-                {!isUser && (
-                  <VoiceReflectionButton
-                    text={item.content}
-                    messageId={item.id}
-                    isPlaying={isVoicePlaying}
-                    isAudioLoading={isVoiceLoading}
-                    onTogglePlay={() => handleToggleVoicePlay(item.id, item.content)}
-                  />
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
+                </BubbleWrapper>
+              );
+            })}
+          </>
+        )}
 
         <AnimatePresence>
           {isReflecting && <ReflectingIndicator guideName={guideName} />}
         </AnimatePresence>
+
+        {showScrollBottomPill && (
+          <div className="sticky bottom-2 flex justify-center pointer-events-none z-10">
+            <button
+              type="button"
+              onClick={() => scrollToLatestSmooth(false)}
+              className="pointer-events-auto px-3.5 py-1.5 rounded-full bg-teal-700/95 hover:bg-teal-800 text-white text-xs font-medium shadow-lg flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>↓ Ir para o final da conversa</span>
+            </button>
+          </div>
+        )}
 
         <div ref={endRef} />
       </main>

@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import {
   handleChatMessage,
+  handleChatMessageStream,
   handleAudioChatMessage,
+  hydrateMultipartAudioMiddleware,
   getActiveAgents,
   getChatHistory,
   clearChatHistory,
@@ -42,9 +44,17 @@ router.get('/agents', getActiveAgents);
 router.get('/chat/history/:userId', requireSelfOrAdmin('userId'), getChatHistory);
 router.delete('/chat/history/:userId', requireSelfOrAdmin('userId'), clearChatHistory);
 
-// Endpoints de Chat com RAG, Orquestração e Memória Contínua
+// Endpoints de Chat com RAG, Streaming SSE, Orquestração e Memória Contínua
 router.post('/chat', requireSelfOrAdmin('userId'), aiResourceLimiter, handleChatMessage);
-router.post('/chat/audio', requireSelfOrAdmin('userId'), aiResourceLimiter, handleAudioChatMessage);
+router.post('/chat/stream', requireSelfOrAdmin('userId'), aiResourceLimiter, handleChatMessageStream);
+router.post(
+  '/chat/audio',
+  requireAuth,
+  aiResourceLimiter,
+  hydrateMultipartAudioMiddleware,
+  requireSelfOrAdmin('userId'),
+  handleAudioChatMessage
+);
 
 // Endpoint de Voz Humanizada (Text-To-Speech com Cache no Supabase Storage)
 router.post('/voice', requireAuth, aiResourceLimiter, handleGenerateVoice);

@@ -26,6 +26,8 @@ import {
   Feather,
   MessageCircle,
   Send,
+  Play,
+  Square,
 } from 'lucide-react';
 import {
   fetchSystemSettings,
@@ -35,7 +37,12 @@ import {
   sendAdminEvolutionTest,
 } from '../services/adminApi';
 import { THEMES } from '../services/themeService';
-import { GEMINI_VOICES } from '../services/voiceService';
+import {
+  GEMINI_VOICES,
+  humanVoiceService,
+  normalizeGeminiVoiceId,
+  unlockHtmlAudioElement,
+} from '../services/voiceService';
 
 export default function AdminSystemSettings({ currentUser }) {
   const [loading, setLoading] = useState(true);
@@ -45,6 +52,9 @@ export default function AdminSystemSettings({ currentUser }) {
   const [togglingEvo, setTogglingEvo] = useState(false);
   const [testPhone, setTestPhone] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const audioPreviewRef = React.useRef(null);
 
   // Estado dos parâmetros avançados do sistema
   const [settings, setSettings] = useState({
@@ -70,7 +80,10 @@ export default function AdminSystemSettings({ currentUser }) {
     default_ambient_volume: 0.20,
     default_ambient_enabled: false,
     default_voice_engine: 'gemini',
-    default_gemini_voice: 'Charon',
+    default_gemini_voice: 'Aoede',
+    default_voice_gender: 'male',
+    default_voice_rate: 0.90,
+    default_voice_pitch: 0.95,
     default_immersive_voice: false,
     updated_at: null,
   });
@@ -88,6 +101,11 @@ export default function AdminSystemSettings({ currentUser }) {
           ...prev,
           ...data,
           default_theme: data.default_theme || 'gold',
+          default_gemini_voice: normalizeGeminiVoiceId(data.default_gemini_voice || 'Aoede'),
+          default_voice_engine: data.default_voice_engine || 'gemini',
+          default_voice_gender: data.default_voice_gender || 'male',
+          default_voice_rate: data.default_voice_rate !== undefined ? Number(data.default_voice_rate) : 0.90,
+          default_voice_pitch: data.default_voice_pitch !== undefined ? Number(data.default_voice_pitch) : 0.95,
           show_creative_troubles: data.show_creative_troubles !== undefined ? data.show_creative_troubles : true,
           evolution_whatsapp_enabled:
             data.evolution_whatsapp_enabled !== undefined ? data.evolution_whatsapp_enabled : true,
@@ -156,16 +174,66 @@ export default function AdminSystemSettings({ currentUser }) {
     }
   };
 
+  const handleToggleVoicePreview = async () => {
+    if (isPlayingPreview || loadingPreview) {
+      humanVoiceService.stop();
+      if (audioPreviewRef.current) audioPreviewRef.current.pause();
+      setIsPlayingPreview(false);
+      setLoadingPreview(false);
+      return;
+    }
+
+    if (!audioPreviewRef.current) {
+      audioPreviewRef.current = new Audio();
+    }
+    unlockHtmlAudioElement(audioPreviewRef.current);
+
+    const previewSentence = `Olá! Sou a voz do seu mentor ${settings.default_guide_name || 'Isaac'}. Estou aqui para acolher suas reflexões com serenidade e clareza.`;
+    setLoadingPreview(true);
+
+    await humanVoiceService.playSmartAudio(previewSentence, {
+      audioElement: audioPreviewRef.current,
+      voiceNameOverride: settings.default_gemini_voice,
+      engineOverride: settings.default_voice_engine,
+      customBrowserSettings: {
+        gender: settings.default_voice_gender || 'male',
+        rate: Number(settings.default_voice_rate || 0.90),
+        pitch: Number(settings.default_voice_pitch || 0.95),
+      },
+      isPreview: true,
+      onStart: () => {
+        setLoadingPreview(false);
+        setIsPlayingPreview(true);
+      },
+      onEnd: () => {
+        setLoadingPreview(false);
+        setIsPlayingPreview(false);
+      },
+      onError: () => {
+        setLoadingPreview(false);
+        setIsPlayingPreview(false);
+      },
+    });
+  };
+
   const handleSave = async (e) => {
     if (e) e.preventDefault();
     try {
       setSaving(true);
-      const updated = await updateSystemSettings({
+      const payloadToSave = {
         ...settings,
+        default_gemini_voice: normalizeGeminiVoiceId(settings.default_gemini_voice),
+        default_prefer_browser: settings.default_voice_engine === 'browser',
         updated_by: currentUser?.id || 'superadmin',
-      });
-      setSettings((prev) => ({ ...prev, ...updated }));
-      showFeedback('success', 'Parâmetros avançados salvos com sucesso!');
+      };
+      const updated = await updateSystemSettings(payloadToSave);
+      setSettings((prev) => ({
+        ...prev,
+        ...updated,
+        default_gemini_voice: normalizeGeminiVoiceId(updated.default_gemini_voice),
+      }));
+      humanVoiceService.applySystemMasterSettings(updated);
+      showFeedback('success', 'Parâmetros de voz, áudio e visibilidade salvos e aplicados para todos os usuários!');
 
       // Notifica todos os componentes em tempo real
       window.dispatchEvent(new CustomEvent('system-settings-updated', { detail: updated }));
@@ -182,9 +250,9 @@ export default function AdminSystemSettings({ currentUser }) {
     setSettings((prev) => ({
       ...prev,
       show_theme_selector: false,
-      show_settings_button: false,
-      show_ambient_sound_button: true,
-      show_creative_troubles: true,
+      show_settings_button: true,
+      show_ambient_sound_button: false,
+      show_creative_troubles: false,
       show_landing_creator: true,
       show_landing_sensations: true,
       show_landing_features: true,
@@ -197,7 +265,10 @@ export default function AdminSystemSettings({ currentUser }) {
       default_ambient_volume: 0.20,
       default_ambient_enabled: false,
       default_voice_engine: 'gemini',
-      default_gemini_voice: 'Charon',
+      default_gemini_voice: 'Aoede',
+      default_voice_gender: 'male',
+      default_voice_rate: 0.90,
+      default_voice_pitch: 0.95,
       default_immersive_voice: false,
     }));
     showFeedback('info', 'Padrão do Edson aplicado! Clique em "Salvar Parâmetros" para confirmar.');
@@ -859,23 +930,60 @@ export default function AdminSystemSettings({ currentUser }) {
               </div>
             </div>
 
-            {/* VOZ NEURAL, TRILHA E MOTOR */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+            {/* VOZ NEURAL, TRILHA E MOTOR (PARÂMETRO MESTRE EDSON PARA TODOS OS USUÁRIOS) */}
+            <div className="flex items-center justify-between flex-wrap gap-2 pt-3 border-t border-stone-200 dark:border-slate-700">
+              <div>
+                <h4 className="text-xs font-semibold text-stone-800 dark:text-stone-100">
+                  Agente Leitor &amp; Voz Oficial (Aplicado para Todos os Usuários)
+                </h4>
+                <p className="text-[11px] text-stone-500 dark:text-stone-400">
+                  Sincronizado bidirecionalmente com o perfil do usuário Edson Manoel.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleVoicePreview}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 border cursor-pointer ${
+                  isPlayingPreview || loadingPreview
+                    ? 'bg-rose-600 text-white border-rose-600 animate-pulse'
+                    : 'bg-teal-50 dark:bg-teal-950/50 text-teal-800 dark:text-teal-300 border-teal-300 dark:border-teal-700 hover:bg-teal-100'
+                }`}
+              >
+                {loadingPreview ? (
+                  <>
+                    <Square className="w-3.5 h-3.5 fill-current" />
+                    <span>Preparando Voz...</span>
+                  </>
+                ) : isPlayingPreview ? (
+                  <>
+                    <Square className="w-3.5 h-3.5 fill-current" />
+                    <span>Pausar Demonstração</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Ouvir Demonstração</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
               <div>
                 <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1 flex items-center gap-1.5">
                   <Mic className="w-3.5 h-3.5 text-teal-600" />
                   Voz Padrão (Gemini Neural)
                 </label>
                 <select
-                  value={settings.default_gemini_voice}
+                  value={normalizeGeminiVoiceId(settings.default_gemini_voice)}
                   onChange={(e) =>
                     setSettings((prev) => ({ ...prev, default_gemini_voice: e.target.value }))
                   }
                   className="w-full text-xs p-2.5 rounded-xl bg-stone-50 dark:bg-slate-900/60 border border-stone-200 dark:border-slate-700 text-stone-800 dark:text-stone-100 focus:outline-none focus:border-amber-500"
                 >
                   {GEMINI_VOICES.map((v) => (
-                    <option key={v.name} value={v.name}>
-                      {v.name} ({v.gender === 'masculino' ? 'Voz Masc.' : 'Voz Fem.'}) — {v.tone}
+                    <option key={v.id} value={v.id}>
+                      {v.name} ({v.gender === 'male' ? 'Masc.' : v.gender === 'female' ? 'Fem.' : 'Neutra'}) — {v.description}
                     </option>
                   ))}
                 </select>

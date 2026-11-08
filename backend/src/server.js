@@ -13,6 +13,7 @@ import evolutionRoutes from './routes/evolutionRoutes.js';
 import asaasRoutes from './routes/asaasRoutes.js';
 import { startEvolutionDailyScheduler } from './services/evolutionService.js';
 import { startEvolutionOutreachScheduler } from './services/evolutionOutreachService.js';
+import { prewarmDemoVoice } from './controllers/voiceController.js';
 import { requireAdmin } from './middlewares/authMiddleware.js';
 import { apiGeneralLimiter } from './middlewares/rateLimiters.js';
 import {
@@ -57,7 +58,20 @@ app.use(
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   })
 );
-app.use(compression());
+// Desabilita compressão com buffer em rotas SSE (/stream) para envio instantâneo token a token
+app.use(
+  compression({
+    filter: (req, res) => {
+      if (
+        req.path.endsWith('/stream') ||
+        String(req.headers.accept || '').includes('text/event-stream')
+      ) {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+  })
+);
 app.use(
   cors({
     origin:
@@ -73,6 +87,10 @@ app.use(
 const defaultJsonParser = express.json({ limit: '2mb' });
 const largeUploadJsonParser = express.json({ limit: '25mb' });
 app.use((req, res, next) => {
+  const ct = String(req.headers['content-type'] || '').toLowerCase();
+  if (ct.startsWith('multipart/form-data')) {
+    return next();
+  }
   const isLargeUpload =
     req.path === '/api/chat/audio' ||
     req.path.startsWith('/api/webhooks/evolution') ||
@@ -187,6 +205,9 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`====================================================`);
   startEvolutionDailyScheduler();
   startEvolutionOutreachScheduler();
+  setTimeout(() => {
+    prewarmDemoVoice().catch(() => {});
+  }, 2500);
 });
 
 process.on('SIGTERM', () => {

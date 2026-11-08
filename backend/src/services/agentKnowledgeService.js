@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { generateEmbedding } from './memoryService.js';
+import { runCpuTask } from '../utils/workerPool.js';
 
 /**
  * Divide textos longos em pedaços (chunks) com sobreposição para manter o contexto semântico.
@@ -68,8 +69,12 @@ export async function ingestAgentDocument({ agentId, title, content, fileType = 
 
     if (docErr) throw docErr;
 
-    // 2. Quebra em chunks
-    const chunks = splitTextIntoChunks(content);
+    // 2. Quebra em chunks em Worker Thread (evitando bloqueio do Event Loop em documentos longos)
+    const chunks = await runCpuTask('chunkText', {
+      text: content,
+      chunkSize: 1000,
+      overlap: 150,
+    }).catch(() => splitTextIntoChunks(content));
     console.log(`📑 [Agent Grounding] Documento dividido em ${chunks.length} trechos. Gerando embeddings 768d...`);
 
     // 3. Gera embeddings e salva trecho a trecho (ou em lotes)

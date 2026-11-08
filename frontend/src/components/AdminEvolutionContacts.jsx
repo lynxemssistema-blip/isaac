@@ -30,6 +30,7 @@ import {
   sendAdminWhatsappOutreachPreviewApi,
   updateAdminWhatsappSafetyApi,
 } from '../services/adminApi';
+import { formatContactPhoneBadge } from '../utils/phoneUtils';
 
 const STATUS_BADGES = {
   queued: { label: 'Na Fila Agendada', cls: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30' },
@@ -349,15 +350,18 @@ export default function AdminEvolutionContacts({ currentUser }) {
 
             <div>
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                Número(s) Autorizado(s) na Trava
+                Número(s) Autorizado(s) na Trava (Brasil ou Internacional)
               </label>
               <input
                 type="text"
                 value={safetyPhones}
                 onChange={(e) => setSafetyPhones(e.target.value)}
-                placeholder="31995574906"
+                placeholder="Ex: 31995574906, 61434484212"
                 className="w-full px-3.5 py-2 rounded-xl bg-stone-50 dark:bg-slate-900 border border-stone-300 dark:border-slate-700 text-xs text-stone-900 dark:text-white"
               />
+              <span className="block text-[10px] text-stone-400 mt-0.5">
+                Aceita DDD+número BR (31995574906) e números internacionais E.164 (ex: Austrália 61434484212).
+              </span>
             </div>
 
             <div>
@@ -524,9 +528,10 @@ export default function AdminEvolutionContacts({ currentUser }) {
             <div className="flex flex-wrap items-center gap-1.5">
               {[
                 { id: 'all', label: 'Todos' },
-                { id: 'allowed_only', label: 'Autorizado (31995574906)' },
+                { id: 'allowed_only', label: 'Autorizado (Trava)' },
                 { id: 'registered', label: 'Já Cadastrados no App' },
                 { id: 'unregistered', label: 'Não Cadastrados' },
+                { id: 'international', label: '🌏 Internacionais (+61, +351, +1...)' },
                 { id: 'sent', label: 'Já Receberam Envio' },
                 { id: 'opt_out', label: 'Opt-Out (Parar)' },
               ].map((f) => (
@@ -673,7 +678,26 @@ export default function AdminEvolutionContacts({ currentUser }) {
                           )}
                         </div>
                         <div className="text-[11px] text-stone-500 dark:text-stone-400 flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
-                          <span>📱 {c.phone_digits}</span>
+                          {(() => {
+                            const info = formatContactPhoneBadge(c.phone_digits);
+                            const displayPhone = c.formatted_phone || info.formatted || c.phone_digits;
+                            const isIntl = c.is_international ?? info.isInternational;
+                            const countryLabel = c.country_flag
+                              ? `${c.country_flag} ${c.country_name || ''}`.trim()
+                              : info.badge;
+                            return (
+                              <>
+                                <span className="font-mono font-medium text-stone-700 dark:text-stone-300">
+                                  📱 {displayPhone}
+                                </span>
+                                {isIntl && countryLabel && (
+                                  <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30">
+                                    {countryLabel}
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
                           {c.app_email && <span>✉️ {c.app_email}</span>}
                           {c.outreach_count > 0 && (
                             <span className="text-teal-700 dark:text-teal-400 font-medium">
@@ -1064,3 +1088,4 @@ export default function AdminEvolutionContacts({ currentUser }) {
     </div>
   );
 }
+

@@ -5,6 +5,8 @@ import { searchAgentKnowledge, formatAgentKnowledgeForPrompt } from '../services
 import { extractAndSaveMemoryAsync } from '../services/extractionService.js';
 import { transcribeAudioWithGemini } from '../services/audioService.js';
 import { getCached, setCached } from '../utils/memoryCache.js';
+import { prewarmReplyFirstSegment } from './voiceController.js';
+import { isMultipartRequest, parseMultipartAudioRequest } from '../utils/multipartAudioParser.js';
 
 const ACTIVE_AGENTS_CACHE_KEY = 'agents:active_full';
 const ACTIVE_AGENTS_TTL_MS = 60_000;
@@ -290,13 +292,89 @@ Retorne EXCLUSIVAMENTE o ID ou Slug do especialista escolhido. Não inclua expli
 }
 
 /**
- * Executa a orquestração completa: RAG de memórias, super-prompt e Gemini
+ * Summarization assíncrono de conversas longas (evita Overfetching mantendo memória de médio prazo enxuta)
  */
-export async function processChatMessageCore({ message, userId, agentId, history = [], sessionId = null, guidedConversationId = null }) {
-  const allActiveAgents = await fetchCachedActiveAgents().catch(() => []);
+const summarizingSessions = new Set();
 
-  // Etapa 1 Paralelizada: Roteamento + Embedding (768d) + Conversa Direcionada + Incômodos Criativos Ativos
-  const [selectedAgent, userEmbedding, guidedConversation, activeTroubles] = await Promise.all([
+export function maybeSummarizeSessionAsync(sessionId, userId) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId || '');
+  if (!isUuid || summarizingSessions.has(sessionId)) return;
+
+  setImmediate(async () => {
+    summarizingSessions.add(sessionId);
+    try {
+      const [{ data: sess }, { count: totalMsgs }] = await Promise.all([
+        supabaseAdmin
+          .from('izaque_chat_sessions')
+          .select('id, summary, summary_msg_count')
+          .eq('id', sessionId)
+          .maybeSingle(),
+        supabaseAdmin
+          .from('izaque_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('session_id', sessionId),
+      ]);
+
+      const prevCount = Number(sess?.summary_msg_count || 0);
+      const total = Number(totalMsgs || 0);
+      if (total < 12 || total - prevCount < 10) return;
+
+      const { data: recentBatch } = await supabaseAdmin
+        .from('izaque_messages')
+        .select('role, content')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: false })
+        .limit(24);
+
+      if (!recentBatch || recentBatch.length < 10) return;
+
+      // Resume todas exceto as últimas 6 (que já entram na janela direta do chat)
+      const olderTurns = [...recentBatch].reverse().slice(0, -6);
+      const transcript = olderTurns
+        .map((m) => `${m.role === 'assistant' ? 'ISAAC' : 'USUÁRIO'}: ${String(m.content || '').slice(0, 350)}`)
+        .join('\n');
+
+      const sumPrompt = `Resuma de forma objetiva e densa (máximo 5 frases curtas, em português) os principais fatos, dilemas emocionais, acordos e compromissos desta sessão de mentoria para manter contexto contínuo.\n${
+        sess?.summary ? `RESUMO ANTERIOR:\n${sess.summary}\n\n` : ''
+      }NOVOS TRECHOS:\n${transcript}`;
+
+      const modelsToTry = [CHAT_MODEL, ...(FALLBACK_CHAT_MODELS || [])].filter((m, i, a) => Boolean(m) && a.indexOf(m) === i);
+      for (const mName of modelsToTry) {
+        try {
+          const model = genAI.getGenerativeModel({
+            model: mName,
+            generationConfig: { temperature: 0.2, maxOutputTokens: 320 },
+          });
+          const res = await model.generateContent(sumPrompt);
+          const summaryText = res.response.text()?.trim();
+          if (summaryText) {
+            await supabaseAdmin
+              .from('izaque_chat_sessions')
+              .update({ summary: summaryText, summary_msg_count: total })
+              .eq('id', sessionId);
+            break;
+          }
+        } catch {
+          continue;
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ [Session Summarizer] Aviso:', err.message);
+    } finally {
+      summarizingSessions.delete(sessionId);
+    }
+  });
+}
+
+/**
+ * Prepara de forma paralelizada o contexto RAG, resumo de sessão, prompt do sistema e histórico sanitizado
+ */
+async function prepareChatContext({ message, userId, agentId, history = [], sessionId = null, guidedConversationId = null }) {
+  const allActiveAgents = await fetchCachedActiveAgents().catch(() => []);
+  const isSessionUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId || '');
+
+  // Etapa 1 Paralelizada: Roteamento + Embedding (768d) + Conversa Direcionada + Incômodos Ativos + Resumo da Sessão
+  const [selectedAgent, userEmbedding, guidedConversation, activeTroubles, sessionSummary] = await Promise.all([
     resolveAgent(agentId, message, allActiveAgents, history),
     generateEmbedding(message).catch((e) => {
       console.warn('⚠️ Falha ao gerar embedding:', e.message);
@@ -320,6 +398,15 @@ export async function processChatMessageCore({ message, userId, agentId, history
             return [];
           })
       : Promise.resolve([]),
+    isSessionUuid
+      ? supabaseAdmin
+          .from('izaque_chat_sessions')
+          .select('summary')
+          .eq('id', sessionId)
+          .maybeSingle()
+          .then(({ data }) => data?.summary || '')
+          .catch(() => '')
+      : Promise.resolve(''),
   ]);
 
   // Etapa 2 Paralelizada: Busca Vetorial no pgvector (Memórias do Usuário + Base de Estudos do Especialista)
@@ -392,13 +479,17 @@ SUA PRIORIDADE MÁXIMA E INEGOCIÁVEL NESTA INTERAÇÃO É DIRECIONAR A CONVERSA
     creativeTroublesText = '\n\nINCÔMODOS CRIATIVOS ATIVOS DO USUÁRIO (LABORATÓRIO DO INCÔMODO CRIATIVO):\nO usuário está trabalhando ativamente nas seguintes questões na metodologia do mentor Thiago Prata:\n' + troublesList + '\nIntegre essas informações com sensibilidade para apoiar o usuário, incentivar a postura ativa e acompanhar o compromisso da micro-ação de 24 horas.\n';
   }
 
-  // 5. Monta o Super-Prompt com Persona + Conhecimento Técnico + Memórias Pessoais + Diretriz Direcionada + Incômodos
+  const sessionSummaryBlock = sessionSummary
+    ? `\nRESUMO CONSOLIDADO DAS INTERAÇÕES ANTERIORES DESTA SESSÃO:\n${sessionSummary}\n`
+    : '';
+
+  // 5. Monta o Super-Prompt com Persona + Conhecimento Técnico + Memórias Pessoais + Resumo + Diretriz Direcionada + Incômodos
   const fullSystemInstruction = `${selectedAgent.system_prompt}
 
 ${knowledgeText}
 
 ${memoriesText}
-
+${sessionSummaryBlock}
 ${creativeTroublesText}
 
 ${guidedInstruction}
@@ -433,7 +524,30 @@ DIRETRIZES DO ISAAC (OTIMIZADO PARA FALA HUMANA E ACOLHIMENTO):
     }
   }
 
-  // 5. Gera a resposta com Gemini (com fallback resiliente para garantir 100% de disponibilidade)
+  return {
+    selectedAgent,
+    relevantMemories,
+    relevantKnowledge,
+    guidedConversation,
+    fullSystemInstruction,
+    recentHistory,
+  };
+}
+
+/**
+ * Executa a orquestração completa (modo Request/Response padrão usado também por WhatsApp/Audio)
+ */
+export async function processChatMessageCore(params) {
+  const { message, userId } = params;
+  const {
+    selectedAgent,
+    relevantMemories,
+    relevantKnowledge,
+    guidedConversation,
+    fullSystemInstruction,
+    recentHistory,
+  } = await prepareChatContext(params);
+
   const modelsToTry = [CHAT_MODEL, ...(FALLBACK_CHAT_MODELS || [])].filter((m, i, arr) => arr.indexOf(m) === i);
   let replyText = '';
   let lastChatError = null;
@@ -476,7 +590,6 @@ DIRETRIZES DO ISAAC (OTIMIZADO PARA FALA HUMANA E ACOLHIMENTO):
     throw lastChatError;
   }
 
-  // 6. Extração assíncrona de novos bloqueios em background
   extractAndSaveMemoryAsync(userId, message, replyText);
 
   return {
@@ -691,6 +804,8 @@ export async function handleChatMessage(req, res) {
       timestamp: new Date().toISOString(),
     });
 
+    prewarmReplyFirstSegment(reply).catch(() => {});
+    maybeSummarizeSessionAsync(resolvedSessionId, userId);
   } catch (error) {
     console.error('❌ [ISAAC Chat] Erro ao processar mensagem:');
     console.error('   message:', error.message);
@@ -698,6 +813,202 @@ export async function handleChatMessage(req, res) {
     console.error('   stack:', error.stack?.split('\n')[1]);
     if (error.errorDetails) console.error('   details:', JSON.stringify(error.errorDetails));
     res.status(500).json({ error: 'Erro ao processar mensagem.', details: error.message });
+  }
+}
+
+/**
+ * Controller SSE de Baixa Latência (POST /api/chat/stream):
+ * Envia os primeiros tokens imediatamente para a UI enquanto pré-aquece a voz neural do 1º trecho em paralelo!
+ */
+export async function handleChatMessageStream(req, res) {
+  const { message, userId, agentId, history = [], sessionId, guidedConversationId } = req.body || {};
+
+  if (!message || typeof message !== 'string' || message.trim() === '') {
+    return res.status(400).json({ error: 'O campo "message" é obrigatório.' });
+  }
+  if (!userId) {
+    return res.status(400).json({ error: 'O campo "userId" é obrigatório.' });
+  }
+
+  res.status(200);
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  if (typeof res.flushHeaders === 'function') {
+    res.flushHeaders();
+  }
+
+  const sendSse = (obj) => {
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify(obj)}\n\n`);
+      if (typeof res.flush === 'function') res.flush();
+    }
+  };
+
+  let clientClosed = false;
+  req.on('close', () => {
+    clientClosed = true;
+  });
+
+  try {
+    const [ctx, initialSessionId] = await Promise.all([
+      prepareChatContext({ message, userId, agentId, history, sessionId, guidedConversationId }),
+      ensureUserSession(userId, sessionId, message, guidedConversationId).catch(() => null),
+    ]);
+
+    const {
+      selectedAgent,
+      relevantMemories,
+      relevantKnowledge,
+      guidedConversation,
+      fullSystemInstruction,
+      recentHistory,
+    } = ctx;
+
+    const resolvedSessionId =
+      initialSessionId ||
+      (await ensureUserSession(userId, sessionId, message, guidedConversationId || guidedConversation?.id).catch(() => null));
+
+    const metaPayload = {
+      type: 'meta',
+      sessionId: resolvedSessionId,
+      agentUsed: {
+        id: selectedAgent.id,
+        name: selectedAgent.name,
+        slug: selectedAgent.slug,
+        type: selectedAgent.type,
+      },
+      guidedConversation: guidedConversation
+        ? {
+            id: guidedConversation.id,
+            title: guidedConversation.title,
+            questionsCount: Array.isArray(guidedConversation.questions) ? guidedConversation.questions.length : 0,
+          }
+        : null,
+      memoriesUsed: (relevantMemories || []).map((m) => ({
+        content: m.content,
+        category: m.category,
+        similarity: m.similarity,
+      })),
+      knowledgeUsed: (relevantKnowledge || []).map((k) => ({
+        content: k.content,
+        similarity: k.similarity,
+      })),
+    };
+    sendSse(metaPayload);
+
+    const modelsToTry = [CHAT_MODEL, ...(FALLBACK_CHAT_MODELS || [])].filter((m, i, arr) => arr.indexOf(m) === i);
+    let fullReply = '';
+    let firstSentencePrewarmed = false;
+    let streamError = null;
+
+    for (const modelCandidate of modelsToTry) {
+      try {
+        const maxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS) || 8192;
+        const model = genAI.getGenerativeModel({
+          model: modelCandidate,
+          systemInstruction: fullSystemInstruction,
+          generationConfig: {
+            temperature: Number(selectedAgent.temperature) || 0.7,
+            maxOutputTokens,
+          },
+        });
+
+        const chatSession = model.startChat({ history: recentHistory });
+        const streamRes = await chatSession.sendMessageStream(message);
+
+        for await (const chunk of streamRes.stream) {
+          if (clientClosed) break;
+          const delta = chunk.text();
+          if (delta) {
+            fullReply += delta;
+            sendSse({ type: 'delta', text: delta });
+
+            // Assim que a 1ª frase completa nasce (>= 60 chars + pontuação), já dispara o TTS em paralelo!
+            if (!firstSentencePrewarmed && fullReply.length >= 65 && /[.!?\n]/.test(fullReply.slice(45))) {
+              firstSentencePrewarmed = true;
+              prewarmReplyFirstSegment(fullReply).catch(() => {});
+            }
+          }
+        }
+
+        streamError = null;
+        if (fullReply) break;
+      } catch (err) {
+        streamError = err;
+        const isNotFound = err.message && (err.message.includes('404') || err.message.includes('not found'));
+        if (isNotFound && !fullReply) {
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    if (streamError && !fullReply) {
+      throw streamError;
+    }
+
+    if (fullReply.trim()) {
+      try {
+        const isAgentUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selectedAgent?.id || '');
+        const safeAgentId = isAgentUuid ? selectedAgent.id : null;
+        await supabaseAdmin.from('izaque_messages').insert([
+          { user_id: userId, agent_id: safeAgentId, session_id: resolvedSessionId, role: 'user', content: message, is_audio: false },
+          { user_id: userId, agent_id: safeAgentId, session_id: resolvedSessionId, role: 'assistant', content: fullReply, is_audio: false },
+        ]);
+      } catch (dbErr) {
+        console.warn('⚠️ Aviso ao persistir mensagens do stream em izaque_messages:', dbErr.message);
+      }
+
+      extractAndSaveMemoryAsync(userId, message, fullReply);
+      if (!firstSentencePrewarmed) {
+        prewarmReplyFirstSegment(fullReply).catch(() => {});
+      }
+      maybeSummarizeSessionAsync(resolvedSessionId, userId);
+    }
+
+    sendSse({
+      ...metaPayload,
+      type: 'done',
+      reply: fullReply,
+      timestamp: new Date().toISOString(),
+    });
+    res.end();
+  } catch (error) {
+    console.error('❌ [ISAAC SSE Stream] Erro:', error.message);
+    sendSse({ type: 'error', error: error.message || 'Erro ao gerar resposta em tempo real.' });
+    res.end();
+  }
+}
+
+/**
+ * Middleware que hidrata upload binário multipart/form-data em /api/chat/audio sem JSON.parse gigante
+ */
+export async function hydrateMultipartAudioMiddleware(req, res, next) {
+  if (!isMultipartRequest(req)) {
+    return next();
+  }
+  try {
+    const { fields, audioBuffer, audioMimeType } = await parseMultipartAudioRequest(req);
+    let parsedHistory = [];
+    if (fields.history) {
+      try {
+        parsedHistory = JSON.parse(fields.history);
+      } catch {
+        parsedHistory = [];
+      }
+    }
+    req.body = {
+      ...fields,
+      history: Array.isArray(parsedHistory) ? parsedHistory : [],
+      durationSeconds: fields.durationSeconds ? Number(fields.durationSeconds) : null,
+      mimeType: fields.mimeType || audioMimeType || 'audio/webm',
+    };
+    req.audioBuffer = audioBuffer;
+    return next();
+  } catch (err) {
+    return res.status(400).json({ error: err.message || 'Falha ao ler arquivo de áudio enviado.' });
   }
 }
 
@@ -710,10 +1021,23 @@ export async function handleChatMessage(req, res) {
  */
 export async function handleAudioChatMessage(req, res) {
   try {
-    const { audioBase64, mimeType = 'audio/webm', userId, agentId, history = [], durationSeconds, sessionId, guidedConversationId } = req.body;
+    const {
+      audioBase64: rawBodyBase64,
+      mimeType = 'audio/webm',
+      userId,
+      agentId,
+      history = [],
+      durationSeconds,
+      sessionId,
+      guidedConversationId,
+    } = req.body || {};
 
-    if (!audioBase64) {
-      return res.status(400).json({ error: 'O áudio em formato base64 é obrigatório.' });
+    const resolvedAudioBase64 = req.audioBuffer
+      ? req.audioBuffer.toString('base64')
+      : rawBodyBase64;
+
+    if (!resolvedAudioBase64) {
+      return res.status(400).json({ error: 'O áudio (binário multipart ou base64) é obrigatório.' });
     }
 
     if (!userId) {
@@ -723,7 +1047,7 @@ export async function handleAudioChatMessage(req, res) {
     console.log(`\n🎙️ [Audio Chat] Novo áudio recebido do usuário [${userId}] (${mimeType}). Iniciando transcrição...`);
 
     // 1. OUVIR E TRANSCREVER O ÁUDIO COM O GEMINI
-    const transcription = await transcribeAudioWithGemini(audioBase64, mimeType);
+    const transcription = await transcribeAudioWithGemini(resolvedAudioBase64, mimeType);
 
     if (!transcription || transcription === '[Áudio inaudível]') {
       return res.status(200).json({
@@ -812,6 +1136,8 @@ export async function handleAudioChatMessage(req, res) {
       timestamp: new Date().toISOString(),
     });
 
+    prewarmReplyFirstSegment(reply).catch(() => {});
+    maybeSummarizeSessionAsync(resolvedSessionId, userId);
   } catch (error) {
     console.error('❌ [Audio Chat Error]:', error);
     res.status(500).json({ error: 'Erro ao processar mensagem de áudio.', details: error.message });

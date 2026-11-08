@@ -106,11 +106,27 @@
    4. .theme-terracotta — Areia de Seda & Terracota
    ========================================================================== */
 
-/* Suavidade na transição de temas */
-body, #root, header, nav, main, aside, div, button {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-duration: 250ms;
+/* Suavidade na transição apenas nos containers estruturais (evita recálculo de estilo pesado em listas longas de chat) */
+body, #root, header, nav, main, aside {
+  transition-property: background-color, border-color, color;
+  transition-duration: 220ms;
   transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Virtualização nativa de layout/pintura para bolhas de chat fora da viewport e tipografia fluida linear */
+.chat-bubble-virtualized {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 132px;
+}
+
+.text-fluid-chat {
+  font-size: clamp(0.915rem, 1.25vw + 0.58rem, 1.015rem);
+  line-height: 1.68;
+}
+
+.chat-scroll-container {
+  overflow-anchor: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* --------------------------------------------------------------------------

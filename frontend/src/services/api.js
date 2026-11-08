@@ -112,6 +112,121 @@ export async function sendChatMessage({ message, userId, agentId, history = [], 
 }
 
 /**
+ * Envia mensagem com Streaming SSE token a token (POST /api/chat/stream) e fallback automático para JSON padrão
+ */
+export async function sendChatMessageStream(
+  { message, userId, agentId, history = [], sessionId, guidedConversationId },
+  { onMeta, onDelta, onDone } = {}
+) {
+  const cleanHistory = history.map((item) => ({
+    role: item.role,
+    content: item.content,
+  }));
+
+  let receivedAnyDelta = false;
+
+  try {
+    const response = await authFetch(`${BACKEND_URL}/api/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+      },
+      body: JSON.stringify({
+        message,
+        userId,
+        agentId,
+        sessionId,
+        guidedConversationId,
+        history: cleanHistory,
+      }),
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!response.ok || !response.body || !contentType.includes('text/event-stream')) {
+      throw new Error(`SSE indisponível (${response.status})`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let finalPayload = null;
+    let accumulatedReply = '';
+    let latestMeta = {};
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const events = buffer.split('\n\n');
+      buffer = events.pop() || '';
+
+      for (const rawEvt of events) {
+        const lines = rawEvt.split('\n');
+        for (const line of lines) {
+          if (!line.startsWith('data:')) continue;
+          const jsonStr = line.slice(5).trim();
+          if (!jsonStr) continue;
+
+          let evt;
+          try {
+            evt = JSON.parse(jsonStr);
+          } catch {
+            continue;
+          }
+
+          if (evt.type === 'meta') {
+            latestMeta = evt;
+            onMeta?.(evt);
+          } else if (evt.type === 'delta' && evt.text) {
+            receivedAnyDelta = true;
+            accumulatedReply += evt.text;
+            onDelta?.(evt.text, accumulatedReply);
+          } else if (evt.type === 'done') {
+            finalPayload = evt;
+          } else if (evt.type === 'error') {
+            throw new Error(evt.error || 'Erro no streaming SSE.');
+          }
+        }
+      }
+    }
+
+    const result = finalPayload || {
+      ...latestMeta,
+      reply: accumulatedReply,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (!result.reply && !receivedAnyDelta) {
+      throw new Error('Stream encerrado sem tokens.');
+    }
+
+    onDone?.(result);
+    return result;
+  } catch (streamErr) {
+    if (receivedAnyDelta) {
+      throw streamErr;
+    }
+    console.warn('⚠️ [Chat SSE Fallback] Usando modo JSON padrão:', streamErr.message);
+    const fallbackRes = await sendChatMessage({
+      message,
+      userId,
+      agentId,
+      history: cleanHistory,
+      sessionId,
+      guidedConversationId,
+    });
+    onMeta?.(fallbackRes);
+    if (fallbackRes?.reply) {
+      onDelta?.(fallbackRes.reply, fallbackRes.reply);
+    }
+    onDone?.(fallbackRes);
+    return fallbackRes;
+  }
+}
+
+/**
  * Verifica o status de saúde do Backend
  */
 export async function checkBackendHealth() {
@@ -167,27 +282,58 @@ export async function fetchActiveAgents() {
  * @param {string} [params.sessionId] ID da sessão de conversa
  * @returns {Promise<{transcription: string, reply: string, agentUsed: object, memoriesUsed: Array, knowledgeUsed: Array, timestamp: string}>}
  */
-export async function sendAudioChatMessage({ audioBase64, mimeType = 'audio/webm', userId, agentId, durationSeconds, history = [], sessionId, guidedConversationId }) {
+export async function sendAudioChatMessage({
+  audioBlob = null,
+  audioBase64 = null,
+  mimeType = 'audio/webm',
+  userId,
+  agentId,
+  durationSeconds,
+  history = [],
+  sessionId,
+  guidedConversationId,
+}) {
+  const cleanHistory = history.map((item) => ({
+    role: item.role,
+    content: item.content,
+  }));
+
   try {
-    const response = await authFetch(`${BACKEND_URL}/api/chat/audio`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        audioBase64,
-        mimeType,
-        userId,
-        agentId,
-        durationSeconds,
-        sessionId,
-        guidedConversationId,
-        history: history.map((item) => ({
-          role: item.role,
-          content: item.content,
-        })),
-      }),
-    });
+    let response;
+    if (audioBlob instanceof Blob) {
+      const formData = new FormData();
+      const ext = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('aac') ? 'aac' : 'webm';
+      formData.append('audio', audioBlob, `reflexao.${ext}`);
+      formData.append('mimeType', mimeType);
+      formData.append('userId', userId || '');
+      if (agentId) formData.append('agentId', agentId);
+      if (durationSeconds != null) formData.append('durationSeconds', String(durationSeconds));
+      if (sessionId) formData.append('sessionId', sessionId);
+      if (guidedConversationId) formData.append('guidedConversationId', guidedConversationId);
+      formData.append('history', JSON.stringify(cleanHistory));
+
+      response = await authFetch(`${BACKEND_URL}/api/chat/audio`, {
+        method: 'POST',
+        body: formData,
+      });
+    } else {
+      response = await authFetch(`${BACKEND_URL}/api/chat/audio`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          audioBase64,
+          mimeType,
+          userId,
+          agentId,
+          durationSeconds,
+          sessionId,
+          guidedConversationId,
+          history: cleanHistory,
+        }),
+      });
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -210,26 +356,79 @@ export async function sendAudioChatMessage({ audioBase64, mimeType = 'audio/webm
  * @param {string} [params.voiceName] Nome da voz (Charon, Aoede, Kore, etc.)
  * @returns {Promise<{audioUrl: string|null, fromCache: boolean, cleanedText: string, useSpeechSynthesis: boolean, voiceName?: string}>}
  */
-export async function fetchVoiceAudio({ text, messageId, voiceName = 'Charon' }) {
+// Cache rápido de Blobs de áudio em RAM no navegador (reprodução instantânea < 1ms ao repetir ou após pré-aquecimento)
+const clientVoiceBlobCache = new Map();
+
+function base64ToBlobUrl(base64, mimeType = 'audio/wav') {
+  const binary = atob(base64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  const blob = new Blob([bytes], { type: mimeType });
+  return URL.createObjectURL(blob);
+}
+
+/**
+ * Solicita ao Backend Hermes a sintetização ou resgate do cache de áudio da reflexão.
+ * Converte audioBase64 diretamente para Blob URL em memória (sem segundo download e imune a falhas de bucket).
+ * @param {object} params
+ * @param {string} params.text Texto da reflexão
+ * @param {string} [params.voiceName] Nome da voz (Aoede, Charon, Kore, etc.)
+ * @param {boolean} [params.isPreview] Se true, permite testar voz candidata antes de salvar
+ * @returns {Promise<{audioUrl: string|null, fromCache: boolean, cleanedText: string, useSpeechSynthesis: boolean, voiceName?: string}>}
+ */
+export async function fetchVoiceAudio({ text, messageId, voiceName = 'Aoede', isPreview = false }) {
   const { cleanText, fileName } = await getCleanTextAndHash(text, voiceName);
   if (!cleanText) {
     throw new Error('Texto não possui caracteres válidos para leitura.');
   }
 
-  // 1. Tenta sintetizar via Backend Hermes (Gemini TTS -> ElevenLabs -> OpenAI -> Google TTS)
+  const memKey = `${isPreview ? String(voiceName || 'Aoede').toLowerCase() : 'edson_master'}_${cleanText}`;
+  const cachedBlobUrl = clientVoiceBlobCache.get(memKey);
+  if (cachedBlobUrl) {
+    return {
+      audioUrl: cachedBlobUrl,
+      fromCache: true,
+      cleanedText: cleanText,
+      useSpeechSynthesis: false,
+      voiceName,
+    };
+  }
+
+  // 1. Sintetiza ou busca do cache RAM/Storage via Backend Hermes
   try {
     const response = await authFetch(`${BACKEND_URL}/api/voice`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ text, messageId, voiceName }),
+      body: JSON.stringify({ text: cleanText, messageId, voiceName, isPreview }),
     });
 
     if (response.ok) {
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
         const data = await response.json();
+        if (data?.audioBase64) {
+          const blobUrl = base64ToBlobUrl(data.audioBase64, data.mimeType || 'audio/wav');
+          if (clientVoiceBlobCache.size >= 80) {
+            const oldestKey = clientVoiceBlobCache.keys().next().value;
+            if (oldestKey) {
+              URL.revokeObjectURL(clientVoiceBlobCache.get(oldestKey));
+              clientVoiceBlobCache.delete(oldestKey);
+            }
+          }
+          clientVoiceBlobCache.set(memKey, blobUrl);
+          return {
+            audioUrl: blobUrl,
+            fromCache: Boolean(data.fromCache),
+            cleanedText: cleanText,
+            useSpeechSynthesis: false,
+            voiceName: data.voiceName || voiceName,
+          };
+        }
         if (data?.audioUrl) {
           return {
             audioUrl: data.audioUrl,
@@ -255,7 +454,6 @@ export async function fetchVoiceAudio({ text, messageId, voiceName = 'Charon' })
       if (publicUrlData?.publicUrl) {
         const headCheck = await fetch(publicUrlData.publicUrl, { method: 'HEAD' }).catch(() => null);
         if (headCheck && headCheck.ok) {
-          console.log('⚡ [Voice Cache Hit] Áudio encontrado diretamente no Supabase Storage:', fileName);
           return {
             audioUrl: publicUrlData.publicUrl,
             fromCache: true,
@@ -269,8 +467,7 @@ export async function fetchVoiceAudio({ text, messageId, voiceName = 'Charon' })
     }
   }
 
-  // 3. FALLBACK 2: Se não houver áudio pré-gerado e o backend não responder (404/offline),
-  // aciona a síntese de voz nativa do navegador (Web Speech API pt-BR) para voz sem interrupção
+  // 3. FALLBACK 2: Síntese nativa do navegador (Web Speech API pt-BR)
   return {
     audioUrl: null,
     fromCache: false,

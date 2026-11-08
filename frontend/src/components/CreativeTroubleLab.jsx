@@ -45,8 +45,8 @@ import {
   sendCreativeTroubleChatStep,
   fetchCreativeTroublesCrossAnalysis,
 } from '../services/creativeTroublesApi';
-import { humanVoiceService } from '../services/voiceService';
-import { fetchVoiceAudio, cleanTextForSpeech } from '../services/api';
+import { humanVoiceService, unlockHtmlAudioElement } from '../services/voiceService';
+import { cleanTextForSpeech } from '../services/api';
 import { ambientAudio } from '../services/ambientAudioService';
 
 // 10 Níveis de Postura metodológicos
@@ -335,7 +335,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
     }
   };
 
-  // Tocar ou Pausar Voz do Mentor (Prioriza Voz Neural Gemini com ducking do áudio ambiente)
+  // Tocar ou Pausar Voz do Mentor (Usa parâmetros globais da voz do Edson + reprodução progressiva rápida)
   const handleToggleVoicePlay = async (messageId, text) => {
     if (activeVoiceMessageId === messageId || loadingVoiceId === messageId) {
       if (audioElementRef.current && !audioElementRef.current.paused) {
@@ -352,57 +352,34 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
     humanVoiceService.stop();
     setActiveVoiceMessageId(null);
 
-    // 1. Verifica ajustes do usuário (Gemini Nativo vs Navegador Local)
-    const voiceEngine = localStorage.getItem('izaque_voice_engine') || 'gemini';
-    const preferBrowser = voiceEngine === 'browser' || localStorage.getItem('izaque_voice_prefer_browser') === 'true';
-
-    if (preferBrowser) {
-      playNativeSpeech(text, messageId);
-      return;
-    }
-
-    // 2. Modo Neural Gemini (Charon, Aoede, Kore, Puck, Fenrir)
-    const geminiVoice = localStorage.getItem('izaque_gemini_voice') || 'Charon';
-
     if (!audioElementRef.current) {
       audioElementRef.current = new Audio();
     }
     const audio = audioElementRef.current;
-    audio.pause();
+    unlockHtmlAudioElement(audio);
     ambientAudio.initContext();
+    setLoadingVoiceId(messageId);
 
     try {
-      setLoadingVoiceId(messageId);
-      const voiceRes = await fetchVoiceAudio({ text, messageId, voiceName: geminiVoice });
-
-      if (voiceRes?.audioUrl && !voiceRes.useSpeechSynthesis) {
-        audio.src = voiceRes.audioUrl;
-        audio.currentTime = 0;
-
-        audio.onplay = () => {
+      await humanVoiceService.playSmartAudio(text, {
+        audioElement: audio,
+        isPreview: false,
+        onStart: () => {
           setActiveVoiceMessageId(messageId);
           setLoadingVoiceId(null);
           ambientAudio.duckForSpeech(0.04, 0.8);
-        };
-
-        audio.onended = () => {
+        },
+        onEnd: () => {
           setActiveVoiceMessageId(null);
+          setLoadingVoiceId(null);
           ambientAudio.restoreAfterSpeech(1.5);
-        };
-
-        audio.onerror = () => {
-          console.warn('⚠️ Fallback para sintetizador local após erro no áudio Gemini');
-          playNativeSpeech(voiceRes.cleanedText || text, messageId);
-        };
-
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          await playPromise;
-        }
-        return;
-      }
-
-      playNativeSpeech(voiceRes?.cleanedText || text, messageId);
+        },
+        onError: () => {
+          setActiveVoiceMessageId(null);
+          setLoadingVoiceId(null);
+          ambientAudio.restoreAfterSpeech(1.0);
+        },
+      });
     } catch (err) {
       console.warn('⚠️ Fallback para sintetizador local:', err?.message);
       playNativeSpeech(text, messageId);

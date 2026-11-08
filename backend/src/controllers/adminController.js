@@ -15,6 +15,11 @@ import {
   resolveWhatsAppJid,
   isEvolutionEnabledInDatabase,
 } from '../services/evolutionService.js';
+import {
+  invalidateEdsonVoiceCache,
+  normalizeGeminiVoiceId,
+  prewarmDemoVoice,
+} from './voiceController.js';
 
 /**
  * Controller Administrativo (Exclusivo para Super Admin / Master)
@@ -2146,13 +2151,22 @@ export async function getSystemSettings(req, res) {
     const cached = getCached('system:settings');
     if (cached) return res.status(200).json(cached);
 
-    const { data, error } = await supabaseAdmin
-      .from('izaque_system_settings')
-      .select('*')
-      .eq('id', 'global')
-      .maybeSingle();
+    const [{ data, error }, { data: edsonProfile }] = await Promise.all([
+      supabaseAdmin
+        .from('izaque_system_settings')
+        .select('*')
+        .eq('id', 'global')
+        .maybeSingle(),
+      supabaseAdmin
+        .from('izaque_profiles')
+        .select('preferences')
+        .eq('email', 'edsonmanoel2012@gmail.com')
+        .maybeSingle(),
+    ]);
 
     if (error && error.code !== 'PGRST116') throw error;
+
+    const edsonPrefs = edsonProfile?.preferences || {};
 
     const settings = data || {
       id: 'global',
@@ -2173,9 +2187,18 @@ export async function getSystemSettings(req, res) {
       default_ambient_volume: 0.20,
       default_ambient_enabled: false,
       default_voice_engine: 'gemini',
-      default_gemini_voice: 'Charon',
+      default_gemini_voice: 'Aoede',
+      default_voice_gender: 'male',
+      default_voice_rate: 0.90,
+      default_voice_pitch: 0.95,
+      default_voice_uri: '',
+      default_prefer_browser: false,
       default_immersive_voice: false,
     };
+
+    const resolvedGeminiVoice = normalizeGeminiVoiceId(
+      settings.default_gemini_voice || edsonPrefs.gemini_voice || 'Aoede'
+    );
 
     const normalizedSettings = {
       ...settings,
@@ -2188,6 +2211,18 @@ export async function getSystemSettings(req, res) {
       show_landing_security: settings.show_landing_security !== undefined ? settings.show_landing_security : true,
       show_landing_steps: settings.show_landing_steps !== undefined ? settings.show_landing_steps : true,
       show_landing_cta: settings.show_landing_cta !== undefined ? settings.show_landing_cta : true,
+      default_guide_name: settings.default_guide_name || edsonPrefs.guide_name || 'Isaac',
+      default_voice_engine: settings.default_voice_engine || edsonPrefs.voice_engine || 'gemini',
+      default_gemini_voice: resolvedGeminiVoice,
+      default_voice_gender: settings.default_voice_gender || edsonPrefs.voice_gender || 'male',
+      default_voice_rate: Number(settings.default_voice_rate ?? edsonPrefs.voice_rate ?? 0.90),
+      default_voice_pitch: Number(settings.default_voice_pitch ?? edsonPrefs.voice_pitch ?? 0.95),
+      default_voice_uri: settings.default_voice_uri ?? edsonPrefs.voice_uri ?? '',
+      default_prefer_browser: Boolean(settings.default_prefer_browser ?? edsonPrefs.prefer_browser ?? false),
+      default_ambient_track: settings.default_ambient_track || edsonPrefs.ambient_track || '432hz',
+      default_ambient_volume: Number(settings.default_ambient_volume ?? edsonPrefs.ambient_volume ?? 0.20),
+      default_ambient_enabled: Boolean(settings.default_ambient_enabled ?? edsonPrefs.ambient_enabled ?? false),
+      default_immersive_voice: Boolean(settings.default_immersive_voice ?? edsonPrefs.immersive_voice ?? false),
     };
 
     res.status(200).json(setCached('system:settings', normalizedSettings, 60_000));
@@ -2212,7 +2247,12 @@ export async function getSystemSettings(req, res) {
       default_ambient_volume: 0.20,
       default_ambient_enabled: false,
       default_voice_engine: 'gemini',
-      default_gemini_voice: 'Charon',
+      default_gemini_voice: 'Aoede',
+      default_voice_gender: 'male',
+      default_voice_rate: 0.90,
+      default_voice_pitch: 0.95,
+      default_voice_uri: '',
+      default_prefer_browser: false,
       default_immersive_voice: false,
     });
   }
@@ -2243,32 +2283,58 @@ export async function updateSystemSettings(req, res) {
       default_ambient_enabled,
       default_voice_engine,
       default_gemini_voice,
+      default_voice_gender,
+      default_voice_rate,
+      default_voice_pitch,
+      default_voice_uri,
+      default_prefer_browser,
       default_immersive_voice,
       updated_by,
     } = req.body;
 
+    const { data: currentRow } = await supabaseAdmin
+      .from('izaque_system_settings')
+      .select('*')
+      .eq('id', 'global')
+      .maybeSingle();
+
+    const cleanGeminiVoice = normalizeGeminiVoiceId(
+      default_gemini_voice || currentRow?.default_gemini_voice || 'Aoede'
+    );
+    const cleanEngine = default_voice_engine || currentRow?.default_voice_engine || 'gemini';
+    const cleanPreferBrowser =
+      default_prefer_browser !== undefined
+        ? Boolean(default_prefer_browser)
+        : cleanEngine === 'browser';
+
     const payload = {
+      ...(currentRow || {}),
       id: 'global',
-      show_theme_selector: show_theme_selector !== undefined ? Boolean(show_theme_selector) : true,
-      show_settings_button: show_settings_button !== undefined ? Boolean(show_settings_button) : true,
-      show_ambient_sound_button: show_ambient_sound_button !== undefined ? Boolean(show_ambient_sound_button) : true,
-      show_creative_troubles: show_creative_troubles !== undefined ? Boolean(show_creative_troubles) : true,
+      show_theme_selector: show_theme_selector !== undefined ? Boolean(show_theme_selector) : Boolean(currentRow?.show_theme_selector ?? true),
+      show_settings_button: show_settings_button !== undefined ? Boolean(show_settings_button) : Boolean(currentRow?.show_settings_button ?? true),
+      show_ambient_sound_button: show_ambient_sound_button !== undefined ? Boolean(show_ambient_sound_button) : Boolean(currentRow?.show_ambient_sound_button ?? true),
+      show_creative_troubles: show_creative_troubles !== undefined ? Boolean(show_creative_troubles) : Boolean(currentRow?.show_creative_troubles ?? true),
       evolution_whatsapp_enabled:
-        evolution_whatsapp_enabled !== undefined ? Boolean(evolution_whatsapp_enabled) : true,
-      show_landing_creator: show_landing_creator !== undefined ? Boolean(show_landing_creator) : true,
-      show_landing_sensations: show_landing_sensations !== undefined ? Boolean(show_landing_sensations) : true,
-      show_landing_features: show_landing_features !== undefined ? Boolean(show_landing_features) : true,
-      show_landing_security: show_landing_security !== undefined ? Boolean(show_landing_security) : true,
-      show_landing_steps: show_landing_steps !== undefined ? Boolean(show_landing_steps) : true,
-      show_landing_cta: show_landing_cta !== undefined ? Boolean(show_landing_cta) : true,
-      default_theme: default_theme || 'indigo',
-      default_guide_name: default_guide_name || 'Isaac',
-      default_ambient_track: default_ambient_track || '432hz',
-      default_ambient_volume: default_ambient_volume !== undefined ? Number(default_ambient_volume) : 0.20,
-      default_ambient_enabled: default_ambient_enabled !== undefined ? Boolean(default_ambient_enabled) : false,
-      default_voice_engine: default_voice_engine || 'gemini',
-      default_gemini_voice: default_gemini_voice || 'Charon',
-      default_immersive_voice: default_immersive_voice !== undefined ? Boolean(default_immersive_voice) : false,
+        evolution_whatsapp_enabled !== undefined ? Boolean(evolution_whatsapp_enabled) : Boolean(currentRow?.evolution_whatsapp_enabled ?? true),
+      show_landing_creator: show_landing_creator !== undefined ? Boolean(show_landing_creator) : Boolean(currentRow?.show_landing_creator ?? true),
+      show_landing_sensations: show_landing_sensations !== undefined ? Boolean(show_landing_sensations) : Boolean(currentRow?.show_landing_sensations ?? true),
+      show_landing_features: show_landing_features !== undefined ? Boolean(show_landing_features) : Boolean(currentRow?.show_landing_features ?? true),
+      show_landing_security: show_landing_security !== undefined ? Boolean(show_landing_security) : Boolean(currentRow?.show_landing_security ?? true),
+      show_landing_steps: show_landing_steps !== undefined ? Boolean(show_landing_steps) : Boolean(currentRow?.show_landing_steps ?? true),
+      show_landing_cta: show_landing_cta !== undefined ? Boolean(show_landing_cta) : Boolean(currentRow?.show_landing_cta ?? true),
+      default_theme: default_theme || currentRow?.default_theme || 'indigo',
+      default_guide_name: default_guide_name || currentRow?.default_guide_name || 'Isaac',
+      default_ambient_track: default_ambient_track || currentRow?.default_ambient_track || '432hz',
+      default_ambient_volume: default_ambient_volume !== undefined ? Number(default_ambient_volume) : Number(currentRow?.default_ambient_volume ?? 0.20),
+      default_ambient_enabled: default_ambient_enabled !== undefined ? Boolean(default_ambient_enabled) : Boolean(currentRow?.default_ambient_enabled ?? false),
+      default_voice_engine: cleanEngine,
+      default_gemini_voice: cleanGeminiVoice,
+      default_voice_gender: default_voice_gender || currentRow?.default_voice_gender || 'male',
+      default_voice_rate: default_voice_rate !== undefined ? Number(default_voice_rate) : Number(currentRow?.default_voice_rate ?? 0.90),
+      default_voice_pitch: default_voice_pitch !== undefined ? Number(default_voice_pitch) : Number(currentRow?.default_voice_pitch ?? 0.95),
+      default_voice_uri: default_voice_uri !== undefined ? String(default_voice_uri) : (currentRow?.default_voice_uri || ''),
+      default_prefer_browser: cleanPreferBrowser,
+      default_immersive_voice: default_immersive_voice !== undefined ? Boolean(default_immersive_voice) : Boolean(currentRow?.default_immersive_voice ?? false),
       updated_at: new Date().toISOString(),
       updated_by: updated_by || null,
     };
@@ -2280,7 +2346,43 @@ export async function updateSystemSettings(req, res) {
       .single();
 
     if (error) throw error;
+
+    // Sincroniza de volta no perfil do Edson Manoel para manter 100% de paridade
+    try {
+      const { data: edsonRow } = await supabaseAdmin
+        .from('izaque_profiles')
+        .select('id, preferences')
+        .eq('email', 'edsonmanoel2012@gmail.com')
+        .maybeSingle();
+
+      if (edsonRow?.id) {
+        const mergedEdsonPrefs = {
+          ...(edsonRow.preferences || {}),
+          guide_name: payload.default_guide_name,
+          voice_engine: payload.default_voice_engine,
+          gemini_voice: payload.default_gemini_voice,
+          voice_gender: payload.default_voice_gender,
+          voice_rate: payload.default_voice_rate,
+          voice_pitch: payload.default_voice_pitch,
+          voice_uri: payload.default_voice_uri,
+          prefer_browser: payload.default_prefer_browser,
+          ambient_track: payload.default_ambient_track,
+          ambient_volume: payload.default_ambient_volume,
+          ambient_enabled: payload.default_ambient_enabled,
+          immersive_voice: payload.default_immersive_voice,
+        };
+        await supabaseAdmin
+          .from('izaque_profiles')
+          .update({ preferences: mergedEdsonPrefs, updated_at: new Date().toISOString() })
+          .eq('id', edsonRow.id);
+      }
+    } catch (syncErr) {
+      console.warn('⚠️ Aviso ao sincronizar system_settings com perfil do Edson:', syncErr.message);
+    }
+
     invalidateCache('system:settings');
+    invalidateEdsonVoiceCache();
+    prewarmDemoVoice().catch(() => {});
     res.status(200).json(data);
   } catch (error) {
     console.error('❌ Erro ao salvar parâmetros do sistema:', error);

@@ -24,8 +24,13 @@ import {
   Type,
 } from 'lucide-react';
 import { ambientAudio } from '../services/ambientAudioService';
-import { humanVoiceService, GEMINI_VOICES } from '../services/voiceService';
-import { updateUserProfile, fetchVoiceAudio } from '../services/api';
+import {
+  humanVoiceService,
+  GEMINI_VOICES,
+  normalizeGeminiVoiceId,
+  unlockHtmlAudioElement,
+} from '../services/voiceService';
+import { updateUserProfile } from '../services/api';
 import { THEMES, applyAppTheme, saveAppTheme, getCurrentTheme } from '../services/themeService';
 
 const GUIDE_NAME_SUGGESTIONS = ['Isaac', 'Mentor', 'Guia', 'Hermes', 'Sophia', 'Conselheiro'];
@@ -36,8 +41,12 @@ export default function UserSettingsModal({
   onGuideNameChanged,
   user,
   profile,
+  systemSettings,
   onProfileUpdated,
 }) {
+  const isEdsonOrMaster =
+    profile?.role === 'master' ||
+    String(user?.email || profile?.email || '').toLowerCase() === 'edsonmanoel2012@gmail.com';
   const [guideName, setGuideName] = useState(() => {
     return localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac';
   });
@@ -70,32 +79,34 @@ export default function UserSettingsModal({
     } catch (e) {}
   };
 
-  // Tecnologia de Voz (Gemini Nativo ou Navegador Local)
+  // Tecnologia de Voz (Segue SEMPRE os parâmetros oficiais do Edson para todos os casos)
   const [voiceEngine, setVoiceEngine] = useState(() => {
-    return localStorage.getItem('izaque_voice_engine') || 'gemini';
+    return humanVoiceService.getSettings().voiceEngine;
   });
 
   const [geminiVoice, setGeminiVoice] = useState(() => {
-    return localStorage.getItem('izaque_gemini_voice') || 'Charon';
+    return humanVoiceService.getSettings().geminiVoice;
   });
 
   // Configurações de Voz do Navegador (Legado/Local)
   const [availableVoices, setAvailableVoices] = useState([]);
   const [voiceGender, setVoiceGender] = useState(() => {
-    return localStorage.getItem('izaque_voice_gender') || 'auto';
+    return humanVoiceService.getSettings().gender;
   });
   const [voiceURI, setVoiceURI] = useState(() => {
-    return localStorage.getItem('izaque_voice_uri') || '';
+    return humanVoiceService.getSettings().voiceURI;
   });
   const [voiceRate, setVoiceRate] = useState(() => {
-    return parseFloat(localStorage.getItem('izaque_voice_rate') || '0.90');
+    return humanVoiceService.getSettings().rate;
   });
   const [voicePitch, setVoicePitch] = useState(() => {
-    return parseFloat(localStorage.getItem('izaque_voice_pitch') || '0.95');
+    return humanVoiceService.getSettings().pitch;
   });
 
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const audioPreviewRef = useRef(null);
 
@@ -113,16 +124,18 @@ export default function UserSettingsModal({
     };
   }, []);
 
-  // Quando o modal abre, hidrata as preferências (do perfil ou do localStorage)
+  // Quando o modal abre, hidrata as preferências (Voz e Leitor herdam SEMPRE o padrão Mestre do Edson)
   useEffect(() => {
     if (isOpen) {
       const prefs = profile?.preferences || {};
+      const globalVoice = humanVoiceService.getSettings();
+      setSaveError('');
 
       setGuideName(prefs.guide_name || localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac');
       setAmbientTrack(prefs.ambient_track || localStorage.getItem('izaque_ambient_track') || '432hz');
       setAmbientVolume(
         prefs.ambient_volume !== undefined
-          ? prefs.ambient_volume
+          ? Number(prefs.ambient_volume)
           : parseFloat(localStorage.getItem('izaque_ambient_volume') || '0.20')
       );
       setIsAmbientEnabled(
@@ -136,21 +149,29 @@ export default function UserSettingsModal({
           : localStorage.getItem('izaque_immersive_voice') === 'true'
       );
 
-      setVoiceEngine(prefs.voice_engine || localStorage.getItem('izaque_voice_engine') || 'gemini');
-      setGeminiVoice(prefs.gemini_voice || localStorage.getItem('izaque_gemini_voice') || 'Charon');
-
-      setVoiceGender(prefs.voice_gender || localStorage.getItem('izaque_voice_gender') || 'auto');
-      setVoiceURI(prefs.voice_uri || localStorage.getItem('izaque_voice_uri') || '');
-      setVoiceRate(
-        prefs.voice_rate !== undefined
-          ? prefs.voice_rate
-          : parseFloat(localStorage.getItem('izaque_voice_rate') || '0.90')
-      );
-      setVoicePitch(
-        prefs.voice_pitch !== undefined
-          ? prefs.voice_pitch
-          : parseFloat(localStorage.getItem('izaque_voice_pitch') || '0.95')
-      );
+      if (isEdsonOrMaster) {
+        setVoiceEngine(prefs.voice_engine || systemSettings?.default_voice_engine || globalVoice.voiceEngine || 'gemini');
+        setGeminiVoice(normalizeGeminiVoiceId(prefs.gemini_voice || systemSettings?.default_gemini_voice || globalVoice.geminiVoice || 'Aoede'));
+        setVoiceGender(prefs.voice_gender || systemSettings?.default_voice_gender || globalVoice.gender || 'male');
+        setVoiceURI(prefs.voice_uri ?? systemSettings?.default_voice_uri ?? globalVoice.voiceURI ?? '');
+        setVoiceRate(
+          prefs.voice_rate !== undefined
+            ? Number(prefs.voice_rate)
+            : Number(systemSettings?.default_voice_rate ?? globalVoice.rate ?? 0.90)
+        );
+        setVoicePitch(
+          prefs.voice_pitch !== undefined
+            ? Number(prefs.voice_pitch)
+            : Number(systemSettings?.default_voice_pitch ?? globalVoice.pitch ?? 0.95)
+        );
+      } else {
+        setVoiceEngine(systemSettings?.default_voice_engine || globalVoice.voiceEngine || 'gemini');
+        setGeminiVoice(normalizeGeminiVoiceId(systemSettings?.default_gemini_voice || globalVoice.geminiVoice || 'Aoede'));
+        setVoiceGender(systemSettings?.default_voice_gender || globalVoice.gender || 'male');
+        setVoiceURI(systemSettings?.default_voice_uri ?? globalVoice.voiceURI ?? '');
+        setVoiceRate(Number(systemSettings?.default_voice_rate ?? globalVoice.rate ?? 0.90));
+        setVoicePitch(Number(systemSettings?.default_voice_pitch ?? globalVoice.pitch ?? 0.95));
+      }
 
       setAppTheme(prefs.app_theme || getCurrentTheme());
       setAvailableVoices(humanVoiceService.getAvailableVoices());
@@ -160,8 +181,9 @@ export default function UserSettingsModal({
         audioPreviewRef.current.pause();
       }
       setIsPlayingPreview(false);
+      setLoadingPreview(false);
     }
-  }, [isOpen, profile]);
+  }, [isOpen, profile, systemSettings, isEdsonOrMaster]);
 
   const handleToggleAmbient = (enabled) => {
     setIsAmbientEnabled(enabled);
@@ -197,99 +219,106 @@ export default function UserSettingsModal({
     window.dispatchEvent(new CustomEvent('app-immersive-changed', { detail: val }));
     window.dispatchEvent(new Event('storage'));
 
-    if (user?.id) {
+    const targetUserId = user?.id || profile?.id;
+    if (targetUserId) {
       try {
-        const currentPrefs = user.preferences || {};
-        await updateUserProfile(user.id, {
-          preferences: { ...currentPrefs, immersive_voice: val },
+        const currentPrefs = profile?.preferences || {};
+        const updatedPrefs = { ...currentPrefs, immersive_voice: val };
+        const res = await updateUserProfile(targetUserId, {
+          preferences: updatedPrefs,
         });
+        if (onProfileUpdated) {
+          onProfileUpdated(res?.profile || { ...(profile || {}), preferences: updatedPrefs });
+        }
       } catch (err) {
         console.warn('Aviso ao sincronizar preferência imersiva no Supabase:', err);
       }
     }
   };
 
-  // Testar demonstração da voz (Gemini ou Navegador)
+  // Testar demonstração da voz (Com destravamento síncrono iOS/Android e Blob direto em RAM)
   const handleTogglePreview = async () => {
-    if (isPlayingPreview) {
+    if (isPlayingPreview || loadingPreview) {
       humanVoiceService.stop();
       if (audioPreviewRef.current) {
         audioPreviewRef.current.pause();
       }
       setIsPlayingPreview(false);
+      setLoadingPreview(false);
       return;
     }
 
-    const previewSentence = `Olá! Sou a voz do seu mentor ${guideName}. Estou aqui para acolher suas reflexões com serenidade e clareza. Como você se sente hoje?`;
+    const previewSentence = `Olá! Sou a voz do seu mentor ${guideName || 'Isaac'}. Estou aqui para acolher suas reflexões com serenidade e clareza. Como você se sente hoje?`;
 
-    // 1. Se motor for Gemini Nativo
-    if (voiceEngine === 'gemini') {
-      try {
-        setIsPlayingPreview(true);
-        if (!audioPreviewRef.current) {
-          audioPreviewRef.current = new Audio();
-        }
-        const audio = audioPreviewRef.current;
-        audio.pause();
-
-        const res = await fetchVoiceAudio({
-          text: previewSentence,
-          voiceName: geminiVoice,
-        });
-
-        if (res?.audioUrl) {
-          audio.src = res.audioUrl;
-          audio.onended = () => setIsPlayingPreview(false);
-          audio.onerror = () => setIsPlayingPreview(false);
-          await audio.play();
-        } else {
-          // Fallback navegador se offline
-          humanVoiceService.speak(previewSentence, {
-            onStart: () => setIsPlayingPreview(true),
-            onEnd: () => setIsPlayingPreview(false),
-            onError: () => setIsPlayingPreview(false),
-          });
-        }
-      } catch (err) {
-        console.warn('⚠️ Erro no teste de voz Gemini:', err);
-        setIsPlayingPreview(false);
-      }
-      return;
+    if (!audioPreviewRef.current) {
+      audioPreviewRef.current = new Audio();
     }
+    unlockHtmlAudioElement(audioPreviewRef.current);
 
-    // 2. Se motor for Navegador Local
-    humanVoiceService.speak(previewSentence, {
-      customSettings: {
+    setLoadingPreview(true);
+    await humanVoiceService.playSmartAudio(previewSentence, {
+      audioElement: audioPreviewRef.current,
+      voiceNameOverride: geminiVoice,
+      engineOverride: voiceEngine,
+      customBrowserSettings: {
         voiceURI,
         gender: voiceGender,
         rate: voiceRate,
         pitch: voicePitch,
       },
-      onStart: () => setIsPlayingPreview(true),
-      onEnd: () => setIsPlayingPreview(false),
-      onError: () => setIsPlayingPreview(false),
+      isPreview: true,
+      onStart: () => {
+        setLoadingPreview(false);
+        setIsPlayingPreview(true);
+      },
+      onEnd: () => {
+        setLoadingPreview(false);
+        setIsPlayingPreview(false);
+      },
+      onError: () => {
+        setLoadingPreview(false);
+        setIsPlayingPreview(false);
+      },
     });
   };
 
   const handleSaveAll = async () => {
     setIsSaving(true);
+    setSaveError('');
     const finalGuideName = guideName.trim() || 'Isaac';
+    const cleanVoice = normalizeGeminiVoiceId(geminiVoice);
 
-    // Monta o objeto universal de preferências
+    // Se for o Edson (SuperAdmin), salva e propaga os parâmetros de voz/leitor para toda a plataforma.
+    // Para os demais usuários, mantém estritamente os parâmetros de voz do Edson.
+    const masterVoiceSettings = isEdsonOrMaster
+      ? {
+          voice_engine: voiceEngine,
+          gemini_voice: cleanVoice,
+          voice_gender: voiceGender,
+          voice_rate: voiceRate,
+          voice_pitch: voicePitch,
+          voice_uri: voiceURI,
+          prefer_browser: voiceEngine === 'browser',
+        }
+      : {
+          voice_engine: systemSettings?.default_voice_engine || humanVoiceService.getSettings().voiceEngine,
+          gemini_voice: normalizeGeminiVoiceId(systemSettings?.default_gemini_voice || humanVoiceService.getSettings().geminiVoice),
+          voice_gender: systemSettings?.default_voice_gender || humanVoiceService.getSettings().gender,
+          voice_rate: Number(systemSettings?.default_voice_rate ?? humanVoiceService.getSettings().rate ?? 0.90),
+          voice_pitch: Number(systemSettings?.default_voice_pitch ?? humanVoiceService.getSettings().pitch ?? 0.95),
+          voice_uri: systemSettings?.default_voice_uri ?? humanVoiceService.getSettings().voiceURI ?? '',
+          prefer_browser: Boolean(systemSettings?.default_prefer_browser ?? humanVoiceService.getSettings().preferBrowser),
+        };
+
     const newPreferences = {
+      ...(profile?.preferences || {}),
       guide_name: finalGuideName,
       app_theme: appTheme,
       ambient_track: ambientTrack,
       ambient_volume: ambientVolume,
       ambient_enabled: isAmbientEnabled,
       immersive_voice: immersiveVoice,
-      voice_engine: voiceEngine,
-      gemini_voice: geminiVoice,
-      voice_gender: voiceGender,
-      voice_rate: voiceRate,
-      voice_pitch: voicePitch,
-      voice_uri: voiceURI,
-      prefer_browser: voiceEngine === 'browser',
+      ...masterVoiceSettings,
     };
 
     // 1. Persiste no localStorage do dispositivo atual para acesso instantâneo
@@ -300,24 +329,17 @@ export default function UserSettingsModal({
     localStorage.setItem('izaque_ambient_volume', ambientVolume.toString());
     localStorage.setItem('izaque_ambient_enabled', isAmbientEnabled ? 'true' : 'false');
     localStorage.setItem('izaque_immersive_voice', immersiveVoice ? 'true' : 'false');
-    localStorage.setItem('izaque_voice_engine', voiceEngine);
-    localStorage.setItem('izaque_gemini_voice', geminiVoice);
-    localStorage.setItem('izaque_voice_gender', voiceGender);
-    localStorage.setItem('izaque_voice_rate', voiceRate.toString());
-    localStorage.setItem('izaque_voice_pitch', voicePitch.toString());
-    localStorage.setItem('izaque_voice_uri', voiceURI);
-    localStorage.setItem('izaque_voice_prefer_browser', voiceEngine === 'browser' ? 'true' : 'false');
 
     if (onGuideNameChanged) onGuideNameChanged(finalGuideName);
 
     humanVoiceService.saveSettings({
-      voiceEngine,
-      geminiVoice,
-      voiceURI,
-      gender: voiceGender,
-      rate: voiceRate,
-      pitch: voicePitch,
-      preferBrowser: voiceEngine === 'browser',
+      voiceEngine: masterVoiceSettings.voice_engine,
+      geminiVoice: masterVoiceSettings.gemini_voice,
+      voiceURI: masterVoiceSettings.voice_uri,
+      gender: masterVoiceSettings.voice_gender,
+      rate: masterVoiceSettings.voice_rate,
+      pitch: masterVoiceSettings.voice_pitch,
+      preferBrowser: masterVoiceSettings.prefer_browser,
     });
 
     humanVoiceService.stop();
@@ -325,19 +347,42 @@ export default function UserSettingsModal({
       audioPreviewRef.current.pause();
     }
     setIsPlayingPreview(false);
+    setLoadingPreview(false);
 
-    // 2. Sincroniza com a nuvem no Supabase para que o celular e o PC fiquem idênticos
-    if (user?.id) {
+    // 2. Sincroniza com a nuvem no Supabase (e propaga para toda a plataforma se for Edson/Master)
+    const targetUserId = user?.id || profile?.id;
+    if (targetUserId) {
       try {
-        await updateUserProfile(user.id, { preferences: newPreferences });
+        const apiRes = await updateUserProfile(targetUserId, { preferences: newPreferences });
+        const updatedProfileObj = apiRes?.profile || {
+          ...(profile || {}),
+          preferences: newPreferences,
+        };
         if (onProfileUpdated) {
-          onProfileUpdated({
-            ...(profile || {}),
-            preferences: newPreferences,
-          });
+          onProfileUpdated(updatedProfileObj);
+        }
+        if (isEdsonOrMaster) {
+          window.dispatchEvent(
+            new CustomEvent('system-settings-updated', {
+              detail: {
+                ...(systemSettings || {}),
+                default_guide_name: finalGuideName,
+                default_voice_engine: masterVoiceSettings.voice_engine,
+                default_gemini_voice: masterVoiceSettings.gemini_voice,
+                default_voice_gender: masterVoiceSettings.voice_gender,
+                default_voice_rate: masterVoiceSettings.voice_rate,
+                default_voice_pitch: masterVoiceSettings.voice_pitch,
+                default_voice_uri: masterVoiceSettings.voice_uri,
+                default_prefer_browser: masterVoiceSettings.prefer_browser,
+              },
+            })
+          );
         }
       } catch (cloudErr) {
-        console.warn('⚠️ Aviso ao sincronizar preferências no Supabase:', cloudErr.message);
+        console.error('⚠️ Erro ao sincronizar preferências no Supabase:', cloudErr);
+        setSaveError(cloudErr.message || 'Falha ao salvar na nuvem. Tente novamente.');
+        setIsSaving(false);
+        return;
       }
     }
 
@@ -346,7 +391,7 @@ export default function UserSettingsModal({
     setTimeout(() => {
       setSavedSuccess(false);
       onClose();
-    }, 600);
+    }, 650);
   };
 
   if (!isOpen) return null;
@@ -638,15 +683,22 @@ export default function UserSettingsModal({
             </button>
           </div>
 
-          {/* 5. MOTOR DE VOZ DO MENTOR: GEMINI NATIVO VS NAVEGADOR */}
+          {/* 5. MOTOR DE VOZ DO MENTOR: PADRÃO MESTRE EDSON MANOEL */}
           <div className="space-y-4 pt-4 border-t border-stone-200/80 dark:border-slate-800">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-teal-800 dark:text-teal-400 block">
-                  5. Voz do Mentor
+                <span className="text-xs font-semibold uppercase tracking-wider text-teal-800 dark:text-teal-400 flex items-center gap-2 flex-wrap">
+                  <span>5. Voz do Mentor</span>
+                  {isEdsonOrMaster && (
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                      Parâmetro Mestre (Todos os Usuários)
+                    </span>
+                  )}
                 </span>
                 <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
-                  Vozes neurais com emoção humana e entonação terapêutica
+                  {isEdsonOrMaster
+                    ? 'O tipo de voz e parâmetros salvos aqui são aplicados para todos os usuários do app'
+                    : 'Voz neural oficial configurada pela curadoria da Mentoria Isaac'}
                 </p>
               </div>
 
@@ -654,13 +706,18 @@ export default function UserSettingsModal({
               <button
                 type="button"
                 onClick={handleTogglePreview}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition flex items-center gap-1.5 shadow-sm border ${
-                  isPlayingPreview
+                className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition flex items-center gap-1.5 shadow-sm border cursor-pointer ${
+                  isPlayingPreview || loadingPreview
                     ? 'bg-rose-600 text-white border-rose-600 animate-pulse'
                     : 'bg-teal-50 dark:bg-teal-950/50 text-teal-800 dark:text-teal-300 border-teal-300 dark:border-teal-700 hover:bg-teal-100 dark:hover:bg-teal-900/60'
                 }`}
               >
-                {isPlayingPreview ? (
+                {loadingPreview ? (
+                  <>
+                    <Square className="w-3.5 h-3.5 fill-current" />
+                    <span>Preparando Voz...</span>
+                  </>
+                ) : isPlayingPreview ? (
                   <>
                     <Square className="w-3.5 h-3.5 fill-current" />
                     <span>Pausar Teste</span>
@@ -674,7 +731,28 @@ export default function UserSettingsModal({
               </button>
             </div>
 
-            {/* SELEÇÃO DO MOTOR DE VOZ */}
+            {!isEdsonOrMaster ? (
+              <div className="p-3.5 rounded-2xl bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200/80 dark:border-teal-800/60 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-teal-700/10 flex items-center justify-center text-teal-800 dark:text-teal-300 shrink-0">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-stone-800 dark:text-stone-100">
+                      {GEMINI_VOICES.find((v) => v.id === geminiVoice)?.name || 'Voz Neural Isaac'}
+                    </div>
+                    <div className="text-[10px] text-stone-500 dark:text-stone-400">
+                      {GEMINI_VOICES.find((v) => v.id === geminiVoice)?.description || 'Entonação serena e humanizada'}
+                    </div>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-700 text-white shrink-0">
+                  Ativa
+                </span>
+              </div>
+            ) : (
+              <>
+            {/* SELEÇÃO DO MOTOR DE VOZ (EXCLUSIVO EDSON / MASTER) */}
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
@@ -875,8 +953,16 @@ export default function UserSettingsModal({
                 </div>
               </div>
             )}
+              </>
+            )}
           </div>
         </div>
+
+        {saveError && (
+          <div className="mb-3 p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300">
+            {saveError}
+          </div>
+        )}
 
         {/* BOTÃO SALVAR */}
         <div className="pt-4 border-t border-stone-200/80 dark:border-slate-800 flex justify-end">

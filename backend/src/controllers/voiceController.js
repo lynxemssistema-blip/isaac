@@ -1,42 +1,164 @@
 import crypto from 'crypto';
 import { supabaseAdmin } from '../config/supabase.js';
+import { pcmBase64ToWavOffThread } from '../utils/workerPool.js';
+
+const BUCKET_NAME = 'audio_cache';
+const MAX_MEMORY_CACHE_ITEMS = 100;
+const memoryAudioCache = new Map(); // key -> { base64, mimeType, ext, voiceName, createdAt }
+const inFlightSynthesis = new Map(); // key -> Promise<audioResult>
+
+let bucketChecked = false;
+let cachedEdsonVoiceConfig = null;
+let cachedEdsonVoiceExpiresAt = 0;
+
+export function invalidateEdsonVoiceCache() {
+  cachedEdsonVoiceConfig = null;
+  cachedEdsonVoiceExpiresAt = 0;
+}
+
+export function normalizeGeminiVoiceId(rawVoice) {
+  const vLower = String(rawVoice || '').trim().toLowerCase();
+  if (!vLower) return 'Aoede';
+  if (vLower.includes('aoede') || vLower === 'female' || vLower === 'feminino') return 'Aoede';
+  if (vLower.includes('charon')) return 'Charon';
+  if (vLower.includes('kore')) return 'Kore';
+  if (vLower.includes('puck')) return 'Puck';
+  if (vLower.includes('fenrir')) return 'Fenrir';
+  return 'Charon';
+}
+
+/**
+ * Busca a configuração oficial de voz/áudio do usuário Edson Manoel (parâmetro mestre para todos os casos)
+ */
+export async function getEdsonGlobalVoiceConfig() {
+  const now = Date.now();
+  if (cachedEdsonVoiceConfig && now < cachedEdsonVoiceExpiresAt) {
+    return cachedEdsonVoiceConfig;
+  }
+
+  try {
+    const [{ data: sys }, { data: edson }] = await Promise.all([
+      supabaseAdmin.from('izaque_system_settings').select('*').eq('id', 'global').maybeSingle(),
+      supabaseAdmin
+        .from('izaque_profiles')
+        .select('preferences')
+        .eq('email', 'edsonmanoel2012@gmail.com')
+        .maybeSingle(),
+    ]);
+
+    const prefs = edson?.preferences || {};
+    const config = {
+      voiceEngine: sys?.default_voice_engine || prefs.voice_engine || 'gemini',
+      geminiVoice: normalizeGeminiVoiceId(sys?.default_gemini_voice || prefs.gemini_voice || 'Aoede'),
+      voiceGender: sys?.default_voice_gender || prefs.voice_gender || 'male',
+      voiceRate: Number(sys?.default_voice_rate ?? prefs.voice_rate ?? 0.90),
+      voicePitch: Number(sys?.default_voice_pitch ?? prefs.voice_pitch ?? 0.95),
+      voiceUri: sys?.default_voice_uri ?? prefs.voice_uri ?? '',
+      preferBrowser: Boolean(sys?.default_prefer_browser ?? prefs.prefer_browser ?? false),
+      guideName: sys?.default_guide_name || prefs.guide_name || 'Isaac',
+    };
+
+    cachedEdsonVoiceConfig = config;
+    cachedEdsonVoiceExpiresAt = now + 60_000;
+    return config;
+  } catch (err) {
+    console.warn('⚠️ [Voice Config] Aviso ao ler configuração mestre do Edson:', err.message);
+    return {
+      voiceEngine: 'gemini',
+      geminiVoice: 'Aoede',
+      voiceGender: 'male',
+      voiceRate: 0.90,
+      voicePitch: 0.95,
+      voiceUri: '',
+      preferBrowser: false,
+      guideName: 'Isaac',
+    };
+  }
+}
+
+async function ensureAudioCacheBucket() {
+  if (bucketChecked) return;
+  try {
+    const { data: buckets } = await supabaseAdmin.storage.listBuckets();
+    const exists = Array.isArray(buckets) && buckets.some((b) => b.name === BUCKET_NAME || b.id === BUCKET_NAME);
+    if (!exists) {
+      await supabaseAdmin.storage.createBucket(BUCKET_NAME, { public: true });
+      console.log(`🪣 [Voice Cache] Bucket '${BUCKET_NAME}' criado automaticamente.`);
+    }
+    bucketChecked = true;
+  } catch (err) {
+    console.warn('⚠️ [Voice Cache] Aviso ao verificar bucket audio_cache:', err.message);
+  }
+}
+
+function setMemoryAudio(cacheKey, entry) {
+  if (memoryAudioCache.has(cacheKey)) {
+    memoryAudioCache.delete(cacheKey);
+  } else if (memoryAudioCache.size >= MAX_MEMORY_CACHE_ITEMS) {
+    const oldestKey = memoryAudioCache.keys().next().value;
+    if (oldestKey) memoryAudioCache.delete(oldestKey);
+  }
+  memoryAudioCache.set(cacheKey, { ...entry, createdAt: Date.now() });
+}
 
 /**
  * Remove formatações Markdown, emojis, URLs e caracteres que quebram o fluxo da fala.
  * Preserva reticências (...), vírgulas e pontos finais para pausas respiratórias naturais.
- * @param {string} text Texto bruto gerado pelo Gemini
- * @returns {string} Texto limpo otimizado para fala
  */
 export function cleanTextForSpeech(text) {
   if (!text) return '';
 
   return text
-    // Remove blocos de código
     .replace(/```[\s\S]*?```/g, '')
     .replace(/`.*?`/g, '')
-    // Remove links [texto](url)
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    // Remove URLs soltas
     .replace(/https?:\/\/\S+/g, '')
-    // Remove asteriscos e sublinhados de negrito/itálico (*, **, _, __)
     .replace(/[*_#~>]/g, '')
-    // Remove marcadores de lista numerada ou bullet points no início da linha
     .replace(/^\s*[-•*]\s+/gm, '')
     .replace(/^\s*\d+\.\s+/gm, '')
-    // Remove emojis e símbolos visuais complexos
     .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}]/gu, '')
-    // Normaliza quebras de linha e espaços múltiplos
     .replace(/\r\n/g, ' ')
     .replace(/\n+/g, ' ')
     .replace(/\s{2,}/g, ' ')
-    // Garante que reticências tenham pequeno espaçamento para a pausa da API
     .replace(/\.{3,}/g, '... ')
     .trim();
 }
 
 /**
+ * Divide textos longos em blocos progressivos (idêntico ao frontend) para início de reprodução rápido.
+ * - Bloco 1: até ~170 caracteres (1-2 frases iniciais -> sintetiza em ~2s ou já vem pré-aquecido)
+ * - Demais blocos: até ~320 caracteres
+ */
+export function splitTextIntoFastSpeechSegments(rawText) {
+  const clean = cleanTextForSpeech(rawText);
+  if (!clean) return [];
+  if (clean.length <= 200) return [clean];
+
+  const rawSentences = clean.match(/[^.!?]+(?:[.!?]+|$)/g) || [clean];
+  const sentences = rawSentences.map((s) => s.trim()).filter(Boolean);
+  if (sentences.length <= 1) return [clean];
+
+  const segments = [];
+  let current = '';
+
+  for (const sentence of sentences) {
+    const maxLen = segments.length === 0 ? 170 : 320;
+    if (!current) {
+      current = sentence;
+    } else if ((current + ' ' + sentence).length <= maxLen) {
+      current += ' ' + sentence;
+    } else {
+      segments.push(current);
+      current = sentence;
+    }
+  }
+  if (current) segments.push(current);
+
+  return segments;
+}
+
+/**
  * Converte PCM Linear 24kHz 16-bit Mono para formato WAV padrão com cabeçalho RIFF de 44 bytes.
- * Torna o áudio universalmente reproduzível em qualquer navegador, iOS Safari e Android.
  */
 export function pcmToWav(pcmBuffer, sampleRate = 24000, numChannels = 1, bitsPerSample = 16) {
   const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
@@ -47,8 +169,8 @@ export function pcmToWav(pcmBuffer, sampleRate = 24000, numChannels = 1, bitsPer
   wavHeader.writeUInt32LE(36 + pcmBuffer.length, 4);
   wavHeader.write('WAVE', 8);
   wavHeader.write('fmt ', 12);
-  wavHeader.writeUInt32LE(16, 16); // subchunk1 size (16 para PCM)
-  wavHeader.writeUInt16LE(1, 20); // formato de áudio 1 = PCM
+  wavHeader.writeUInt32LE(16, 16);
+  wavHeader.writeUInt16LE(1, 20);
   wavHeader.writeUInt16LE(numChannels, 22);
   wavHeader.writeUInt32LE(sampleRate, 24);
   wavHeader.writeUInt32LE(byteRate, 28);
@@ -62,44 +184,29 @@ export function pcmToWav(pcmBuffer, sampleRate = 24000, numChannels = 1, bitsPer
 
 /**
  * Síntese de Voz Nativa com Modelos Oficiais Gemini TTS
- * Utiliza as vozes neurais expressivas:
- * - Charon: Tom masculino profundo, maduro e reflexivo (Padrão ISAAC)
- * - Aoede: Tom feminino calmo, sereno e acolhedor
- * - Kore: Tom firme e confortante
- * - Puck: Tom vibrante e expressivo
  */
-export async function generateGeminiAudio(text, requestedVoice = 'Charon') {
+export async function generateGeminiAudio(text, requestedVoice = 'Aoede') {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY não está configurada');
   }
 
-  // Normaliza o nome da voz
-  let voiceName = 'Charon';
-  const vLower = (requestedVoice || '').toLowerCase();
-  if (vLower.includes('aoede') || vLower === 'female' || vLower === 'feminino') {
-    voiceName = 'Aoede';
-  } else if (vLower.includes('kore')) {
-    voiceName = 'Kore';
-  } else if (vLower.includes('puck')) {
-    voiceName = 'Puck';
-  } else if (vLower.includes('fenrir')) {
-    voiceName = 'Fenrir';
-  } else {
-    voiceName = 'Charon';
-  }
-
-  const ttsModels = ['gemini-2.5-flash-preview-tts', 'gemini-3.1-flash-tts-preview'];
+  const voiceName = normalizeGeminiVoiceId(requestedVoice);
+  const ttsModels = ['gemini-2.5-flash-preview-tts', 'gemini-2.5-flash-tts'];
   let lastError;
 
   for (const model of ttsModels) {
     try {
-      console.log(`🎙️ [Gemini TTS] Sintetizando áudio nativo com ${model} (Voz: ${voiceName})...`);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 18_000);
+      console.log(`🎙️ [Gemini TTS] Sintetizando com ${model} (Voz: ${voiceName}, ${text.length} chars)...`);
+
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
           body: JSON.stringify({
             contents: [{ parts: [{ text }] }],
             generationConfig: {
@@ -114,7 +221,7 @@ export async function generateGeminiAudio(text, requestedVoice = 'Charon') {
             },
           }),
         }
-      );
+      ).finally(() => clearTimeout(timeout));
 
       if (!response.ok) {
         const errText = await response.text();
@@ -127,9 +234,8 @@ export async function generateGeminiAudio(text, requestedVoice = 'Charon') {
         throw new Error('Resposta do Gemini TTS não continha áudio inline');
       }
 
-      const pcmBuffer = Buffer.from(pcmBase64, 'base64');
-      const wavBuffer = pcmToWav(pcmBuffer, 24000, 1, 16);
-      console.log(`✅ [Gemini TTS] Áudio gerado com sucesso (${wavBuffer.length} bytes, Voz: ${voiceName})`);
+      const wavBuffer = await pcmBase64ToWavOffThread(pcmBase64, 24000, pcmToWav);
+      console.log(`✅ [Gemini TTS] Áudio pronto via Worker Thread (${wavBuffer.length} bytes, Voz: ${voiceName})`);
 
       return {
         buffer: wavBuffer,
@@ -146,21 +252,16 @@ export async function generateGeminiAudio(text, requestedVoice = 'Charon') {
   throw lastError || new Error('Falha ao sintetizar áudio com Gemini TTS');
 }
 
-/**
- * Síntese de voz via ElevenLabs API (Opcional)
- */
 async function generateElevenLabsAudio(text) {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   const voiceId = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM';
-
-  console.log(`🎙️ [ElevenLabs TTS] Sintetizando fala humana (Voz: ${voiceId})...`);
 
   const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
     method: 'POST',
     headers: {
       'xi-api-key': apiKey,
       'Content-Type': 'application/json',
-      'Accept': 'audio/mpeg',
+      Accept: 'audio/mpeg',
     },
     body: JSON.stringify({
       text,
@@ -188,19 +289,14 @@ async function generateElevenLabsAudio(text) {
   };
 }
 
-/**
- * Síntese de voz via OpenAI TTS API (Opcional)
- */
 async function generateOpenAIAudio(text) {
   const apiKey = process.env.OPENAI_API_KEY;
   const voice = process.env.OPENAI_VOICE || 'onyx';
 
-  console.log(`🎙️ [OpenAI TTS] Sintetizando fala humana (Voz: ${voice})...`);
-
   const response = await fetch('https://api.openai.com/v1/audio/speech', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -225,9 +321,6 @@ async function generateOpenAIAudio(text) {
   };
 }
 
-/**
- * Fallback Natural de Áudio (Neural Speech) sem custos
- */
 async function generateFallbackAudio(text) {
   console.log('🎙️ [Neural Speech Fallback] Gerando áudio via Google TTS Fallback...');
   const googleTTS = await import('google-tts-api');
@@ -237,7 +330,7 @@ async function generateFallbackAudio(text) {
     timeout: 10000,
     splitPunct: '.,!?:;...',
   });
-  const buffers = chunks.map(c => Buffer.from(c.base64, 'base64'));
+  const buffers = chunks.map((c) => Buffer.from(c.base64, 'base64'));
   return {
     buffer: Buffer.concat(buffers),
     contentType: 'audio/mpeg',
@@ -247,70 +340,92 @@ async function generateFallbackAudio(text) {
 }
 
 /**
- * Controller Principal: POST /api/voice
- * 1. Limpa o texto
- * 2. Verifica se o áudio já existe em cache no Supabase Storage ('audio_cache')
- * 3. Se existir, retorna imediatamente
- * 4. Se não, sintetiza via Gemini TTS (Charon / Aoede) -> ElevenLabs -> OpenAI -> Fallback
- * 5. Salva no Supabase Storage e retorna a URL pública
+ * Sintetiza ou resgata do cache (RAM -> Supabase Storage -> Síntese Coalescida)
  */
-export async function handleGenerateVoice(req, res) {
-  try {
-    const { text, messageId, voiceName = 'Charon' } = req.body;
+export async function synthesizeOrGetCachedVoice(rawText, requestedVoice, { isPreview = false } = {}) {
+  const cleanText = cleanTextForSpeech(rawText);
+  if (!cleanText) {
+    throw new Error('Texto não possui caracteres válidos para leitura.');
+  }
 
-    if (!text || typeof text !== 'string' || text.trim().length === 0) {
-      return res.status(400).json({ error: 'O texto para sintetização de voz é obrigatório.' });
+  const edsonConfig = await getEdsonGlobalVoiceConfig();
+  // Usa SEMPRE a voz oficial do Edson em todos os casos, exceto quando o próprio Admin está testando uma voz candidata no preview
+  const effectiveVoice = isPreview && requestedVoice
+    ? normalizeGeminiVoiceId(requestedVoice)
+    : edsonConfig.geminiVoice;
+
+  const normalizedVoice = effectiveVoice.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const textHash = crypto
+    .createHash('sha256')
+    .update(`${normalizedVoice}_${cleanText}`)
+    .digest('hex')
+    .slice(0, 24);
+  const cacheKey = `${normalizedVoice}_${textHash}`;
+
+  // 1. TIER 1: Cache instantâneo em memória RAM (< 5ms)
+  const memHit = memoryAudioCache.get(cacheKey);
+  if (memHit) {
+    return {
+      audioBase64: memHit.base64,
+      mimeType: memHit.mimeType,
+      fromCache: true,
+      cleanedText: cleanText,
+      voiceName: memHit.voiceName,
+    };
+  }
+
+  // 2. Coalescência de requisições simultâneas (evita chamadas duplicadas ao Gemini TTS)
+  if (inFlightSynthesis.has(cacheKey)) {
+    return inFlightSynthesis.get(cacheKey);
+  }
+
+  const jobPromise = (async () => {
+    await ensureAudioCacheBucket();
+
+    // 3. TIER 2: Cache persistente no Supabase Storage (download direto pelo backend)
+    for (const candidateExt of ['wav', 'mp3']) {
+      const candidateFile = `voice_${normalizedVoice}_${textHash}.${candidateExt}`;
+      try {
+        const { data: blobData, error: dlErr } = await supabaseAdmin.storage
+          .from(BUCKET_NAME)
+          .download(candidateFile);
+
+        if (!dlErr && blobData) {
+          const arrayBuf = await blobData.arrayBuffer();
+          const buf = Buffer.from(arrayBuf);
+          if (buf.length > 100) {
+            const mimeType = candidateExt === 'mp3' ? 'audio/mpeg' : 'audio/wav';
+            const base64 = buf.toString('base64');
+            setMemoryAudio(cacheKey, {
+              base64,
+              mimeType,
+              ext: candidateExt,
+              voiceName: effectiveVoice,
+            });
+            console.log(`⚡ [Voice Storage Hit] Carregado de audio_cache: ${candidateFile}`);
+            return {
+              audioBase64: base64,
+              mimeType,
+              fromCache: true,
+              cleanedText: cleanText,
+              voiceName: effectiveVoice,
+            };
+          }
+        }
+      } catch {}
     }
 
-    const cleanText = cleanTextForSpeech(text);
-    if (!cleanText) {
-      return res.status(400).json({ error: 'Texto não possui caracteres válidos para leitura.' });
-    }
+    // 4. TIER 3: Síntese Neural (Gemini TTS -> ElevenLabs -> OpenAI -> GoogleTTS)
+    let audioResult = null;
 
-    // Normaliza nome da voz para cache consistente
-    const normalizedVoice = (voiceName || 'Charon').toLowerCase().replace(/[^a-z0-9]/g, '');
-
-    // Gera hash único do conteúdo do áudio e da voz para cache
-    const textHash = crypto.createHash('sha256').update(`${normalizedVoice}_${cleanText}`).digest('hex').slice(0, 24);
-    const fileName = `voice_${normalizedVoice}_${textHash}.wav`;
-    const bucketName = 'audio_cache';
-
-    // 1. VERIFICA SE JÁ EXISTE NO CACHE DO SUPABASE STORAGE
-    try {
-      const { data: existingFiles } = await supabaseAdmin.storage
-        .from(bucketName)
-        .list('', { search: fileName });
-
-      if (existingFiles && existingFiles.length > 0) {
-        const { data: publicUrlData } = supabaseAdmin.storage
-          .from(bucketName)
-          .getPublicUrl(fileName);
-
-        console.log(`⚡ [Voice Cache Hit] Áudio resgatado do cache do Supabase: ${fileName}`);
-        return res.status(200).json({
-          audioUrl: publicUrlData.publicUrl,
-          fromCache: true,
-          cleanedText: cleanText,
-          voiceName,
-        });
-      }
-    } catch (storageCheckErr) {
-      console.warn('⚠️ Aviso ao consultar cache no Supabase Storage:', storageCheckErr.message);
-    }
-
-    // 2. SINTETIZAÇÃO DO ÁUDIO (GEMINI TTS -> ELEVENLABS -> OPENAI -> FALLBACK)
-    let audioResult;
-
-    // Prioridade 1: Voz Nativa do Gemini
     if (process.env.GEMINI_API_KEY) {
       try {
-        audioResult = await generateGeminiAudio(cleanText, voiceName);
+        audioResult = await generateGeminiAudio(cleanText, effectiveVoice);
       } catch (geminiErr) {
         console.warn('⚠️ Falha no Gemini TTS, tentando provedor alternativo:', geminiErr.message);
       }
     }
 
-    // Prioridade 2: ElevenLabs (se configurado)
     if (!audioResult && process.env.ELEVENLABS_API_KEY) {
       try {
         audioResult = await generateElevenLabsAudio(cleanText);
@@ -319,7 +434,6 @@ export async function handleGenerateVoice(req, res) {
       }
     }
 
-    // Prioridade 3: OpenAI (se configurado)
     if (!audioResult && process.env.OPENAI_API_KEY) {
       try {
         audioResult = await generateOpenAIAudio(cleanText);
@@ -328,37 +442,108 @@ export async function handleGenerateVoice(req, res) {
       }
     }
 
-    // Prioridade 4: Fallback Google TTS
     if (!audioResult) {
       audioResult = await generateFallbackAudio(cleanText);
     }
 
-    const actualFileName = `voice_${normalizedVoice}_${textHash}.${audioResult.ext || 'wav'}`;
+    const base64 = audioResult.buffer.toString('base64');
+    const mimeType = audioResult.contentType || 'audio/wav';
+    const ext = audioResult.ext || 'wav';
+    const actualFileName = `voice_${normalizedVoice}_${textHash}.${ext}`;
 
-    // 3. PERSISTÊNCIA NO SUPABASE STORAGE (CACHE PERMANENTE)
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from(bucketName)
+    setMemoryAudio(cacheKey, {
+      base64,
+      mimeType,
+      ext,
+      voiceName: audioResult.voiceName || effectiveVoice,
+    });
+
+    // Salva em background no Supabase Storage (não bloqueia a resposta para o usuário!)
+    supabaseAdmin.storage
+      .from(BUCKET_NAME)
       .upload(actualFileName, audioResult.buffer, {
-        contentType: audioResult.contentType || 'audio/wav',
+        contentType: mimeType,
         upsert: true,
-      });
+      })
+      .then(({ error }) => {
+        if (error) {
+          console.warn('⚠️ Aviso ao persistir áudio em audio_cache:', error.message);
+        } else {
+          console.log(`💾 [Voice Cache Saved] ${actualFileName}`);
+        }
+      })
+      .catch(() => {});
 
-    if (uploadError) {
-      console.warn('⚠️ Não foi possível salvar áudio no cache do Supabase:', uploadError.message);
-    } else {
-      console.log(`💾 [Voice Cache Saved] Áudio armazenado no bucket audio_cache: ${actualFileName}`);
-    }
-
-    // 4. RETORNA A URL PÚBLICA DO ÁUDIO
-    const { data: publicUrlData } = supabaseAdmin.storage
-      .from(bucketName)
-      .getPublicUrl(actualFileName);
-
-    res.status(200).json({
-      audioUrl: publicUrlData.publicUrl,
+    return {
+      audioBase64: base64,
+      mimeType,
       fromCache: false,
       cleanedText: cleanText,
-      voiceName: audioResult.voiceName,
+      voiceName: audioResult.voiceName || effectiveVoice,
+    };
+  })();
+
+  inFlightSynthesis.set(cacheKey, jobPromise);
+  try {
+    return await jobPromise;
+  } finally {
+    inFlightSynthesis.delete(cacheKey);
+  }
+}
+
+/**
+ * Pré-aquece silenciosamente o primeiro segmento da resposta recém-gerada no chat
+ * para que, ao clicar em "Ouvir", o áudio comece quase instantaneamente.
+ */
+export async function prewarmReplyFirstSegment(replyText) {
+  try {
+    const edsonConfig = await getEdsonGlobalVoiceConfig();
+    if (edsonConfig.preferBrowser || edsonConfig.voiceEngine === 'browser') return;
+
+    const segments = splitTextIntoFastSpeechSegments(replyText);
+    if (segments.length === 0) return;
+
+    await synthesizeOrGetCachedVoice(segments[0], edsonConfig.geminiVoice, { isPreview: false });
+  } catch (err) {
+    console.warn('⚠️ [Voice Prewarm] Aviso silencioso no pré-aquecimento:', err.message);
+  }
+}
+
+/**
+ * Pré-aquece o áudio de demonstração da voz oficial do Edson ao iniciar o servidor
+ */
+export async function prewarmDemoVoice() {
+  try {
+    const edsonConfig = await getEdsonGlobalVoiceConfig();
+    if (edsonConfig.preferBrowser || edsonConfig.voiceEngine === 'browser') return;
+    const guide = edsonConfig.guideName || 'Isaac';
+    const demoSentence = `Olá! Sou a voz do seu mentor ${guide}. Estou aqui para acolher suas reflexões com serenidade e clareza. Como você se sente hoje?`;
+    await synthesizeOrGetCachedVoice(demoSentence, edsonConfig.geminiVoice, { isPreview: true });
+  } catch (err) {
+    console.warn('⚠️ [Demo Prewarm] Aviso ao pré-aquecer demonstração:', err.message);
+  }
+}
+
+/**
+ * Controller Principal: POST /api/voice
+ */
+export async function handleGenerateVoice(req, res) {
+  try {
+    const { text, voiceName, isPreview = false } = req.body || {};
+
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      return res.status(400).json({ error: 'O texto para sintetização de voz é obrigatório.' });
+    }
+
+    const result = await synthesizeOrGetCachedVoice(text, voiceName, { isPreview: Boolean(isPreview) });
+
+    res.status(200).json({
+      audioBase64: result.audioBase64,
+      mimeType: result.mimeType,
+      audioUrl: `data:${result.mimeType};base64,${result.audioBase64}`,
+      fromCache: result.fromCache,
+      cleanedText: result.cleanedText,
+      voiceName: result.voiceName,
     });
   } catch (error) {
     console.error('❌ [Voice Error]:', error);

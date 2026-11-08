@@ -4,7 +4,22 @@ import { supabaseAdmin } from '../config/supabase.js';
 import { invalidateCache } from '../utils/memoryCache.js';
 import { processChatMessageCore, ensureUserSession } from '../controllers/chatController.js';
 import { transcribeAudioWithGemini } from './audioService.js';
-import { cleanTextForSpeech, generateGeminiAudio } from '../controllers/voiceController.js';
+import { cleanTextForSpeech, generateGeminiAudio, getEdsonGlobalVoiceConfig } from '../controllers/voiceController.js';
+import {
+  normalizeBrazilPhone,
+  normalizeWhatsAppPhone,
+  extractComparablePhoneKey,
+  parseUniversalPhone,
+  formatUniversalPhoneDisplay,
+} from '../utils/phoneUtils.js';
+
+export {
+  normalizeBrazilPhone,
+  normalizeWhatsAppPhone,
+  extractComparablePhoneKey,
+  parseUniversalPhone,
+  formatUniversalPhoneDisplay,
+};
 
 const DEFAULT_EVO_URL = 'https://evo.lynxems.com.br';
 const DEFAULT_EVO_INSTANCE = 'isaac';
@@ -119,38 +134,9 @@ export function sleep(ms) {
 }
 
 /**
- * Normaliza números brasileiros (com ou sem +55, parênteses, traços, 8 ou 9 dígitos)
- */
-export function normalizeBrazilPhone(rawPhone) {
-  if (!rawPhone) return '';
-  let digits = String(rawPhone).split('@')[0].replace(/\D/g, '');
-  if (!digits) return '';
-  if (digits.startsWith('00')) digits = digits.slice(2);
-  if (digits.startsWith('0') && (digits.length === 11 || digits.length === 12)) {
-    digits = digits.slice(1);
-  }
-  if (digits.length === 10 || digits.length === 11) {
-    digits = `55${digits}`;
-  }
-  return digits;
-}
-
-/**
- * Extrai chave comparável (DDD + últimos 8 dígitos) para casar números brasileiros com ou sem o 9º dígito
- */
-export function extractComparablePhoneKey(phoneOrJid) {
-  const digits = normalizeBrazilPhone(phoneOrJid);
-  if (digits.length < 10) return '';
-  const withoutCountry = digits.startsWith('55') && digits.length >= 12 ? digits.slice(2) : digits;
-  const ddd = withoutCountry.slice(0, 2);
-  const last8 = withoutCountry.slice(-8);
-  return `${ddd}${last8}`;
-}
-
-/**
  * Consulta a Evolution API (/chat/whatsappNumbers/:instance) para:
- * 1. Confirmar que o número realmente possui WhatsApp ativo (evita tentativa em número inválido -> proteção Anti-Ban)
- * 2. Resolver o JID exato (8 vs 9 dígitos em MG e demais estados)
+ * 1. Confirmar que o número realmente possui WhatsApp ativo (Brasil + Internacional: Austrália +61, EUA +1, Portugal +351, etc.)
+ * 2. Resolver o JID exato (8 vs 9 dígitos no Brasil e formato oficial E.164 internacional)
  */
 export async function resolveWhatsAppJid(rawPhone) {
   const cfg = getEvoConfig();
@@ -158,8 +144,8 @@ export async function resolveWhatsAppJid(rawPhone) {
     throw new Error('EVOLUTION_API_KEY não configurada no servidor.');
   }
 
-  const normalized = normalizeBrazilPhone(rawPhone);
-  if (normalized.length < 12) {
+  const normalized = normalizeWhatsAppPhone(rawPhone);
+  if (normalized.length < 8 || normalized.length > 15) {
     return { exists: false, number: normalized, jid: null, reason: 'invalid_length' };
   }
 
@@ -566,7 +552,7 @@ export async function runDailyInactivityFollowUp({ dryRun = false, triggerType =
 
     if (profErr) throw profErr;
 
-    const validProfiles = (profiles || []).filter((p) => normalizeBrazilPhone(p.phone).length >= 12);
+    const validProfiles = (profiles || []).filter((p) => normalizeWhatsAppPhone(p.phone).length >= 8);
     summary.activeProfilesWithPhone = validProfiles.length;
 
     const nowMs = Date.now();
@@ -1171,7 +1157,8 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
   // 5. Envia a resposta no WhatsApp (Áudio Neural se o usuário falou por áudio / pediu áudio, ou Texto)
   if (wantsAudioReply) {
     try {
-      const preferredVoice = matchedProfile?.preferences?.geminiVoice || 'Charon';
+      const edsonVoice = await getEdsonGlobalVoiceConfig();
+      const preferredVoice = edsonVoice.geminiVoice || 'Aoede';
       const speechClean = cleanTextForSpeech(reply);
       const ttsResult = await generateGeminiAudio(speechClean, preferredVoice);
       await sendWhatsAppAudioSafe({
