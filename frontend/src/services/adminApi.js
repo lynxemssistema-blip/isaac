@@ -1543,7 +1543,7 @@ export async function updateAdminAsaasPlanApi(payload) {
 // CONTATOS EVOLUTION WHATSAPP + PROGRAMAÇÃO DE ENVIOS ANTI-BAN + CONTROLE
 // ============================================================================
 
-export async function fetchAdminWhatsappOutreachOverview({ search = '', filter = 'all', limit = 250 } = {}) {
+export async function fetchAdminWhatsappOutreachOverview({ search = '', filter = 'all', limit = 2500 } = {}) {
   const params = new URLSearchParams();
   if (search) params.set('search', search);
   if (filter) params.set('filter', filter);
@@ -1619,4 +1619,31 @@ export async function updateAdminWhatsappSafetyApi(payload) {
   }
   return data;
 }
+
+export async function saveAdminWhatsappOutreachTemplatesApi(payload) {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/whatsapp/outreach/templates`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao salvar modelos de mensagem do WhatsApp.');
+  }
+  return data;
+}
+
+export async function updateAdminWhatsappContactNameApi(contactId, name) {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/whatsapp/outreach/contacts/${contactId}/name`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao salvar nome do contato.');
+  }
+  return data;
+}
+
 

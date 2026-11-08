@@ -956,9 +956,12 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
 
       if (!matchedProfile) {
         if (evoEnabled) {
+          const isIntlOptOut = !parseUniversalPhone(remoteJid).isBrazil;
           await sendWhatsAppTextSafe({
             jidOrNumber: remoteJid,
-            text: 'Perfeitamente compreendido. Seu número foi removido da nossa lista de convites imediatamente, com total respeito ao seu espaço.',
+            text: isIntlOptOut
+              ? 'Understood completely. Your number has been removed from our invitation list straight away, with full respect for your space.'
+              : 'Perfeitamente compreendido. Seu número foi removido da nossa lista de convites imediatamente, com total respeito ao seu espaço.',
           }).catch(() => {});
         }
         return { eventType, matchedUserId: null, remoteJid, action: 'unregistered_opt_out_applied' };
@@ -990,8 +993,11 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
         .eq('id', matchedProfile.id);
 
       if (evoEnabled) {
-        const firstName = (matchedProfile.full_name || 'amigo(a)').trim().split(/\s+/)[0];
-        const confirmOptOutText = `Perfeitamente compreendido, ${firstName}. Cancelei agora mesmo a permissão de envio de lembretes para o seu WhatsApp, com total respeito ao seu espaço.\n\nSeu acesso ao aplicativo https://isaac.lynxems.com.br/ continua 100% liberado sempre que desejar refletir por lá.`;
+        const isIntlMemberOptOut = !parseUniversalPhone(remoteJid).isBrazil;
+        const firstName = (matchedProfile.full_name || '').trim().split(/\s+/)[0];
+        const confirmOptOutText = isIntlMemberOptOut
+          ? `Understood completely${firstName ? `, ${firstName}` : ''}. I have cancelled WhatsApp reminders for your number straight away, with full respect for your space.\n\nYour access to https://isaac.lynxems.com.br/ remains 100% open whenever you wish to reflect there.`
+          : `Perfeitamente compreendido${firstName ? `, ${firstName}` : ''}. Cancelei agora mesmo a permissão de envio de lembretes para o seu WhatsApp, com total respeito ao seu espaço.\n\nSeu acesso ao aplicativo https://isaac.lynxems.com.br/ continua 100% liberado sempre que desejar refletir por lá.`;
         await sendWhatsAppTextSafe({ jidOrNumber: remoteJid, text: confirmOptOutText }).catch(() => {});
       }
 

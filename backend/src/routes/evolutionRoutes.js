@@ -9,10 +9,13 @@ import {
 import {
   getOutreachDashboardOverview,
   syncEvolutionContactsToDatabase,
+  updateOutreachContactName,
   createOrScheduleOutreachCampaign,
   updateCampaignControlStatus,
   sendDirectOutreachPreview,
   updateOutreachSafetyConfig,
+  getSavedOutreachTemplates,
+  updateSavedOutreachTemplates,
   processOutreachQueueTick,
 } from '../services/evolutionOutreachService.js';
 
@@ -105,11 +108,23 @@ router.get('/admin/whatsapp/outreach/overview', async (req, res) => {
     const overview = await getOutreachDashboardOverview({
       search: req.query.search || '',
       filter: req.query.filter || 'all',
-      limit: req.query.limit || 250,
+      limit: req.query.limit || 2500,
     });
     res.status(200).json(overview);
   } catch (err) {
     res.status(500).json({ error: 'Erro ao carregar painel de contatos e envios WhatsApp.', details: err.message });
+  }
+});
+
+router.put('/admin/whatsapp/outreach/contacts/:id/name', async (req, res) => {
+  try {
+    const result = await updateOutreachContactName({
+      contactId: req.params.id,
+      customName: req.body?.name ?? '',
+    });
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Erro ao salvar nome do contato.' });
   }
 });
 
@@ -186,6 +201,32 @@ router.put('/admin/whatsapp/outreach/safety', async (req, res) => {
     res.status(200).json(updated);
   } catch (err) {
     res.status(500).json({ error: 'Erro ao salvar Trava de Segurança.', details: err.message });
+  }
+});
+
+router.get('/admin/whatsapp/outreach/templates', async (req, res) => {
+  try {
+    const templates = await getSavedOutreachTemplates();
+    res.status(200).json(templates);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao carregar modelos de mensagem.', details: err.message });
+  }
+});
+
+router.put('/admin/whatsapp/outreach/templates', async (req, res) => {
+  try {
+    const updated = await updateSavedOutreachTemplates({
+      unregisteredImageUrl: req.body?.unregisteredImageUrl,
+      unregisteredTemplate: req.body?.unregisteredTemplate,
+      registeredTemplate: req.body?.registeredTemplate,
+      intlUnregisteredTemplate: req.body?.intlUnregisteredTemplate,
+      intlRegisteredTemplate: req.body?.intlRegisteredTemplate,
+      resetDefaults: req.body?.resetDefaults,
+      updatedBy: req.user?.id || null,
+    });
+    res.status(200).json(updated);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao salvar modelos de mensagem do WhatsApp.', details: err.message });
   }
 });
 
