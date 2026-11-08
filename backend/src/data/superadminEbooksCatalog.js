@@ -5,21 +5,37 @@
  * (10 Listas Abertas • 49 Cartões • 83 Checklists • 81 Notas Autorais)
  */
 
+import { AUTHOR_PROFILE, COLLECTION_META_EN, EBOOKS_EN_GB } from './ebooksBritishEnglish.js';
+import { VOLUME_VISUAL_SPEC, CHAPTER_DEEP_ENRICHMENT } from './ebooksDeepEnrichment.js';
+
+export { AUTHOR_PROFILE, COLLECTION_META_EN };
+
+export const EBOOK_STORE_PRICING = {
+  individualPrice: 19.90,
+  bundleDiscountPercent: 30,
+  fullRetailTotal: Number((19.90 * 8).toFixed(2)), // 159.20
+  bundlePrice: Number((19.90 * 8 * 0.70).toFixed(2)), // 111.44 (30% OFF exato)
+  bundleSavings: Number((19.90 * 8 * 0.30).toFixed(2)), // 47.76
+  currency: 'BRL',
+};
+
 export const EBOOK_COLLECTION_META = {
   collectionTitle: 'Coleção ISAAC® Essential — Clareza, Liderança & Negócios com Propósito',
   collectionSubtitle:
-    '8 eBooks segmentados com explicações diretas, ferramentas práticas e posicionamento comercial pronto para venda.',
+    '8 eBooks Bilíngues (Português + Inglês Britânico no mesmo PDF) por Thiago Prata — explicações detalhadas, ilustrações, ferramentas práticas e linhas de anotações.',
   sourceBoardName: 'ISAAC - Essential (Mind Map)',
   sourceBoardUrl: 'https://trello.com/b/squXZ3Yq/isaac-essential-mind-map',
   acronymMeaning: 'Inovação • Sustentabilidade • Amor • Atitude • Conhecimento',
   communityVision:
     'CISCO — Comunidades Inteligentes, Sustentáveis, Colaborativas e Otimizadas ("Fazer do bem um bom negócio" / "A liberdade de ser você!")',
+  author: AUTHOR_PROFILE,
+  pricing: EBOOK_STORE_PRICING,
   commercialStrategy: {
-    individualTicketRange: 'R$ 29,90 a R$ 47,00 por volume avulso',
-    trilogyTicketRange: 'R$ 97,00 (Trilha Pessoal ou Trilha Empresarial)',
-    fullPassTicketRange: 'R$ 197,00 a R$ 247,00 (Passaporte Completo — Todos os 8 Volumes + Cadernos de Exercícios)',
+    individualTicketRange: 'R$ 19,90 por volume avulso (Edição Bilíngue PT-BR + EN-GB)',
+    trilogyTicketRange: 'Monte seu carrinho livremente na página principal do App',
+    fullPassTicketRange: 'R$ 111,44 com 30% OFF (de R$ 159,20) — Arquivo Único em PDF com todos os 8 eBooks Bilíngues',
     upsellBridge:
-      'Cada eBook atua como porta de entrada (Oferta Condicional de Ticket Acessível) que prepara e qualifica o leitor para a Mentoria ISAAC (Plano Mensal no WhatsApp ou Consultoria Estratégica).',
+      'Cada eBook atua como porta de entrada acessível que entrega clareza imediata e prepara o leitor para a Mentoria ISAAC® com Thiago Prata.',
   },
 };
 
@@ -122,7 +138,7 @@ export const SUPERADMIN_EBOOKS = [
         number: 4,
         title: 'Dinheiro Sem Tabus, Economia Viva & O Elástico do Desenvolvimento',
         coreExplanation:
-          'Economia nada mais é do que a ciência da troca humana em comunidade. Do escambo às moedas digitais, o dinheiro cumpre 3 funções objetivas: facilitar trocas, reservar valor e servir de unidade de medida. Crenças como "dinheiro corrompe" ou "dinheiro é sujo" sabotam justamente as pessoas éticas que deveriam prosperar para ampliar o bem.Ao mesmo tempo, prosperar isolado em um entorno miserável é insustentável: quando a corda arrebenta para o lado mais fraco, o elástico do desenvolvimento chicoteia quem está em cima em forma de insegurança, instabilidade e perda de liberdade.',
+          'Economia nada mais é do que a ciência da troca humana em comunidade. Do escambo às moedas digitais, o dinheiro cumpre 3 funções objetivas: facilitar trocas, reservar valor e servir de unidade de medida. Crenças como "dinheiro corrompe" ou "dinheiro é sujo" sabotam justamente as pessoas éticas que deveriam prosperar para ampliar o bem. Ao mesmo tempo, prosperar isolado em um entorno miserável é insustentável: quando a corda arrebenta para o lado mais fraco, o elástico do desenvolvimento chicoteia quem está em cima em forma de insegurança, instabilidade e perda de liberdade.',
         clarityKey:
           'Dinheiro é um amplificador de intenção e um recibo social de valor gerado. Negócios saudáveis prosperam melhor quando fortalecem a comunidade ao redor.',
         frameworkTitle: 'As 3 Funções do Dinheiro & Consciência de Ciclo',
@@ -866,4 +882,167 @@ export const SUPERADMIN_EBOOKS = [
     ],
   },
 ];
+
+// =========================================================================
+// CONSTRUÇÃO UNIFICADA DO CATÁLOGO BILÍNGUE ENRIQUECIDO (PT-BR + EN-GB)
+// =========================================================================
+export const ENRICHED_EBOOKS_CATALOG = SUPERADMIN_EBOOKS.map((vol) => {
+  const enVol = EBOOKS_EN_GB[vol.id] || {};
+  const visual = VOLUME_VISUAL_SPEC[vol.id] || {};
+  const chapDeepMap = CHAPTER_DEEP_ENRICHMENT[vol.id] || {};
+
+  const enrichedChaptersPt = (vol.chapters || []).map((ch) => {
+    const deep = chapDeepMap[ch.number] || {};
+    return {
+      ...ch,
+      deepParagraphs: deep.deepPt || [],
+      caseStudy: deep.casePt || '',
+    };
+  });
+
+  const enrichedChaptersEn = (enVol.chapters || []).map((ch) => {
+    const deep = chapDeepMap[ch.number] || {};
+    return {
+      ...ch,
+      deepParagraphs: deep.deepEn || [],
+      caseStudy: deep.caseEn || '',
+    };
+  });
+
+  return {
+    ...vol,
+    price: EBOOK_STORE_PRICING.individualPrice,
+    suggestedPrice: 'R$ 19,90',
+    formattedPrice: 'R$ 19,90',
+    bilingualBadge: 'Português + Inglês Britânico no mesmo PDF',
+    authorName: AUTHOR_PROFILE.name,
+    authorRole: AUTHOR_PROFILE.rolePt,
+    coverUrl: `/ebooks/covers/${visual.coverFile || `${vol.id}.jpg`}`,
+    illustrationUrl: `/ebooks/illustrations/${visual.illustrationFile || `ilus-0${vol.volumeNumber}.jpg`}`,
+    salesPagePath: `/loja/ebooks/${vol.slug}`,
+    visualSpec: visual,
+    chapters: enrichedChaptersPt,
+    enGb: {
+      ...enVol,
+      chapters: enrichedChaptersEn,
+    },
+  };
+});
+
+export const COMPLETE_BUNDLE_PRODUCT = {
+  id: 'bundle-all-8',
+  isBundle: true,
+  volumeNumber: 0,
+  slug: 'colecao-completa',
+  segmentBadge: 'Promoção Especial • 30% de Desconto',
+  accentColor: 'amber',
+  title: 'Coleção Completa ISAAC® Essential — Todos os 8 eBooks em 1 Arquivo Único PDF',
+  subtitle:
+    'A obra completa de Thiago Prata reunida em um único PDF Bilíngue (Português + Inglês Britânico): Fundamentos, Mente & IA, Core, Recursos, Mercado, Logística, Aprendizado e Alinhamento.',
+  enTitle: 'Complete ISAAC® Essential Collection — All 8 Bilingual eBooks in a Single Master PDF',
+  enSubtitle:
+    'All 8 volumes by Thiago Prata united inside a single comprehensive Bilingual PDF (Portuguese + British English) with 30% instant savings.',
+  price: EBOOK_STORE_PRICING.bundlePrice, // 111.44
+  originalPrice: EBOOK_STORE_PRICING.fullRetailTotal, // 159.20
+  discountPercent: EBOOK_STORE_PRICING.bundleDiscountPercent, // 30
+  savingsAmount: EBOOK_STORE_PRICING.bundleSavings, // 47.76
+  formattedPrice: 'R$ 111,44',
+  formattedOriginalPrice: 'R$ 159,20',
+  bilingualBadge: 'Edição Completa Bilíngue (PT-BR + EN-GB) • Arquivo Único PDF',
+  authorName: AUTHOR_PROFILE.name,
+  authorRole: AUTHOR_PROFILE.rolePt,
+  coverUrl: '/ebooks/covers/colecao-completa.jpg',
+  illustrationUrl: '/ebooks/illustrations/ilus-08.jpg',
+  salesPagePath: '/loja/ebooks/colecao-completa',
+  readingTimeMin: ENRICHED_EBOOKS_CATALOG.reduce((acc, v) => acc + (v.readingTimeMin || 28), 0),
+  salesKit: {
+    targetAudience:
+      'Leitores, empreendedores, líderes e mentorados que desejam dominar toda a Metodologia ISAAC® de Thiago Prata de ponta a ponta economizando 30%.',
+    corePain:
+      'Ter peças soltas de conhecimento sem enxergar como vida pessoal, mente, posicionamento, finanças, vendas, processos e cultura se conectam em um único sistema.',
+    transformationPromise:
+      'Receber em um único arquivo PDF ricamente ilustrado e bilíngue todos os 8 volumes, 30 capítulos aprofundados, diagramas visuais, exercícios práticos e dedicatória personalizada.',
+    headline:
+      'Leve toda a sabedoria prática da Coleção ISAAC® Essential em um Arquivo Único PDF com 30% de desconto imediato.',
+    whatsappCopy:
+      'Quer ter em mãos a obra completa da *Metodologia ISAAC®* escrita pelo mentor *Thiago Prata*? Na *Coleção Completa (8 eBooks em 1 PDF Único Bilíngue PT-BR + Inglês Britânico)*, você garante todos os 8 volumes ilustrados com *30% de desconto* (de R$ 159,20 por *R$ 111,44*) e recebe seu exemplar dedicado automaticamente no e-mail e no WhatsApp!',
+    enWhatsappCopy:
+      'Would you like the complete *ISAAC® Methodology* authored by mentor *Thiago Prata* in one place? With the *Complete Collection (All 8 Bilingual eBooks in 1 Master PDF — Portuguese & British English)*, you unlock every illustrated volume with *30% OFF* and receive your personally dedicated edition straight to your email and WhatsApp!',
+    deliverables: ENRICHED_EBOOKS_CATALOG.map(
+      (v) => `Vol. 0${v.volumeNumber} — ${v.title} (PT-BR & British English)`
+    ),
+  },
+};
+
+export function findEbookProductBySlug(slug = '') {
+  const clean = String(slug || '').trim().toLowerCase();
+  if (!clean) return null;
+  if (clean === 'colecao-completa' || clean === 'bundle-all-8' || clean === 'todos') {
+    return COMPLETE_BUNDLE_PRODUCT;
+  }
+  return (
+    ENRICHED_EBOOKS_CATALOG.find(
+      (v) => v.slug.toLowerCase() === clean || v.id.toLowerCase() === clean
+    ) || null
+  );
+}
+
+export function getPublicEbooksStorePayload(baseUrl = 'https://isaac.lynxems.com.br') {
+  const cleanBase = String(baseUrl || 'https://isaac.lynxems.com.br').replace(/\/$/, '');
+  return {
+    meta: EBOOK_COLLECTION_META,
+    author: {
+      ...AUTHOR_PROFILE,
+      photoUrl: `${cleanBase}/ebooks/thiago-prata.jpg`,
+    },
+    pricing: EBOOK_STORE_PRICING,
+    bundle: {
+      ...COMPLETE_BUNDLE_PRODUCT,
+      fullCoverUrl: `${cleanBase}${COMPLETE_BUNDLE_PRODUCT.coverUrl}`,
+      fullSalesUrl: `${cleanBase}${COMPLETE_BUNDLE_PRODUCT.salesPagePath}`,
+    },
+    ebooks: ENRICHED_EBOOKS_CATALOG.map((v) => ({
+      id: v.id,
+      volumeNumber: v.volumeNumber,
+      slug: v.slug,
+      segmentBadge: v.segmentBadge,
+      accentColor: v.accentColor,
+      title: v.title,
+      subtitle: v.subtitle,
+      enTitle: v.enGb?.title || '',
+      enSubtitle: v.enGb?.subtitle || '',
+      price: v.price,
+      formattedPrice: v.formattedPrice,
+      bilingualBadge: v.bilingualBadge,
+      readingTimeMin: v.readingTimeMin,
+      authorName: v.authorName,
+      authorRole: v.authorRole,
+      coverUrl: v.coverUrl,
+      fullCoverUrl: `${cleanBase}${v.coverUrl}`,
+      illustrationUrl: v.illustrationUrl,
+      fullIllustrationUrl: `${cleanBase}${v.illustrationUrl}`,
+      salesPagePath: v.salesPagePath,
+      fullSalesUrl: `${cleanBase}${v.salesPagePath}`,
+      executiveSummary: v.executiveSummary,
+      enExecutiveSummary: v.enGb?.executiveSummary || '',
+      salesKit: {
+        ...v.salesKit,
+        enWhatsappCopy: v.enGb?.salesKit?.whatsappCopy || '',
+        enHeadline: v.enGb?.salesKit?.headline || '',
+      },
+      chaptersPreview: v.chapters.map((c) => ({
+        number: c.number,
+        title: c.title,
+        frameworkTitle: c.frameworkTitle,
+      })),
+      enChaptersPreview: (v.enGb?.chapters || []).map((c) => ({
+        number: c.number,
+        title: c.title,
+        frameworkTitle: c.frameworkTitle,
+      })),
+      chapterCount: v.chapters.length,
+    })),
+  };
+}
+
 

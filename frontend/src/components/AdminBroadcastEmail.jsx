@@ -17,12 +17,14 @@ import {
   Clock,
   Check,
   ExternalLink,
+  BookOpen,
 } from 'lucide-react';
 import {
   fetchBroadcastStats,
   generateBroadcastDraft,
   sendBroadcastEmail,
 } from '../services/adminApi';
+import { fetchPublicEbooksStore } from '../services/ebookStoreApi';
 
 export default function AdminBroadcastEmail({ currentUser }) {
   const [stats, setStats] = useState(null);
@@ -33,7 +35,10 @@ export default function AdminBroadcastEmail({ currentUser }) {
   const [subject, setSubject] = useState('');
   const [htmlContent, setHtmlContent] = useState('');
   const [callToActionText, setCallToActionText] = useState('Visitar Meu Refúgio Agora');
+  const [callToActionUrl, setCallToActionUrl] = useState('');
   const [targetAudience, setTargetAudience] = useState('all'); // 'all' | 'subscribers' | 'free'
+  const [ebookCatalog, setEbookCatalog] = useState({ ebooks: [], bundle: null });
+  const [selectedEbookSlug, setSelectedEbookSlug] = useState('');
 
   // Estados de Operação
   const [isGenerating, setIsGenerating] = useState(false);
@@ -49,7 +54,94 @@ export default function AdminBroadcastEmail({ currentUser }) {
 
   useEffect(() => {
     loadStats();
+    fetchPublicEbooksStore()
+      .then((res) => {
+        if (res) {
+          setEbookCatalog({
+            ebooks: res.ebooks || [],
+            bundle: res.completeBundle || null,
+          });
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const handleSelectEbookEmailPreset = (slug) => {
+    setSelectedEbookSlug(slug);
+    if (!slug) {
+      setCallToActionUrl('');
+      return;
+    }
+
+    const baseOrigin = 'https://isaac.lynxems.com.br';
+    const isBundle = slug === 'colecao-completa';
+    const book = isBundle
+      ? ebookCatalog.bundle
+      : (ebookCatalog.ebooks || []).find((b) => b.slug === slug);
+
+    if (!book) return;
+
+    const dedicatedUrl = `${baseOrigin}/loja/ebooks/${book.slug}`;
+    const coverImg = book.coverUrl?.startsWith('http')
+      ? book.coverUrl
+      : `${baseOrigin}${book.coverUrl || '/ebooks/covers/colecao-completa.jpg'}`;
+
+    setCallToActionUrl(dedicatedUrl);
+
+    if (isBundle) {
+      setSubject('📚 Lançamento Oficial: Coleção Completa 8 eBooks ISAAC® (30% OFF) — por Thiago Prata');
+      setCallToActionText('Garantir Coleção Completa (30% OFF • R$ 111,44)');
+      setHtmlContent(`<p>Olá, <strong>{{nome}}</strong>! Esperamos que esta carta encontre você com paz e clareza.</p>
+<p>Temos a alegria de apresentar o lançamento da <strong>Coleção Completa ISAAC® Essential (8 Volumes em PDF Único)</strong>, escrita pelo mentor <strong>Thiago Prata</strong> — idealizador e criador da Mentoria e do App ISAAC®.</p>
+<div style="text-align:center; margin: 22px 0;">
+  <a href="${dedicatedUrl}" style="text-decoration:none;">
+    <img src="${coverImg}" alt="Coleção Completa ISAAC Essential" style="max-width: 240px; width: 100%; border-radius: 14px; box-shadow: 0 10px 25px rgba(15,23,42,0.18);" />
+  </a>
+</div>
+<p><strong>O que torna esta edição especial:</strong></p>
+<ul>
+  <li><strong>Arquivo PDF Único Consolidado</strong> reunindo todos os 8 eBooks segmentados da metodologia ISAAC®;</li>
+  <li><strong>Edição Bilíngue (Português + Inglês Britânico no mesmo PDF)</strong>, com ilustrações editoriais inéditas e caderno prático de exercícios;</li>
+  <li><strong>Dedicatória personalizada com o seu nome</strong> impressa na margem inferior das páginas;</li>
+  <li><strong>Entrega automática imediata</strong> no seu E-mail e WhatsApp após confirmação via Asaas.</li>
+</ul>
+<p style="background:#fffbeb; border:1px solid #fde68a; padding:14px 18px; border-radius:12px; color:#78350f;">
+  🔥 <strong>Promoção de 30% de Desconto no Pacote Completo:</strong> de <s>R$ 159,20</s> por apenas <strong>R$ 111,44</strong> (ou adquira cada volume individualmente por R$ 19,90).
+</p>
+<p>Clique no botão abaixo para visitar a página dedicada da coleção:</p>
+<p><a href="${dedicatedUrl}" style="color:#0f766e; font-weight:700;">${dedicatedUrl}</a></p>`);
+      setFeedback({
+        type: 'success',
+        message: 'Modelo de divulgação da Coleção Completa (R$ 111,44) carregado com capa e link dedicado!',
+      });
+      return;
+    }
+
+    const volNum = String(book.volumeNumber || 1).padStart(2, '0');
+    setSubject(`📘 Novo eBook Vol. ${volNum}: ${book.title} — por Thiago Prata (Mentoria ISAAC®)`);
+    setCallToActionText(`Acessar Página do Volume ${volNum} (R$ 19,90)`);
+    setHtmlContent(`<p>Olá, <strong>{{nome}}</strong>! Tudo bem com você?</p>
+<p>Convidamos você para conhecer o <strong>Volume ${volNum} da Coleção ISAAC® Essential</strong>, assinado pelo mentor <strong>Thiago Prata</strong> — criador da Mentoria e do App ISAAC®:</p>
+<div style="text-align:center; margin: 22px 0;">
+  <a href="${dedicatedUrl}" style="text-decoration:none;">
+    <img src="${coverImg}" alt="${book.title}" style="max-width: 230px; width: 100%; border-radius: 14px; box-shadow: 0 10px 25px rgba(15,23,42,0.18);" />
+  </a>
+</div>
+<h3 style="color:#0f766e; margin-bottom:6px;">${book.title}</h3>
+<p style="margin-top:0; color:#57534e;"><em>${book.subtitle}</em></p>
+<ul>
+  <li><strong>Edição Bilíngue Oficial:</strong> conteúdo completo em Português e Inglês Britânico no mesmo PDF;</li>
+  <li><strong>Dedicatória Nominal Exclusiva:</strong> seu exemplar é gerado com dedicatória para você na margem inferior do PDF;</li>
+  <li><strong>Envio Automático:</strong> link liberado na hora no seu E-mail e celular (WhatsApp) via Asaas;</li>
+  <li><strong>Investimento:</strong> apenas <strong>R$ 19,90</strong> neste volume avulso (ou leve os 8 volumes no PDF Único com <strong>30% de desconto por R$ 111,44</strong>).</li>
+</ul>
+<p>Acesse a página dedicada deste eBook pelo botão abaixo ou pelo link direto:<br/>
+<a href="${dedicatedUrl}" style="color:#0f766e; font-weight:700;">${dedicatedUrl}</a></p>`);
+    setFeedback({
+      type: 'success',
+      message: `Modelo de e-mail do Volume ${volNum} (${book.title}) carregado com capa e link dedicado!`,
+    });
+  };
 
   const loadStats = async () => {
     try {
@@ -114,6 +206,7 @@ export default function AdminBroadcastEmail({ currentUser }) {
         targetAudience: 'test',
         testEmail: testEmailInput.trim(),
         callToActionText,
+        callToActionUrl,
       });
 
       setFeedback({
@@ -143,6 +236,7 @@ export default function AdminBroadcastEmail({ currentUser }) {
         htmlContent,
         targetAudience,
         callToActionText,
+        callToActionUrl,
       });
 
       setSendResult(res);
@@ -325,6 +419,35 @@ export default function AdminBroadcastEmail({ currentUser }) {
             </span>
           </button>
         </div>
+      </div>
+
+      {/* DIVULGAÇÃO RÁPIDA DE EBOOKS DEDICADOS (THIAGO PRATA) */}
+      <div className="p-5 rounded-3xl bg-gradient-to-r from-amber-50 via-stone-50 to-teal-50/50 dark:from-slate-800 dark:via-slate-800/90 dark:to-teal-950/30 border border-amber-300/80 dark:border-amber-700/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="text-sm font-semibold text-stone-900 dark:text-white flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-amber-600" />
+            <span>Divulgar Página Dedicada de eBook para Usuários do App (Autor: Thiago Prata)</span>
+          </div>
+          <p className="text-xs text-stone-600 dark:text-stone-300 font-serif">
+            Escolha um volume individual (<strong>R$ 19,90</strong>) ou a Coleção Completa 30% OFF (<strong>R$ 111,44</strong>) para montar automaticamente o e-mail com a capa de venda oficial e o link direto da página dedicada.
+          </p>
+        </div>
+
+        <select
+          value={selectedEbookSlug}
+          onChange={(e) => handleSelectEbookEmailPreset(e.target.value)}
+          className="px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-amber-400 dark:border-amber-600 text-xs font-semibold text-stone-900 dark:text-white lg:w-96 shrink-0 cursor-pointer"
+        >
+          <option value="">📚 Selecionar eBook para Divulgação por E-mail...</option>
+          <option value="colecao-completa">
+            🔥 Coleção Completa (PDF Único c/ 8 eBooks • 30% OFF = R$ 111,44)
+          </option>
+          {(ebookCatalog.ebooks || []).map((eb) => (
+            <option key={eb.slug} value={eb.slug}>
+              📘 Vol. {String(eb.volumeNumber).padStart(2, '0')} — {eb.title} (R$ 19,90)
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* ASSISTENTE INTELIGENTE GEMINI PARA REDAÇÃO */}

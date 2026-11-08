@@ -31,6 +31,7 @@ import {
   CheckSquare,
   Square,
   X,
+  BookOpen,
 } from 'lucide-react';
 import {
   fetchAdminWhatsappOutreachOverview,
@@ -42,6 +43,7 @@ import {
   saveAdminWhatsappOutreachTemplatesApi,
   updateAdminWhatsappContactNameApi,
 } from '../services/adminApi';
+import { fetchPublicEbooksStore } from '../services/ebookStoreApi';
 import { formatContactPhoneBadge } from '../utils/phoneUtils';
 
 const FALLBACK_DEFAULT_UNREGISTERED_TEMPLATE = `{saudacao}, {nome}! Tudo bem com você?
@@ -249,6 +251,133 @@ export default function AdminEvolutionContacts({ currentUser }) {
   const intlRegisteredTextareaRef = useRef(null);
 
   const [creatingCampaign, setCreatingCampaign] = useState(false);
+  const [ebookStoreCatalog, setEbookStoreCatalog] = useState({ ebooks: [], bundle: null });
+  const [selectedEbookPresetSlug, setSelectedEbookPresetSlug] = useState('');
+
+  useEffect(() => {
+    fetchPublicEbooksStore()
+      .then((res) => {
+        if (res) {
+          setEbookStoreCatalog({
+            ebooks: res.ebooks || [],
+            bundle: res.completeBundle || null,
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleApplyEbookCampaignPreset = (slug) => {
+    setSelectedEbookPresetSlug(slug);
+    if (!slug) return;
+
+    const baseOrigin = 'https://isaac.lynxems.com.br';
+    const isBundle = slug === 'colecao-completa';
+    const book = isBundle
+      ? ebookStoreCatalog.bundle
+      : (ebookStoreCatalog.ebooks || []).find((b) => b.slug === slug);
+
+    if (!book) return;
+
+    const dedicatedUrl = `${baseOrigin}/loja/ebooks/${book.slug}`;
+    const coverImg = book.coverUrl?.startsWith('http')
+      ? book.coverUrl
+      : `${baseOrigin}${book.coverUrl || '/ebooks/covers/colecao-completa.jpg'}`;
+
+    setUnregisteredImageUrl(coverImg);
+
+    if (isBundle) {
+      setCampTitle('Oferta Especial: Coleção Completa 8 eBooks ISAAC® (30% OFF) — Thiago Prata');
+      const ptMsg = `{saudacao}, {nome}! Tudo bem com você?
+
+Quero compartilhar com você o lançamento oficial da *Coleção Completa ISAAC® Essential (8 Volumes em PDF Único)*, escrita pelo mentor *Thiago Prata* — idealizador e criador da Mentoria e do App ISAAC®.
+
+📚 *O que você recebe imediatamente após a confirmação:*
+• Arquivo *PDF Único Consolidado* com todos os *8 eBooks completos*
+• Edição *Bilíngue (Português + Inglês Britânico no mesmo PDF)* com ilustrações e caderno prático de exercícios
+• *Dedicatória nominal exclusiva para você* impressa na margem inferior das páginas
+• Envio automático do link de download para o seu E-mail e WhatsApp
+
+🔥 *Promoção Especial de 30% de Desconto:*
+De ~R$ 159,20~ por apenas *R$ 111,44* (pagamento direto via PIX, Cartão ou Boleto Asaas).
+
+👉 Conheça a página dedicada da Coleção Completa ou escolha volumes avulsos (R$ 19,90):
+${dedicatedUrl}
+
+_(Se preferir não receber novidades por aqui, basta responder "parar".)_`;
+
+      const enMsg = `{saudacao}, {nome}! How are you doing?
+
+I am delighted to share with you the official release of the *Complete ISAAC® Essential Collection (All 8 Volumes in a Single PDF)*, authored by *Thiago Prata* — Mentor and Creator of the ISAAC® Mentoring App.
+
+📚 *What is included upon payment confirmation:*
+• *Single Consolidated PDF* containing all *8 complete volumes*
+• *Bilingual Edition (Portuguese + British English inside the same PDF)* with custom illustrations and ruled exercise pages
+• *Personalised dedication to you* printed along the bottom margin of every page
+• Instant delivery link sent straight to your Email and WhatsApp
+
+🔥 *Special 30% Bundle Discount:*
+All 8 bilingual volumes for *R$ 111.44* (30% OFF individual price).
+
+👉 View the dedicated collection page here:
+${dedicatedUrl}
+
+_(If you prefer not to receive updates here, simply reply "stop".)_`;
+
+      setUnregisteredTemplate(ptMsg);
+      setRegisteredTemplate(ptMsg);
+      setIntlUnregisteredTemplate(enMsg);
+      setIntlRegisteredTemplate(enMsg);
+      showToast('Campanha da Coleção Completa (R$ 111,44 • 30% OFF) carregada com capa e link dedicado!');
+      return;
+    }
+
+    const volNum = String(book.volumeNumber || 1).padStart(2, '0');
+    const enTitle = book.en?.title || book.title;
+    setCampTitle(`eBook Vol. ${volNum}: ${book.title} — Thiago Prata`);
+
+    const ptSingle = `{saudacao}, {nome}! Tudo bem com você?
+
+Acaba de sair o *Volume ${volNum} da Coleção ISAAC® Essential*, escrito pelo mentor *Thiago Prata* (criador da Mentoria e do App ISAAC®):
+
+📘 *${book.title}*
+_${book.subtitle}_
+
+✨ *Destaques desta edição:*
+• Conteúdo *Bilíngue (Português + Inglês Britânico no mesmo PDF)* com ilustrações editoriais e exercícios práticos
+• *Dedicatória exclusiva com o seu nome* na margem inferior do PDF
+• Entrega imediata no seu E-mail e WhatsApp após confirmação via Asaas
+• Investimento acessível: apenas *R$ 19,90* _(ou leve os 8 volumes no PDF Único com 30% OFF por R$ 111,44)_
+
+👉 Acesse a página dedicada deste eBook e veja a capa e os capítulos:
+${dedicatedUrl}
+
+_(Se preferir não receber comunicados no WhatsApp, responda "parar".)_`;
+
+    const enSingle = `{saudacao}, {nome}! How are you doing?
+
+We have just released *Volume ${volNum} of the ISAAC® Essential Collection*, authored by *Thiago Prata* (Mentor & Creator of the ISAAC® App):
+
+📘 *${enTitle}*
+_${book.en?.subtitle || book.subtitle}_
+
+✨ *Edition highlights:*
+• Complete *Bilingual Single PDF (Portuguese + British English in the same file)* with custom illustrations and practical frameworks
+• *Personalised dedication bearing your name* in the bottom margin of every page
+• Instant download link delivered to your Email and WhatsApp
+• Individual volume: *R$ 19.90* _(or save 30% on the Complete 8-in-1 Collection)_
+
+👉 Explore the dedicated page for this eBook here:
+${dedicatedUrl}
+
+_(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`;
+
+    setUnregisteredTemplate(ptSingle);
+    setRegisteredTemplate(ptSingle);
+    setIntlUnregisteredTemplate(enSingle);
+    setIntlRegisteredTemplate(enSingle);
+    showToast(`Campanha do Volume ${volNum} (${book.title}) carregada com capa oficial e link dedicado!`);
+  };
 
   // Modal / Seção de Segurança (Master)
   const [showSafetyConfig, setShowSafetyConfig] = useState(false);
@@ -1064,6 +1193,35 @@ export default function AdminEvolutionContacts({ currentUser }) {
         </div>
       </div>
 
+      {/* SELETOR RÁPIDO DE CAMPANHA DE EBOOK DEDICADO (THIAGO PRATA) */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-teal-50/60 to-stone-50 dark:from-slate-900 dark:via-teal-950/30 dark:to-slate-900 border border-amber-300/80 dark:border-amber-700/50 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div className="space-y-0.5">
+          <div className="text-xs font-bold text-stone-900 dark:text-white flex items-center gap-1.5">
+            <BookOpen className="w-4 h-4 text-amber-600" />
+            <span>Divulgar Página Dedicada de eBook — Autor: Thiago Prata (Mentoria ISAAC®)</span>
+          </div>
+          <p className="text-[11px] text-stone-600 dark:text-stone-300">
+            Selecione abaixo qualquer eBook avulso (<strong>R$ 19,90</strong>) ou a Coleção Completa 30% OFF (<strong>R$ 111,44</strong>) para carregar automaticamente a <strong>capa de venda oficial</strong> e o <strong>link direto da página dedicada</strong> nos 4 modelos (PT-BR e EN-GB), enviando para contatos da Evolution e/ou usuários do App.
+          </p>
+        </div>
+
+        <select
+          value={selectedEbookPresetSlug}
+          onChange={(e) => handleApplyEbookCampaignPreset(e.target.value)}
+          className="px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-amber-400 dark:border-amber-600 text-xs font-semibold text-stone-900 dark:text-white lg:w-96 shrink-0 cursor-pointer"
+        >
+          <option value="">📚 Escolher eBook ou Pacote p/ Carregar Link &amp; Capa...</option>
+          <option value="colecao-completa">
+            🔥 Coleção Completa (PDF Único c/ 8 eBooks • 30% OFF = R$ 111,44)
+          </option>
+          {(ebookStoreCatalog.ebooks || []).map((eb) => (
+            <option key={eb.slug} value={eb.slug}>
+              📘 Vol. {String(eb.volumeNumber).padStart(2, '0')} — {eb.title} (R$ 19,90)
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* SELETOR DE IDIOMA DOS TEMPLATES + IMAGEM COMPARTILHADA DO CONVITE */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3 rounded-2xl bg-stone-100/80 dark:bg-slate-900/70 border border-stone-200 dark:border-slate-800">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -1746,8 +1904,8 @@ export default function AdminEvolutionContacts({ currentUser }) {
                 { id: 'invalid_name', label: `⚠️ Sem Nome Válido (${overview.stats?.totalInvalidName || 0})` },
                 { id: 'international', label: `🇬🇧 Internacionais (${overview.stats?.totalInternational || 0})` },
                 { id: 'brazil', label: '🇧🇷 Brasil (+55)' },
-                { id: 'registered', label: 'Já Cadastrados' },
-                { id: 'unregistered', label: 'Não Cadastrados' },
+                { id: 'registered', label: `📱 Usuários do App (${overview.stats?.totalRegistered || 0})` },
+                { id: 'unregistered', label: `💬 Contatos Evolution (${overview.stats?.totalUnregistered || 0})` },
                 { id: 'allowed_only', label: 'Autorizado (Trava)' },
                 { id: 'sent', label: 'Já Receberam Envio' },
                 { id: 'opt_out', label: 'Opt-Out (Parar)' },

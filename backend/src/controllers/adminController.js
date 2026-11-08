@@ -827,6 +827,7 @@ export async function sendBroadcastMessageController(req, res) {
       subject,
       htmlContent,
       callToActionText = 'Visitar Meu Refúgio Agora',
+      callToActionUrl = '',
       targetAudience = 'all',
       testEmail = null,
     } = req.body;
@@ -845,6 +846,7 @@ export async function sendBroadcastMessageController(req, res) {
       subject: subject.trim(),
       htmlContent: htmlContent.trim(),
       callToActionText: callToActionText?.trim() || 'Visitar Meu Refúgio Agora',
+      callToActionUrl: callToActionUrl ? String(callToActionUrl).trim() : '',
       targetAudience,
       testEmail,
     });

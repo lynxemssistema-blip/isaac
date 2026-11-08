@@ -309,16 +309,41 @@ function getEvoConfig() {
   };
 }
 
-function loadDefaultIsaacImageBase64() {
-  const candidates = [
-    path.resolve(__dirname, '../../../frontend/public/og-isaac-cover.jpg'),
-    path.resolve(__dirname, '../../../frontend/dist/og-isaac-cover.jpg'),
-    path.resolve(process.cwd(), 'frontend/public/og-isaac-cover.jpg'),
-    path.resolve(process.cwd(), 'frontend/dist/og-isaac-cover.jpg'),
-  ];
-  for (const filePath of candidates) {
-    if (fs.existsSync(filePath)) {
-      return fs.readFileSync(filePath).toString('base64');
+function loadLocalCoverImageBase64(mediaUrl = '') {
+  const cleanUrl = String(mediaUrl || '').trim();
+  const ebookCoverMatch = cleanUrl.match(/\/ebooks\/covers\/([a-z0-9_-]+\.(?:jpg|jpeg|png))$/i);
+  if (ebookCoverMatch) {
+    const coverFile = ebookCoverMatch[1];
+    const ebookCandidates = [
+      path.resolve(__dirname, `../assets/ebooks/covers/${coverFile}`),
+      path.resolve(__dirname, `../../../frontend/public/ebooks/covers/${coverFile}`),
+      path.resolve(__dirname, `../../../frontend/dist/ebooks/covers/${coverFile}`),
+      path.resolve(process.cwd(), `backend/src/assets/ebooks/covers/${coverFile}`),
+      path.resolve(process.cwd(), `frontend/public/ebooks/covers/${coverFile}`),
+    ];
+    for (const filePath of ebookCandidates) {
+      if (fs.existsSync(filePath)) {
+        return fs.readFileSync(filePath).toString('base64');
+      }
+    }
+  }
+
+  const isDefaultCover =
+    !cleanUrl ||
+    cleanUrl === DEFAULT_ISAAC_IMAGE_URL ||
+    cleanUrl.endsWith('/og-isaac-cover.jpg');
+
+  if (isDefaultCover) {
+    const candidates = [
+      path.resolve(__dirname, '../../../frontend/public/og-isaac-cover.jpg'),
+      path.resolve(__dirname, '../../../frontend/dist/og-isaac-cover.jpg'),
+      path.resolve(process.cwd(), 'frontend/public/og-isaac-cover.jpg'),
+      path.resolve(process.cwd(), 'frontend/dist/og-isaac-cover.jpg'),
+    ];
+    for (const filePath of candidates) {
+      if (fs.existsSync(filePath)) {
+        return fs.readFileSync(filePath).toString('base64');
+      }
     }
   }
   return null;
@@ -339,16 +364,9 @@ export async function sendWhatsAppImageSafe({ jidOrNumber, caption, mediaUrl }) 
   const typingPresenceMs = randomBetween(1800, 3200);
 
   let mediaPayload = mediaUrl || DEFAULT_ISAAC_IMAGE_URL;
-  const isDefaultCover =
-    !mediaUrl ||
-    mediaUrl === DEFAULT_ISAAC_IMAGE_URL ||
-    mediaUrl.endsWith('/og-isaac-cover.jpg');
-
-  if (isDefaultCover) {
-    const localBase64 = loadDefaultIsaacImageBase64();
-    if (localBase64) {
-      mediaPayload = localBase64;
-    }
+  const localBase64 = loadLocalCoverImageBase64(mediaPayload);
+  if (localBase64) {
+    mediaPayload = localBase64;
   }
 
   const resp = await fetch(`${cfg.baseUrl}/message/sendMedia/${encodeURIComponent(cfg.instanceName)}`, {
@@ -745,6 +763,52 @@ export async function syncEvolutionContactsToDatabase() {
     });
   }
 
+  // Inclui também usuários cadastrados no App (izaque_profiles) com telefone válido que ainda não estavam na agenda Evolution
+  const seenComparables = new Set(Array.from(dedupByJid.values()).map((r) => r.comparable_phone));
+  for (const prof of profilesRes.data || []) {
+    if (!prof.phone) continue;
+    const normalizedDigits = normalizeWhatsAppPhone(prof.phone);
+    if (normalizedDigits.length < 10 || normalizedDigits.length > 15) continue;
+    const jid = `${normalizedDigits}@s.whatsapp.net`;
+    if (jid === cfg.instanceJid) continue;
+    const comparable = extractComparablePhoneKey(jid) || `intl:${normalizedDigits}`;
+    if (seenComparables.has(comparable) || dedupByJid.has(jid)) continue;
+    seenComparables.add(comparable);
+
+    const existing = existingByJid.get(jid) || null;
+    const preservedCustomName = existing?.custom_name ? String(existing.custom_name).trim() : null;
+    const identity = resolveContactIdentity({
+      custom_name: preservedCustomName,
+      app_full_name: prof.full_name || null,
+      push_name: preservedCustomName || prof.full_name || null,
+    });
+
+    dedupByJid.set(jid, {
+      jid,
+      phone_digits: normalizedDigits,
+      comparable_phone: comparable,
+      custom_name: preservedCustomName,
+      push_name: preservedCustomName || prof.full_name || normalizedDigits,
+      first_name_clean: identity.firstName || null,
+      has_valid_name: identity.hasValidName,
+      profile_pic_url: null,
+      is_saved_in_phone: false,
+      is_registered_user: true,
+      app_user_id: prof.id,
+      app_full_name: prof.full_name || null,
+      app_email: prof.email || null,
+      app_plan_id: prof.plan_id || null,
+      app_plan_status: prof.plan_status || null,
+      app_main_goal: prof.main_goal || null,
+      opt_out: Boolean(existing?.opt_out || prof.whatsapp_opt_out),
+      last_outreach_at: existing?.last_outreach_at || null,
+      last_outreach_status: existing?.last_outreach_status || null,
+      outreach_count: existing?.outreach_count || 0,
+      synced_at: nowIso,
+      updated_at: nowIso,
+    });
+  }
+
   const rows = Array.from(dedupByJid.values());
   const chunkSize = 250;
   for (let i = 0; i < rows.length; i += chunkSize) {
@@ -1115,10 +1179,22 @@ export async function executeSingleOutreachLogItem(logItem, campaign, safetyCfg,
           { forceIntl: isIntlTarget }
         ));
 
-      sendResult = await sendWhatsAppTextSafe({
-        jidOrNumber: check.jid,
-        text: finalMessageText,
-      });
+      const campaignCoverUrl = String(campaign?.unregistered_image_url || finalMediaUrl || '').trim();
+      const isEbookCoverCampaign = campaignCoverUrl.includes('/ebooks/covers/');
+
+      if (isEbookCoverCampaign) {
+        finalMediaUrl = campaignCoverUrl;
+        sendResult = await sendWhatsAppImageSafe({
+          jidOrNumber: check.jid,
+          caption: finalMessageText,
+          mediaUrl: campaignCoverUrl,
+        });
+      } else {
+        sendResult = await sendWhatsAppTextSafe({
+          jidOrNumber: check.jid,
+          text: finalMessageText,
+        });
+      }
 
       // Integração direta com o usuário no App (registra também no Mural de Notificações In-App)
       const targetUserId = logItem.app_user_id || contact?.app_user_id;
@@ -1127,9 +1203,13 @@ export async function executeSingleOutreachLogItem(logItem, campaign, safetyCfg,
           .from('izaque_user_notifications')
           .insert({
             user_id: targetUserId,
-            title: isIntlTarget
-              ? 'Discover ISAAC Free & WhatsApp Plans'
-              : 'Conheça os Planos Grátis & WhatsApp do ISAAC',
+            title: isEbookCoverCampaign
+              ? isIntlTarget
+                ? 'New Bilingual eBook by Thiago Prata — ISAAC®'
+                : 'Novo eBook Bilíngue por Thiago Prata — ISAAC®'
+              : isIntlTarget
+                ? 'Discover ISAAC Free & WhatsApp Plans'
+                : 'Conheça os Planos Grátis & WhatsApp do ISAAC',
             content: finalMessageText,
             is_read: false,
           })

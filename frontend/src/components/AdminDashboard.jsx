@@ -434,6 +434,28 @@ export default function AdminDashboard({ currentUser }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {isSuperAdmin && (
+              <>
+                <a
+                  href="/ebooks"
+                  className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-sm active:scale-95"
+                  title="Página restrita de eBooks exclusiva para o Superadmin"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>Página dos eBooks (SuperAdmin)</span>
+                </a>
+                <a
+                  href="/loja/ebooks"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 border border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-300 text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Vitrine Pública eBooks</span>
+                </a>
+              </>
+            )}
+
             <button
               onClick={() => setActiveTab('help')}
               className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl border text-xs font-medium transition flex items-center gap-1.5 sm:gap-2 shadow-sm active:scale-95 ${

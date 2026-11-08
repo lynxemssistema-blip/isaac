@@ -415,8 +415,9 @@ RETORNE EXCLUSIVAMENTE UM OBJETO JSON VÁLIDO (sem fences markdown extras fora d
 /**
  * Envelopa o conteúdo no layout HTML oficial do ISAAC com a assinatura da Equipe Lynx EMS
  */
-export function renderBroadcastEmailHtml({ contentHtml, userName, appUrl = 'https://isaac.lynxems.com.br', callToActionText = 'Acessar o ISAAC' }) {
+export function renderBroadcastEmailHtml({ contentHtml, userName, appUrl = 'https://isaac.lynxems.com.br', callToActionText = 'Acessar o ISAAC', callToActionUrl = '' }) {
   const safeName = userName ? userName.split(' ')[0] : 'Viajante';
+  const targetCtaHref = (callToActionUrl && String(callToActionUrl).trim()) || appUrl;
   const personalizedContent = (contentHtml || '')
     .replace(/\{\{nome\}\}/gi, safeName)
     .replace(/\{\{name\}\}/gi, safeName);
@@ -437,7 +438,7 @@ export function renderBroadcastEmailHtml({ contentHtml, userName, appUrl = 'http
 
         <!-- BOTÃO DE AÇÃO -->
         <div style="text-align: center; margin: 36px 0 20px 0;">
-          <a href="${appUrl}" style="background-color: #0f766e; color: #ffffff; text-decoration: none; padding: 15px 36px; border-radius: 16px; font-weight: 600; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(15, 118, 110, 0.28); letter-spacing: 0.2px;">
+          <a href="${targetCtaHref}" style="background-color: #0f766e; color: #ffffff; text-decoration: none; padding: 15px 36px; border-radius: 16px; font-weight: 600; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(15, 118, 110, 0.28); letter-spacing: 0.2px;">
             ${callToActionText}
           </a>
         </div>
@@ -469,6 +470,7 @@ export async function sendBroadcastEmail({
   subject,
   htmlContent,
   callToActionText = 'Visitar Meu Refúgio Agora',
+  callToActionUrl = '',
   targetAudience = 'all',
   testEmail = null,
 }) {
@@ -484,6 +486,7 @@ export async function sendBroadcastEmail({
       userName: 'Administrador',
       appUrl,
       callToActionText,
+      callToActionUrl,
     });
 
     const info = await transporter.sendMail({
@@ -574,6 +577,7 @@ export async function sendBroadcastEmail({
         userName: user.full_name || '',
         appUrl,
         callToActionText,
+        callToActionUrl,
       });
 
       await transporter.sendMail({
@@ -883,5 +887,131 @@ export async function sendCampaignPdfEmail({
 
   const info = await transporter.sendMail(mailOptions);
   console.log(`✉️ [Campaign PDF Sent] PDF "${pdfFileName}" enviado para ${toEmail}. Message ID: ${info.messageId}`);
+  return info;
+}
+
+/**
+ * Envia automaticamente o link oficial para download dos eBooks comprados (com dedicatória personalizada na margem inferior)
+ * assinado pelo autor Thiago Prata (Mentor & Idealizador do App ISAAC®).
+ */
+export async function sendEbookPurchaseDeliveryEmail({
+  toEmail,
+  buyerName,
+  downloadToken,
+  isCompleteBundle = false,
+  items = [],
+  totalAmount = 0,
+  appUrl = 'https://isaac.lynxems.com.br',
+}) {
+  const transporter = getEmailTransporter();
+  const safeBaseUrl = (appUrl || process.env.APP_URL || 'https://isaac.lynxems.com.br').replace(/\/$/, '');
+  const fromAddress = `"Thiago Prata — Mentoria ISAAC®" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
+  const cleanFullName = String(buyerName || 'Leitor(a)').trim();
+  const firstName = cleanFullName.split(/\s+/)[0] || 'Leitor(a)';
+  const portalUrl = `${safeBaseUrl}/meus-ebooks/${encodeURIComponent(downloadToken)}`;
+  const formattedTotal = Number(totalAmount || 0).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+
+  const escapeHtml = (str = '') =>
+    String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+  const downloadRowsHtml = items
+    .map((item) => {
+      const directPdfUrl = `${safeBaseUrl}/api/ebooks/download/${encodeURIComponent(downloadToken)}/${encodeURIComponent(item.slug)}`;
+      const coverSrc = item.coverUrl ? `${safeBaseUrl}${item.coverUrl}` : `${safeBaseUrl}/ebooks/covers/colecao-completa.jpg`;
+      return `
+        <div style="display: flex; align-items: center; gap: 14px; padding: 14px; margin-bottom: 12px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px;">
+          <img src="${coverSrc}" alt="${escapeHtml(item.title)}" width="54" height="76" style="width: 54px; height: 76px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; display: block;" />
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #0f766e; letter-spacing: 0.4px;">
+              ${item.isBundle ? 'Pacote Completo • 8 eBooks em 1 PDF Único' : `Volume 0${item.volumeNumber || ''} • Edição Bilíngue PT-BR + EN-GB`}
+            </div>
+            <div style="font-size: 14px; font-weight: 700; color: #0f172a; margin: 3px 0 8px 0; line-height: 1.35;">
+              ${escapeHtml(item.title)}
+            </div>
+            <a href="${directPdfUrl}" target="_blank" rel="noopener noreferrer" style="background-color: #0f766e; color: #ffffff; text-decoration: none; padding: 8px 16px; border-radius: 10px; font-weight: 600; font-size: 12px; display: inline-block;">
+              ⬇ Baixar PDF Dedicado Agora
+            </a>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+
+  const subject = isCompleteBundle
+    ? `📚 Pagamento Confirmado! Sua Coleção Completa ISAAC® Essential está liberada, ${firstName}`
+    : `📚 Pagamento Confirmado! Seu(s) eBook(s) ISAAC® Essential já estão liberados, ${firstName}`;
+
+  const mailOptions = {
+    from: fromAddress,
+    to: toEmail,
+    subject,
+    html: `
+      <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 620px; margin: 0 auto; background-color: #faf9f6; padding: 32px 18px; border-radius: 26px; border: 1px solid #e7e5e4; color: #292524;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <div style="display: inline-block; padding: 5px 14px; border-radius: 999px; background-color: #fef3c7; color: #92400e; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px;">
+            Coleção Oficial ISAAC® Essential • Edição Bilíngue (PT-BR &amp; EN-GB)
+          </div>
+          <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 700; letter-spacing: -0.5px;">Mentoria ISAAC®</h1>
+          <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Autor: <strong>Thiago Prata</strong> — Mentor &amp; Idealizador do App ISAAC®</p>
+        </div>
+
+        <div style="background-color: #ffffff; padding: 30px 26px; border-radius: 22px; border: 1px solid #f0eeeb; box-shadow: 0 6px 20px rgba(0,0,0,0.04);">
+          <h2 style="font-size: 20px; color: #0f172a; margin-top: 0; margin-bottom: 10px;">
+            Olá, ${escapeHtml(firstName)}! Seu pagamento foi confirmado ✨
+          </h2>
+          <p style="font-size: 14px; line-height: 1.65; color: #44403c; margin: 0 0 14px 0;">
+            Muito obrigado por adquirir ${isCompleteBundle ? 'a <strong>Coleção Completa ISAAC® Essential (Todos os 8 eBooks em 1 PDF Único)</strong>' : 'sua obra da <strong>Coleção ISAAC® Essential</strong>'} (valor confirmado: <strong>${formattedTotal}</strong>).
+          </p>
+          <p style="font-size: 14px; line-height: 1.65; color: #44403c; margin: 0 0 18px 0;">
+            Preparamos o seu arquivo PDF completo — contendo os textos integrais em <strong>Português e Inglês Britânico</strong> no mesmo exemplar, ilustrações exclusivas, exercícios práticos e uma <strong>dedicatória especial para ${escapeHtml(cleanFullName)} na margem inferior das páginas</strong>.
+          </p>
+
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${portalUrl}" target="_blank" rel="noopener noreferrer" style="background: linear-gradient(135deg, #0f766e, #115e59); color: #ffffff; text-decoration: none; padding: 15px 32px; border-radius: 16px; font-weight: 700; font-size: 15px; display: inline-block; box-shadow: 0 6px 16px rgba(15, 118, 110, 0.28);">
+              📥 Acessar Página de Download do(s) PDF(s)
+            </a>
+          </div>
+
+          <div style="margin: 24px 0 18px 0;">
+            <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; margin-bottom: 10px;">
+              Links Diretos dos Seus Exemplares Dedicados:
+            </div>
+            ${downloadRowsHtml}
+          </div>
+
+          <div style="padding: 14px 16px; background-color: #fffbeb; border-left: 4px solid #d97706; border-radius: 10px; margin-top: 18px;">
+            <p style="margin: 0; font-size: 12.5px; line-height: 1.55; color: #78350f;">
+              <strong>🇬🇧 British English Included:</strong> Every PDF above includes both the complete Brazilian Portuguese edition (Part I) and the complete British English edition (Part II), personally dedicated to <strong>${escapeHtml(cleanFullName)}</strong>.
+            </p>
+          </div>
+
+          <p style="font-size: 12px; line-height: 1.5; color: #78716c; margin-top: 20px; border-top: 1px solid #f1f5f9; padding-top: 14px;">
+            Caso o botão não abra diretamente no seu aplicativo de e-mail, copie e cole este link permanente no navegador:<br/>
+            <a href="${portalUrl}" style="color: #0f766e; word-break: break-all; font-weight: 600;">${portalUrl}</a>
+          </p>
+
+          <div style="margin-top: 22px; padding-top: 16px; border-top: 1px solid #f1f5f9;">
+            <p style="margin: 0; font-size: 14px; font-weight: 700; color: #0f172a;">Com estima e votos de profunda clareza,</p>
+            <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 700; color: #0f766e;">Thiago Prata</p>
+            <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Mentor em Projetos e Negócios • Idealizador da Metodologia e do App ISAAC®</p>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px; font-size: 11px; color: #a8a29e;">
+          Continue sua jornada gratuitamente no App: <a href="${safeBaseUrl}" style="color: #0f766e; font-weight: 600;">${safeBaseUrl}</a> • Suporte: suporte@lynxems.com.br
+        </div>
+      </div>
+    `,
+  };
+
+  const info = await transporter.sendMail(mailOptions);
+  console.log(`✉️ [eBook Delivery Sent] Link enviado para ${toEmail}. Message ID: ${info.messageId}`);
   return info;
 }

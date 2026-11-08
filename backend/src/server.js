@@ -12,6 +12,7 @@ import inscriptionRoutes from './routes/inscriptionRoutes.js';
 import evolutionRoutes from './routes/evolutionRoutes.js';
 import asaasRoutes from './routes/asaasRoutes.js';
 import superadminEbooksRoutes from './routes/superadminEbooksRoutes.js';
+import ebookStoreRoutes from './routes/ebookStoreRoutes.js';
 import { startEvolutionDailyScheduler } from './services/evolutionService.js';
 import { startEvolutionOutreachScheduler } from './services/evolutionOutreachService.js';
 import { prewarmDemoVoice } from './controllers/voiceController.js';
@@ -140,6 +141,7 @@ app.use('/api', adminRoutes);
 app.use('/api', creativeTroubleRoutes);
 app.use('/api', pdfCampaignRoutes);
 app.use('/api', inscriptionRoutes);
+app.use('/api', ebookStoreRoutes);
 app.use('/api', superadminEbooksRoutes);
 
 // Servir frontend compilado em produção se o diretório dist existir

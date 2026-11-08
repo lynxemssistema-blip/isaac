@@ -2,6 +2,7 @@ import { supabaseAdmin } from '../config/supabase.js';
 import { parseUniversalPhone } from '../utils/phoneUtils.js';
 import { invalidateAuthCache } from '../middlewares/authMiddleware.js';
 import { sendWhatsAppTextSafe, resolveWhatsAppJid, isEvolutionEnabledInDatabase } from './evolutionService.js';
+import { processAsaasEbookWebhook } from './ebookStoreService.js';
 
 const DEFAULT_ASAAS_URL = 'https://api.asaas.com/v3';
 const DEFAULT_CUSTOMER_GROUP = 'Isaac';
@@ -513,6 +514,12 @@ export async function processAsaasWebhook(headers = {}, body = {}) {
   const event = String(body?.event || '').toUpperCase();
   const payment = body?.payment || body?.subscription || {};
   const extRef = String(payment?.externalReference || '');
+
+  // Intercepta exclusivamente pagamentos avulsos de eBooks (isaac:ebook:<orderId>)
+  if (extRef.startsWith('isaac:ebook:')) {
+    return processAsaasEbookWebhook(event, payment);
+  }
+
   const asaasSubId = payment?.subscription || (body?.subscription ? body.subscription.id : null);
   const asaasCustomerId = payment?.customer || null;
   const asaasPaymentId = body?.payment?.id || null;

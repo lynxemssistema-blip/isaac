@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, MessageSquareHeart, User, Sliders, Shield, Compass, CreditCard } from 'lucide-react';
+import { Home, MessageSquareHeart, User, Sliders, Shield, Compass, CreditCard, BookOpen } from 'lucide-react';
 
 export default function MobileBottomNav({
   activeTab,
@@ -7,6 +7,7 @@ export default function MobileBottomNav({
   onOpenProfile,
   onOpenSettings,
   onOpenPlans,
+  onOpenEbookStore,
   user,
   profile,
   systemSettings,
@@ -91,6 +92,20 @@ export default function MobileBottomNav({
               <Compass className="w-5 h-5 stroke-[1.85]" />
             </div>
             <span className="text-[10px] font-sans font-medium tracking-tight mt-0.5 leading-none">Incômodo</span>
+          </button>
+        )}
+
+        {/* LOJA DE EBOOKS */}
+        {onOpenEbookStore && (
+          <button
+            type="button"
+            onClick={() => onOpenEbookStore('')}
+            className="flex flex-col items-center justify-center py-1 px-2 rounded-2xl transition-all duration-200 active:scale-95 min-w-[50px] min-h-[46px] text-amber-700 dark:text-amber-400 hover:text-amber-800"
+          >
+            <div className="p-1.5 rounded-xl transition-all duration-200 bg-amber-500/10 hover:bg-amber-500/20">
+              <BookOpen className="w-5 h-5 stroke-[1.85]" />
+            </div>
+            <span className="text-[10px] font-sans font-semibold tracking-tight mt-0.5 leading-none">eBooks</span>
           </button>
         )}
 

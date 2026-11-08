@@ -54,6 +54,9 @@ const SubscriberFeedbackModal = lazyWithRetry(() => import('./components/Subscri
 const WhatsappPlanModal = lazyWithRetry(() => import('./components/WhatsappPlanModal'));
 const TopicLandingPage = lazyWithRetry(() => import('./components/TopicLandingPage'));
 const SuperAdminEbooksPage = lazyWithRetry(() => import('./components/SuperAdminEbooksPage'));
+const EbookSalesPage = lazyWithRetry(() => import('./components/EbookSalesPage'));
+const EbookDownloadPage = lazyWithRetry(() => import('./components/EbookDownloadPage'));
+const EbookCartDrawer = lazyWithRetry(() => import('./components/EbookCartDrawer'));
 
 function LazyFallbackLoader() {
   return (
@@ -119,6 +122,26 @@ function parseSuperAdminEbooksLocation() {
   return searchParams.has('superadmin_ebooks');
 }
 
+function parseEbookStoreLocation() {
+  if (typeof window === 'undefined') return null;
+  const pathname = window.location.pathname || '/';
+  const match = pathname.match(/^\/loja\/ebooks(?:\/([^/?#]+))?\/?$/i);
+  if (match) {
+    return { slug: decodeURIComponent(match[1] || '').trim() };
+  }
+  return null;
+}
+
+function parseEbookDownloadLocation() {
+  if (typeof window === 'undefined') return null;
+  const pathname = window.location.pathname || '/';
+  const match = pathname.match(/^\/meus-ebooks\/([^/?#]+)\/?$/i);
+  if (match) {
+    return { token: decodeURIComponent(match[1] || '').trim() };
+  }
+  return null;
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -127,6 +150,8 @@ export default function App() {
   const [isInscriptionRoute, setIsInscriptionRoute] = useState(() => parseInscriptionLocation());
   const [topicRoute, setTopicRoute] = useState(() => parseTopicLocation());
   const [isSuperAdminEbooksRoute, setIsSuperAdminEbooksRoute] = useState(() => parseSuperAdminEbooksLocation());
+  const [ebookStoreRoute, setEbookStoreRoute] = useState(() => parseEbookStoreLocation());
+  const [ebookDownloadRoute, setEbookDownloadRoute] = useState(() => parseEbookDownloadLocation());
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState('login');
   const [authInitialEmail, setAuthInitialEmail] = useState('');
@@ -248,13 +273,24 @@ export default function App() {
       setIsInscriptionRoute(parseInscriptionLocation());
       setTopicRoute(parseTopicLocation());
       setIsSuperAdminEbooksRoute(parseSuperAdminEbooksLocation());
+      setEbookStoreRoute(parseEbookStoreLocation());
+      setEbookDownloadRoute(parseEbookDownloadLocation());
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   useEffect(() => {
-    if (directSignupRoute || isInscriptionRoute || topicRoute || isSuperAdminEbooksRoute) return;
+    if (
+      directSignupRoute ||
+      isInscriptionRoute ||
+      topicRoute ||
+      isSuperAdminEbooksRoute ||
+      ebookStoreRoute ||
+      ebookDownloadRoute
+    ) {
+      return;
+    }
     if (activeTab === 'landing') {
       document.title = 'Mentoria ISAAC — Clareza Emocional, Escuta Profunda & Transformação 24h';
     } else if (activeTab === 'chat') {
@@ -264,7 +300,16 @@ export default function App() {
     } else if (activeTab === 'admin') {
       document.title = 'Painel Administrativo — Mentoria ISAAC';
     }
-  }, [activeTab, guideName, directSignupRoute, isInscriptionRoute, topicRoute]);
+  }, [
+    activeTab,
+    guideName,
+    directSignupRoute,
+    isInscriptionRoute,
+    topicRoute,
+    isSuperAdminEbooksRoute,
+    ebookStoreRoute,
+    ebookDownloadRoute,
+  ]);
 
   useEffect(() => {
     // Carrega Parâmetros Globais do Sistema (Superadmin)
@@ -342,7 +387,9 @@ export default function App() {
           Boolean(parseDirectSignupLocation()) ||
           parseInscriptionLocation() ||
           Boolean(parseTopicLocation()) ||
-          parseSuperAdminEbooksLocation();
+          parseSuperAdminEbooksLocation() ||
+          Boolean(parseEbookStoreLocation()) ||
+          Boolean(parseEbookDownloadLocation());
         if (!onPublicRoute) {
           // REQUISITO: Usuário autenticado já abre direto na página de conversa com ISAAC
           setActiveTab('chat');
@@ -469,6 +516,68 @@ export default function App() {
     setTopicRoute(null);
     setActiveTab('landing');
   };
+
+  const handleOpenEbookStore = (slug = '') => {
+    const cleanSlug = typeof slug === 'string' ? slug.trim() : '';
+    const targetPath = cleanSlug ? `/loja/ebooks/${encodeURIComponent(cleanSlug)}` : '/loja/ebooks';
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', targetPath);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    setEbookStoreRoute({ slug: cleanSlug });
+    setEbookDownloadRoute(null);
+    setIsSuperAdminEbooksRoute(false);
+    setTopicRoute(null);
+  };
+
+  const handleOpenSuperAdminEbooks = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/ebooks');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    setIsSuperAdminEbooksRoute(true);
+    setEbookStoreRoute(null);
+    setEbookDownloadRoute(null);
+  };
+
+  const handleBackFromEbookStore = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    setEbookStoreRoute(null);
+    setEbookDownloadRoute(null);
+    setActiveTab('landing');
+  };
+
+  // PORTAL DO COMPRADOR DE EBOOKS (/meus-ebooks/:token)
+  if (ebookDownloadRoute) {
+    return (
+      <Suspense fallback={<LazyFallbackLoader />}>
+        <EbookDownloadPage
+          token={ebookDownloadRoute.token}
+          onBackToHome={handleBackFromEbookStore}
+          onOpenStore={() => handleOpenEbookStore('')}
+        />
+      </Suspense>
+    );
+  }
+
+  // LOJA PÚBLICA E PÁGINAS DEDICADAS DE VENDA DE EBOOKS (/loja/ebooks e /loja/ebooks/:slug)
+  if (ebookStoreRoute) {
+    return (
+      <Suspense fallback={<LazyFallbackLoader />}>
+        <EbookSalesPage
+          slug={ebookStoreRoute.slug}
+          onNavigateSlug={(nextSlug) => handleOpenEbookStore(nextSlug)}
+          onBackToHome={handleBackFromEbookStore}
+          user={user}
+          profile={profile}
+        />
+        <EbookCartDrawer user={user} profile={profile} />
+      </Suspense>
+    );
+  }
 
   // PÁGINA ISOLADA E EXCLUSIVA SUPERADMIN: ACERVO DE EBOOKS SEGMENTADOS (/ebooks ou /superadmin/ebooks)
   if (isSuperAdminEbooksRoute) {
@@ -646,6 +755,8 @@ export default function App() {
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenFeedback={() => setIsFeedbackOpen(true)}
           onOpenWhatsappPlan={() => setIsWhatsappPlanOpen(true)}
+          onOpenEbookStore={(slug) => handleOpenEbookStore(typeof slug === 'string' ? slug : '')}
+          onOpenSuperAdminEbooks={handleOpenSuperAdminEbooks}
           systemSettings={systemSettings}
         />
       </div>
@@ -659,6 +770,7 @@ export default function App() {
             user={user}
             systemSettings={systemSettings}
             onOpenTopic={handleNavigateTopic}
+            onOpenEbookStore={(slug) => handleOpenEbookStore(typeof slug === 'string' ? slug : '')}
           />
         )}
 
@@ -822,6 +934,12 @@ export default function App() {
             profile={profile}
           />
         )}
+
+        <EbookCartDrawer
+          user={user}
+          profile={profile}
+          hideFloatingButton={activeTab === 'chat'}
+        />
       </Suspense>
 
       {/* MENU INFERIOR FIXO PARA CELULARES E TABLETS (BOTTOM NAVIGATION BAR) */}
@@ -843,6 +961,7 @@ export default function App() {
         }}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenPlans={() => setIsWhatsappPlanOpen(true)}
+        onOpenEbookStore={(slug) => handleOpenEbookStore(typeof slug === 'string' ? slug : '')}
         user={user}
         profile={profile}
         systemSettings={systemSettings}

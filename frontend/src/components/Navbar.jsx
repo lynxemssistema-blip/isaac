@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Feather, Shield, Wind, LogOut, Heart, Home, Edit3, Sparkles, LifeBuoy, Sliders, Palette, Compass, MessageCircle } from 'lucide-react';
+import { Feather, Shield, Wind, LogOut, Heart, Home, Edit3, Sparkles, LifeBuoy, Sliders, Palette, Compass, MessageCircle, BookOpen } from 'lucide-react';
 import { THEMES, saveAppTheme, getCurrentTheme } from '../services/themeService';
 import { updateUserProfile } from '../services/api';
+import { useEbookCart } from '../services/ebookCartStore';
 import UserNotificationsPopover from './UserNotificationsPopover';
 
 export default function Navbar({
@@ -17,8 +18,11 @@ export default function Navbar({
   onOpenSettings,
   onOpenFeedback,
   onOpenWhatsappPlan,
+  onOpenEbookStore,
+  onOpenSuperAdminEbooks,
   systemSettings,
 }) {
+  const { cart, itemCount } = useEbookCart();
   const isSuperAdmin =
     profile?.role === 'master' ||
     user?.email === 'edsonmanoel2012@gmail.com' ||
@@ -135,6 +139,22 @@ export default function Navbar({
             </button>
           )}
 
+          {onOpenEbookStore && (
+            <button
+              type="button"
+              onClick={() => onOpenEbookStore('')}
+              className="px-3.5 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 text-amber-900 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50 cursor-pointer"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <span>eBooks</span>
+              {itemCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px] font-bold">
+                  {cart.isBundle ? '8' : itemCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {onOpenWhatsappPlan && (
             <button
               type="button"
@@ -143,6 +163,18 @@ export default function Navbar({
             >
               <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               Planos &amp; WhatsApp
+            </button>
+          )}
+
+          {isSuperAdmin && onOpenSuperAdminEbooks && (
+            <button
+              type="button"
+              onClick={onOpenSuperAdminEbooks}
+              className="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 cursor-pointer"
+              title="Acessar página exclusiva do Superadmin dos eBooks (/ebooks)"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Acervo eBooks</span>
             </button>
           )}
 
@@ -355,6 +387,16 @@ export default function Navbar({
             </div>
           ) : (
             <div className="flex items-center gap-1.5 sm:gap-2">
+              {onOpenEbookStore && (
+                <button
+                  type="button"
+                  onClick={() => onOpenEbookStore('')}
+                  className="md:hidden px-2.5 py-2 rounded-2xl bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-300 text-xs font-medium transition flex items-center gap-1 shrink-0 cursor-pointer"
+                >
+                  <BookOpen className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <span>eBooks</span>
+                </button>
+              )}
               {onOpenWhatsappPlan && (
                 <button
                   type="button"

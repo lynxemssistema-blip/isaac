@@ -20,8 +20,18 @@ import {
   Loader2,
   Search,
   DollarSign,
+  ShoppingBag,
+  Globe,
+  RefreshCw,
+  Mail,
+  Smartphone,
+  Award,
 } from 'lucide-react';
 import { fetchSuperAdminEbooksApi } from '../services/adminApi';
+import {
+  downloadSuperAdminEbookPdf,
+  fetchSuperAdminEbookOrders,
+} from '../services/ebookStoreApi';
 
 const ACCENT_STYLES = {
   teal: {
@@ -473,10 +483,40 @@ export default function SuperAdminEbooksPage({
   const [collectionMeta, setCollectionMeta] = useState(null);
   const [ebooks, setEbooks] = useState([]);
   const [selectedId, setSelectedId] = useState('vol-01');
-  const [innerTab, setInnerTab] = useState('read'); // 'read' | 'sales' | 'export'
+  const [innerTab, setInnerTab] = useState('read'); // 'read' | 'sales' | 'export' | 'orders'
+  const [readLang, setReadLang] = useState('pt'); // 'pt' | 'en'
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedKey, setCopiedKey] = useState('');
   const [customPrices, setCustomPrices] = useState({});
+  const [dedicationName, setDedicationName] = useState('');
+  const [downloadingSlug, setDownloadingSlug] = useState('');
+  const [orders, setOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
+  const loadOrdersList = async () => {
+    setLoadingOrders(true);
+    try {
+      const data = await fetchSuperAdminEbookOrders();
+      setOrders(data.orders || []);
+    } catch (err) {
+      console.warn('Aviso ao carregar pedidos Asaas de eBooks:', err.message);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  const handleDownloadOfficialPdf = async (slug) => {
+    if (!slug || downloadingSlug) return;
+    setDownloadingSlug(slug);
+    setErrorMsg('');
+    try {
+      await downloadSuperAdminEbookPdf(slug, dedicationName.trim());
+    } catch (err) {
+      setErrorMsg(err.message || 'Falha ao baixar o PDF bilíngue oficial.');
+    } finally {
+      setDownloadingSlug('');
+    }
+  };
 
   useEffect(() => {
     document.title = 'Acervo de eBooks p/ Venda (Superadmin) — ISAAC';
@@ -505,6 +545,8 @@ export default function SuperAdminEbooksPage({
       .finally(() => {
         if (active) setLoadingData(false);
       });
+
+    loadOrdersList();
 
     return () => {
       active = false;
@@ -680,28 +722,36 @@ export default function SuperAdminEbooksPage({
 
           {ebooks.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={dedicationName}
+                onChange={(e) => setDedicationName(e.target.value)}
+                placeholder="Nome p/ dedicatória no rodapé (opcional)"
+                className="px-3 py-2 rounded-xl bg-stone-50 dark:bg-slate-800 border border-stone-300 dark:border-slate-700 text-xs text-stone-800 dark:text-stone-100 w-56 outline-none focus:border-teal-600"
+                title="Se preenchido, o PDF baixado incluirá a dedicatória nominal na margem inferior de todas as páginas"
+              />
               <button
                 type="button"
-                onClick={() => handleOpenPrintPdf(ebooks)}
-                className="px-3.5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold shadow-sm flex items-center gap-1.5 cursor-pointer"
+                disabled={Boolean(downloadingSlug)}
+                onClick={() => handleDownloadOfficialPdf('colecao-completa')}
+                className="px-3.5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
               >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Gerar PDF da Coleção Completa (8 eBooks)</span>
+                {downloadingSlug === 'colecao-completa' ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Download className="w-3.5 h-3.5" />
+                )}
+                <span>Baixar PDF Único Completo (8 eBooks PT+EN)</span>
               </button>
-              <button
-                type="button"
-                onClick={() =>
-                  handleDownloadFile(
-                    'colecao-completa-isaac-essential-8-ebooks.md',
-                    buildMarkdownFromEbooks(ebooks, collectionMeta, customPrices),
-                    'text/markdown;charset=utf-8'
-                  )
-                }
-                className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 hover:bg-stone-50 text-xs font-semibold text-stone-700 dark:text-stone-200 flex items-center gap-1.5 cursor-pointer"
+              <a
+                href="/loja/ebooks"
+                target="_blank"
+                rel="noreferrer"
+                className="px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs font-semibold flex items-center gap-1.5"
               >
-                <Download className="w-3.5 h-3.5" />
-                <span>Baixar Todos (.md)</span>
-              </button>
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>Ver Loja Pública (/loja/ebooks)</span>
+              </a>
             </div>
           )}
         </div>
@@ -789,27 +839,36 @@ export default function SuperAdminEbooksPage({
                         key={book.id}
                         type="button"
                         onClick={() => setSelectedId(book.id)}
-                        className={`w-full text-left p-4 rounded-2xl border transition cursor-pointer ${
+                        className={`w-full text-left p-3.5 rounded-2xl border transition cursor-pointer flex items-start gap-3 ${
                           isSelected
                             ? `${st.ring} border-2 shadow-sm`
                             : 'bg-white dark:bg-slate-900 border-stone-200 dark:border-slate-800 hover:border-stone-300 dark:hover:border-slate-700'
                         }`}
                       >
-                        <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${st.badge}`}>
-                            Vol. {String(book.volumeNumber).padStart(2, '0')} • {book.segmentBadge}
-                          </span>
-                          <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
-                            {priceLabel}
-                          </span>
-                        </div>
-                        <h3 className="text-xs sm:text-sm font-serif font-bold text-stone-900 dark:text-white leading-snug">
-                          {book.title}
-                        </h3>
-                        <div className="flex items-center gap-3 mt-2 text-[11px] text-stone-500 dark:text-stone-400">
-                          <span>{book.chapters?.length || 0} capítulos</span>
-                          <span>•</span>
-                          <span>~{book.readingTimeMin} min leitura</span>
+                        {book.coverUrl && (
+                          <img
+                            src={book.coverUrl}
+                            alt={book.title}
+                            className="w-12 h-17 object-cover rounded-lg border border-stone-200 dark:border-slate-700 shrink-0 shadow-xs"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${st.badge}`}>
+                              Vol. {String(book.volumeNumber).padStart(2, '0')}
+                            </span>
+                            <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                              {priceLabel}
+                            </span>
+                          </div>
+                          <h3 className="text-xs sm:text-sm font-serif font-bold text-stone-900 dark:text-white leading-snug line-clamp-2">
+                            {book.title}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-1.5 text-[10px] text-stone-500 dark:text-stone-400">
+                            <span>PT-BR + EN-GB</span>
+                            <span>•</span>
+                            <span>{book.chapters?.length || 0} cap.</span>
+                          </div>
                         </div>
                       </button>
                     );
@@ -817,37 +876,87 @@ export default function SuperAdminEbooksPage({
                 </div>
               </aside>
 
-              {/* COLUNA DIREITA: CONTEÚDO COMPLETO DO EBOOK + KIT DE VENDAS + EXPORTAÇÃO */}
+              {/* COLUNA DIREITA: CONTEÚDO COMPLETO DO EBOOK + KIT DE VENDAS + EXPORTAÇÃO + PEDIDOS */}
               {activeEbook && (
                 <section className="lg:col-span-8 space-y-5">
-                  {/* CAPA INTERATIVA DO VOLUME SELECIONADO */}
+                  {/* CAPA DE VENDA OFICIAL + CABEÇALHO DO VOLUME SELECIONADO */}
                   <div
-                    className={`p-6 sm:p-8 rounded-3xl bg-gradient-to-br ${activeStyle.cover} text-white shadow-xl space-y-4`}
+                    className={`p-6 sm:p-8 rounded-3xl bg-gradient-to-br ${activeStyle.cover} text-white shadow-xl space-y-5`}
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-white/15 backdrop-blur-xs">
-                        VOLUME {String(activeEbook.volumeNumber).padStart(2, '0')} — {activeEbook.segmentBadge}
-                      </span>
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/25 border border-emerald-300/30">
-                        Ticket Sugerido: {activePrice}
-                      </span>
+                    <div className="flex flex-col sm:flex-row gap-5 items-start">
+                      {activeEbook.coverUrl && (
+                        <img
+                          src={activeEbook.coverUrl}
+                          alt={`Capa ${activeEbook.title}`}
+                          className="w-28 sm:w-32 aspect-[3/4.25] object-cover rounded-2xl border-2 border-white/25 shadow-2xl shrink-0"
+                        />
+                      )}
+
+                      <div className="flex-1 space-y-2.5 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-white/15 backdrop-blur-xs">
+                            VOLUME {String(activeEbook.volumeNumber).padStart(2, '0')} — {activeEbook.segmentBadge}
+                          </span>
+                          <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/25 border border-emerald-300/30">
+                            Venda Direta Asaas: R$ 19,90 (Pacote 8 em 1: R$ 111,44 • 30% OFF)
+                          </span>
+                        </div>
+
+                        <h2 className="text-xl sm:text-2xl font-serif font-bold leading-snug">
+                          {readLang === 'en' && activeEbook.en?.title ? activeEbook.en.title : activeEbook.title}
+                        </h2>
+                        <p className="text-xs sm:text-sm text-white/85 leading-relaxed">
+                          {readLang === 'en' && activeEbook.en?.subtitle ? activeEbook.en.subtitle : activeEbook.subtitle}
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-amber-200 font-semibold">
+                          <Award className="w-3.5 h-3.5" />
+                          <span>Autor Oficial: Thiago Prata — Mentor &amp; Criador da Mentoria ISAAC®</span>
+                          <span>•</span>
+                          <span>Edição Bilíngue (PT-BR + Inglês Britânico no mesmo PDF)</span>
+                        </div>
+
+                        {/* LINK DIRETO DA PÁGINA DE VENDA DESTE EBOOK */}
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <a
+                            href={`/loja/ebooks/${activeEbook.slug}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-[11px] font-semibold flex items-center gap-1.5"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Abrir Página de Venda Dedicada</span>
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleCopy(
+                                'sales_url',
+                                `${window.location.origin}/loja/ebooks/${activeEbook.slug}`
+                              )
+                            }
+                            className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer"
+                          >
+                            {copiedKey === 'sales_url' ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-300" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                            <span>
+                              {copiedKey === 'sales_url' ? 'Link Copiado!' : 'Copiar Link de Venda'}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <h2 className="text-xl sm:text-2xl font-serif font-bold leading-snug">
-                        {activeEbook.title}
-                      </h2>
-                      <p className="text-xs sm:text-sm text-white/85 leading-relaxed">
-                        {activeEbook.subtitle}
-                      </p>
-                    </div>
-
-                    <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-white/15">
+                    <div className="pt-3 flex flex-wrap items-center justify-between gap-3 border-t border-white/15">
                       <div className="flex flex-wrap items-center gap-2">
                         {[
-                          { id: 'read', label: 'Leitura do eBook Completo', icon: BookOpen },
+                          { id: 'read', label: 'Leitura Bilíngue + Ilustração', icon: BookOpen },
                           { id: 'sales', label: 'Copy & Material de Venda', icon: DollarSign },
-                          { id: 'export', label: 'Baixar PDF / Arquivos p/ Venda', icon: Download },
+                          { id: 'export', label: 'Baixar PDF Individual / Pacote', icon: Download },
+                          { id: 'orders', label: `Pedidos Asaas (${orders.length})`, icon: ShoppingBag },
                         ].map((t) => {
                           const Icon = t.icon;
                           return (
@@ -870,25 +979,86 @@ export default function SuperAdminEbooksPage({
 
                       <button
                         type="button"
-                        onClick={() => handleOpenPrintPdf([activeEbook])}
-                        className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                        disabled={Boolean(downloadingSlug)}
+                        onClick={() => handleDownloadOfficialPdf(activeEbook.slug)}
+                        className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-60"
                       >
-                        <Printer className="w-3.5 h-3.5" />
-                        <span>Gerar PDF Deste eBook</span>
+                        {downloadingSlug === activeEbook.slug ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Download className="w-3.5 h-3.5" />
+                        )}
+                        <span>Baixar PDF Bilíngue Deste eBook</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* ABA 1: LEITURA COMPLETA DO EBOOK */}
+                  {/* ABA 1: LEITURA COMPLETA DO EBOOK (PT-BR & EN-GB + ILUSTRAÇÃO 16:9) */}
                   {innerTab === 'read' && (
                     <div className="space-y-5">
+                      {/* SELETOR DE IDIOMA DA LEITURA */}
+                      <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-stone-600 dark:text-stone-300">
+                          <Globe className="w-4 h-4 text-teal-600" />
+                          <span>Ambos os idiomas constam juntos no mesmo arquivo PDF oficial:</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setReadLang('pt')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                              readLang === 'pt'
+                                ? 'bg-teal-700 text-white'
+                                : 'bg-stone-100 dark:bg-slate-800 text-stone-600 dark:text-stone-300'
+                            }`}
+                          >
+                            🇧🇷 Parte I — Português (PT-BR)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setReadLang('en')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                              readLang === 'en'
+                                ? 'bg-indigo-700 text-white'
+                                : 'bg-stone-100 dark:bg-slate-800 text-stone-600 dark:text-stone-300'
+                            }`}
+                          >
+                            🇬🇧 Part II — British English (EN-GB)
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* ILUSTRAÇÃO EDITORIAL 16:9 DO VOLUME */}
+                      {activeEbook.illustrationUrl && (
+                        <div className="rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 shadow-xs">
+                          <img
+                            src={activeEbook.illustrationUrl}
+                            alt={activeEbook.title}
+                            className="w-full aspect-video object-cover"
+                          />
+                          <div className="px-5 py-3 text-xs text-stone-600 dark:text-stone-300 flex items-center justify-between gap-2">
+                            <span>
+                              {readLang === 'en'
+                                ? activeEbook.illustrationCaptionEn || activeEbook.en?.subtitle
+                                : activeEbook.illustrationCaptionPt || activeEbook.subtitle}
+                            </span>
+                            <span className="text-[10px] font-bold uppercase text-teal-700 dark:text-teal-400 shrink-0">
+                              Ilustração Editorial 16:9 Inclusa no PDF
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
                       {/* VISÃO EXECUTIVA + RASTREABILIDADE TRELLO */}
                       <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 space-y-3">
                         <div className="text-[11px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400 flex items-center gap-1.5">
-                          <Layers className="w-3.5 h-3.5" /> Síntese Executiva do Volume
+                          <Layers className="w-3.5 h-3.5" />{' '}
+                          {readLang === 'en' ? 'Executive Synthesis of This Volume' : 'Síntese Executiva do Volume'}
                         </div>
                         <p className="text-sm text-stone-700 dark:text-stone-300 leading-relaxed font-serif">
-                          {activeEbook.executiveSummary}
+                          {readLang === 'en' && activeEbook.en?.executiveSummary
+                            ? activeEbook.en.executiveSummary
+                            : activeEbook.executiveSummary}
                         </p>
                         <div className="pt-2 border-t border-stone-100 dark:border-slate-800">
                           <span className="block text-[10px] font-bold uppercase text-stone-400 mb-1">
@@ -904,15 +1074,18 @@ export default function SuperAdminEbooksPage({
                         </div>
                       </div>
 
-                      {/* CAPÍTULOS SUCINTOS E DE ALTA CLAREZA */}
-                      {(activeEbook.chapters || []).map((ch) => (
+                      {/* CAPÍTULOS APROFUNDADOS E DETALHISTAS */}
+                      {(readLang === 'en' && activeEbook.en?.chapters?.length
+                        ? activeEbook.en.chapters
+                        : activeEbook.chapters || []
+                      ).map((ch) => (
                         <article
                           key={ch.number}
                           className="p-6 sm:p-7 rounded-3xl bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 shadow-xs space-y-4"
                         >
                           <div>
                             <span className="text-[11px] font-bold uppercase tracking-widest text-teal-700 dark:text-teal-400">
-                              Capítulo {String(ch.number).padStart(2, '0')}
+                              {readLang === 'en' ? 'Chapter' : 'Capítulo'} {String(ch.number).padStart(2, '0')}
                             </span>
                             <h3 className="text-lg sm:text-xl font-serif font-bold text-stone-900 dark:text-white mt-0.5">
                               {ch.title}
@@ -923,10 +1096,30 @@ export default function SuperAdminEbooksPage({
                             {ch.coreExplanation}
                           </p>
 
+                          {ch.deepDive && (
+                            <p className="text-sm text-stone-600 dark:text-stone-300 leading-relaxed">
+                              {ch.deepDive}
+                            </p>
+                          )}
+
+                          {ch.caseStudy && (
+                            <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/25 border border-indigo-200/70 dark:border-indigo-800/50 space-y-1">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-800 dark:text-indigo-300">
+                                {readLang === 'en'
+                                  ? 'Real-World Mentoring Case Study — Thiago Prata'
+                                  : 'Estudo de Caso Real na Mentoria — Thiago Prata'}
+                              </div>
+                              <p className="text-xs text-stone-700 dark:text-stone-200 leading-relaxed">
+                                {ch.caseStudy}
+                              </p>
+                            </div>
+                          )}
+
                           {/* CHAVE DE CLAREZA */}
                           <div className="p-4 rounded-2xl bg-teal-50/80 dark:bg-teal-950/30 border-l-4 border-teal-600 space-y-1">
                             <div className="text-[10px] font-bold uppercase tracking-wider text-teal-800 dark:text-teal-300 flex items-center gap-1.5">
-                              <Lightbulb className="w-3.5 h-3.5" /> Chave de Clareza
+                              <Lightbulb className="w-3.5 h-3.5" />{' '}
+                              {readLang === 'en' ? 'Clarity Key' : 'Chave de Clareza'}
                             </div>
                             <p className="text-xs sm:text-sm font-serif italic font-semibold text-stone-900 dark:text-stone-100">
                               &ldquo;{ch.clarityKey}&rdquo;
@@ -955,7 +1148,10 @@ export default function SuperAdminEbooksPage({
                           {/* EXERCÍCIO PRÁTICO */}
                           <div className="p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/25 border border-amber-200 dark:border-amber-800/50 space-y-1">
                             <div className="text-[10px] font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300">
-                              ✍️ Exercício Prático de Aplicação Imediata
+                              ✍️{' '}
+                              {readLang === 'en'
+                                ? 'Immediate Practical Application (Ruled Notes to Bottom Margin in PDF)'
+                                : 'Exercício Prático de Aplicação Imediata (Linhas pautadas até o final da página no PDF)'}
                             </div>
                             <p className="text-xs text-amber-950 dark:text-amber-100 leading-relaxed">
                               {ch.practicalExercise}
@@ -975,7 +1171,7 @@ export default function SuperAdminEbooksPage({
                             Kit Comercial Pronto para Venda — Volume {activeEbook.volumeNumber}
                           </h3>
                           <p className="text-xs text-stone-500 dark:text-stone-400">
-                            Argumentos persuasivos, público-alvo, promessa e textos prontos para página de vendas ou disparo no WhatsApp.
+                            Página dedicada oficial: <strong>/loja/ebooks/{activeEbook.slug}</strong> (R$ 19,90) • Pacote 8 em 1: <strong>/loja/ebooks/colecao-completa</strong> (R$ 111,44).
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1040,18 +1236,18 @@ export default function SuperAdminEbooksPage({
                         </p>
                       </div>
 
-                      {/* COPY PRONTA PARA WHATSAPP */}
+                      {/* COPY PRONTA PARA WHATSAPP COM LINK DIRETO DA PÁGINA DEDICADA */}
                       <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/25 border border-emerald-200 dark:border-emerald-800/60 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-emerald-950 dark:text-emerald-200">
-                            Mensagem Pronta de Oferta para WhatsApp / Direct ({activePrice})
+                            Mensagem Pronta de Oferta para WhatsApp ({activePrice}) + Link Direto Asaas
                           </span>
                           <button
                             type="button"
                             onClick={() =>
                               handleCopy(
                                 'whatsapp',
-                                `${activeEbook.salesKit?.whatsappCopy}\n\n📘 Investimento especial: *${activePrice}*`
+                                `${activeEbook.salesKit?.whatsappCopy}\n\n✍️ Autor: *Thiago Prata* (Mentor & Criador do ISAAC®)\n📘 Edição Bilíngue (Português + Inglês Britânico no mesmo PDF) por *${activePrice}*\n👉 Garanta seu exemplar com dedicatória personalizada:\nhttps://isaac.lynxems.com.br/loja/ebooks/${activeEbook.slug}`
                               )
                             }
                             className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
@@ -1062,7 +1258,9 @@ export default function SuperAdminEbooksPage({
                         </div>
                         <p className="text-xs text-stone-800 dark:text-stone-200 whitespace-pre-wrap leading-relaxed">
                           {activeEbook.salesKit?.whatsappCopy}
-                          {'\n\n'}📘 Investimento especial: *{activePrice}*
+                          {'\n\n'}✍️ Autor: *Thiago Prata* (Mentor &amp; Criador do ISAAC®)
+                          {'\n'}📘 Edição Bilíngue (Português + Inglês Britânico no mesmo PDF) por *{activePrice}*
+                          {'\n'}👉 https://isaac.lynxems.com.br/loja/ebooks/{activeEbook.slug}
                         </p>
                       </div>
 
@@ -1083,28 +1281,87 @@ export default function SuperAdminEbooksPage({
                     </div>
                   )}
 
-                  {/* ABA 3: EXPORTAÇÃO EDITORIAL PARA VENDA */}
+                  {/* ABA 3: DOWNLOAD INDIVIDUAL E PACOTE COMPLETO EM PDF NATIVO BILÍNGUE */}
                   {innerTab === 'export' && (
-                    <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 space-y-4">
-                      <h3 className="text-base font-serif font-bold text-stone-900 dark:text-white">
-                        Exportar Produto Final Pronto para Entrega e Venda
-                      </h3>
-                      <p className="text-xs text-stone-500 dark:text-stone-400">
-                        Escolha o formato desejado abaixo para comercializar na Hotmart, Kiwify, Asaas ou venda direta via WhatsApp.
-                      </p>
+                    <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 space-y-5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-base font-serif font-bold text-stone-900 dark:text-white">
+                            Download Oficial em PDF Bilíngue (PT-BR + Inglês Britânico no Mesmo PDF)
+                          </h3>
+                          <p className="text-xs text-stone-500 dark:text-stone-400">
+                            Com capa editorial de venda, biografia do autor <strong>Thiago Prata</strong>, ilustrações 16:9, linhas de anotações até o final da página e dedicatória nominal na margem inferior.
+                          </p>
+                        </div>
+                      </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                      <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="text-xs text-amber-950 dark:text-amber-200">
+                          <strong>Testar Dedicatória na Margem Inferior:</strong> preencha um nome ao lado para gerar o PDF exatamente como o comprador recebe após a confirmação do pagamento Asaas.
+                        </div>
+                        <input
+                          type="text"
+                          value={dedicationName}
+                          onChange={(e) => setDedicationName(e.target.value)}
+                          placeholder="Ex: Maria Clara Silva"
+                          className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 text-xs text-stone-900 dark:text-white sm:w-64 shrink-0"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                        <button
+                          type="button"
+                          disabled={Boolean(downloadingSlug)}
+                          onClick={() => handleDownloadOfficialPdf(activeEbook.slug)}
+                          className="p-5 rounded-2xl bg-teal-50/90 dark:bg-teal-950/30 border-2 border-teal-500/50 hover:border-teal-600 text-left space-y-2 transition cursor-pointer disabled:opacity-60"
+                        >
+                          <div className="flex items-center justify-between">
+                            <Download className="w-6 h-6 text-teal-700 dark:text-teal-400" />
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-600 text-white">
+                              PDF Individual Oficial
+                            </span>
+                          </div>
+                          <div className="text-sm font-bold text-stone-900 dark:text-white">
+                            1. Baixar PDF Deste Volume ({activeEbook.volumeNumber}/08)
+                          </div>
+                          <p className="text-[11px] text-stone-600 dark:text-stone-400 leading-relaxed">
+                            Baixa imediatamente o arquivo PDF nativo de alta resolução deste volume contendo Parte I (Português) + Parte II (British English), capa oficial e linhas de anotações até o rodapé.
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={Boolean(downloadingSlug)}
+                          onClick={() => handleDownloadOfficialPdf('colecao-completa')}
+                          className="p-5 rounded-2xl bg-amber-50/90 dark:bg-amber-950/30 border-2 border-amber-500/50 hover:border-amber-600 text-left space-y-2 transition cursor-pointer disabled:opacity-60"
+                        >
+                          <div className="flex items-center justify-between">
+                            <Layers className="w-6 h-6 text-amber-700 dark:text-amber-400" />
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-600 text-white">
+                              PDF Único Consolidado (8 em 1)
+                            </span>
+                          </div>
+                          <div className="text-sm font-bold text-stone-900 dark:text-white">
+                            2. Baixar Coleção Completa em PDF Único
+                          </div>
+                          <p className="text-[11px] text-stone-600 dark:text-stone-400 leading-relaxed">
+                            Gera e baixa o arquivo PDF único consolidado com todos os 8 eBooks bilíngues completos (vendido no pacote promocional com 30% de desconto por R$ 111,44).
+                          </p>
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-stone-200 dark:border-slate-800">
                         <button
                           type="button"
                           onClick={() => handleOpenPrintPdf([activeEbook])}
-                          className="p-5 rounded-2xl bg-teal-50/80 dark:bg-teal-950/30 border border-teal-300 dark:border-teal-800 hover:border-teal-600 text-left space-y-2 transition cursor-pointer"
+                          className="p-4 rounded-2xl bg-stone-50 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 hover:border-teal-600 text-left space-y-1.5 transition cursor-pointer"
                         >
-                          <Printer className="w-6 h-6 text-teal-700 dark:text-teal-400" />
+                          <Printer className="w-5 h-5 text-teal-700 dark:text-teal-400" />
                           <div className="text-xs font-bold text-stone-900 dark:text-white">
-                            1. Gerar PDF Editorial A4
+                            Visualização p/ Impressão A4
                           </div>
-                          <p className="text-[11px] text-stone-600 dark:text-stone-400">
-                            Abre o livro diagramado com Capa, Sumário, Boxes de Clareza, Caderno de Exercícios e Contracapa pronto para &ldquo;Salvar como PDF&rdquo;.
+                          <p className="text-[11px] text-stone-500">
+                            Versão rápida de leitura no navegador.
                           </p>
                         </button>
 
@@ -1117,14 +1374,14 @@ export default function SuperAdminEbooksPage({
                               'text/html;charset=utf-8'
                             )
                           }
-                          className="p-5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 hover:border-amber-600 text-left space-y-2 transition cursor-pointer"
+                          className="p-4 rounded-2xl bg-stone-50 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 hover:border-amber-600 text-left space-y-1.5 transition cursor-pointer"
                         >
-                          <BookOpen className="w-6 h-6 text-amber-700 dark:text-amber-400" />
+                          <BookOpen className="w-5 h-5 text-amber-700 dark:text-amber-400" />
                           <div className="text-xs font-bold text-stone-900 dark:text-white">
-                            2. Baixar eBook Digital (.html)
+                            Baixar Versão Web (.html)
                           </div>
-                          <p className="text-[11px] text-stone-600 dark:text-stone-400">
-                            Arquivo único autocontido e responsivo que abre em qualquer celular ou computador sem precisar de internet.
+                          <p className="text-[11px] text-stone-500">
+                            Arquivo HTML autocontido offline.
                           </p>
                         </button>
 
@@ -1137,17 +1394,109 @@ export default function SuperAdminEbooksPage({
                               'text/markdown;charset=utf-8'
                             )
                           }
-                          className="p-5 rounded-2xl bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 hover:border-stone-500 text-left space-y-2 transition cursor-pointer"
+                          className="p-4 rounded-2xl bg-stone-50 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 hover:border-stone-500 text-left space-y-1.5 transition cursor-pointer"
                         >
-                          <FileText className="w-6 h-6 text-stone-700 dark:text-stone-300" />
+                          <FileText className="w-5 h-5 text-stone-700 dark:text-stone-300" />
                           <div className="text-xs font-bold text-stone-900 dark:text-white">
-                            3. Manuscrito Editável (.md)
+                            Manuscrito Editável (.md)
                           </div>
-                          <p className="text-[11px] text-stone-600 dark:text-stone-400">
-                            Texto completo estruturado com Copy de Venda para importar no Canva, Word, Google Docs ou Amazon KDP.
+                          <p className="text-[11px] text-stone-500">
+                            Texto estruturado + Copy Comercial.
                           </p>
                         </button>
                       </div>
+                    </div>
+                  )}
+
+                  {/* ABA 4: AUDITORIA DE PEDIDOS & COMPRADORES ASAAS */}
+                  {innerTab === 'orders' && (
+                    <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 space-y-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <h3 className="text-base font-serif font-bold text-stone-900 dark:text-white">
+                            Pedidos &amp; Vendas Diretas Asaas (Entrega por E-mail e WhatsApp)
+                          </h3>
+                          <p className="text-xs text-stone-500 dark:text-stone-400">
+                            Acompanhe pagamentos, envios automáticos de link e downloads com dedicatória personalizada.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={loadOrdersList}
+                          disabled={loadingOrders}
+                          className="px-3.5 py-2 rounded-xl bg-stone-100 dark:bg-slate-800 hover:bg-stone-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${loadingOrders ? 'animate-spin' : ''}`} />
+                          <span>Atualizar</span>
+                        </button>
+                      </div>
+
+                      {orders.length === 0 ? (
+                        <div className="py-10 text-center text-xs text-stone-500">
+                          Nenhum pedido registrado ainda. Os pedidos criados nas páginas dedicadas ou no carrinho da página principal aparecerão aqui em tempo real.
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5 max-h-[520px] overflow-y-auto pr-1">
+                          {orders.map((ord) => (
+                            <div
+                              key={ord.id}
+                              className="p-4 rounded-2xl bg-stone-50 dark:bg-slate-800/60 border border-stone-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                            >
+                              <div className="space-y-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-xs font-bold text-stone-900 dark:text-white">
+                                    {ord.buyer_name}
+                                  </span>
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                      ord.status === 'paid'
+                                        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                                        : 'bg-amber-500/15 text-amber-800 dark:text-amber-300'
+                                    }`}
+                                  >
+                                    {ord.status === 'paid' ? 'PAGO & LIBERADO' : `AGUARDANDO (${ord.status})`}
+                                  </span>
+                                  <span className="text-xs font-bold text-teal-700 dark:text-teal-400">
+                                    {Number(ord.total_amount || 0).toLocaleString('pt-BR', {
+                                      style: 'currency',
+                                      currency: 'BRL',
+                                    })}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-stone-500 flex flex-wrap items-center gap-3">
+                                  <span className="flex items-center gap-1">
+                                    <Mail className="w-3 h-3" /> {ord.buyer_email}
+                                  </span>
+                                  {ord.buyer_phone && (
+                                    <span className="flex items-center gap-1">
+                                      <Smartphone className="w-3 h-3" /> {ord.buyer_phone}
+                                    </span>
+                                  )}
+                                  <span>Downloads: {ord.download_count || 0}</span>
+                                </div>
+                                <div className="text-[11px] text-stone-400">
+                                  Dedicatória no rodapé: <strong>{ord.dedication_name || ord.buyer_name}</strong> •{' '}
+                                  {ord.is_complete_bundle
+                                    ? 'Pacote Completo (PDF Único 8 em 1)'
+                                    : `${(ord.item_slugs || []).length} eBook(s)`}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <a
+                                  href={`/meus-ebooks/${ord.download_token}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-3 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-[11px] font-semibold flex items-center gap-1"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  <span>Portal do Comprador</span>
+                                </a>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </section>

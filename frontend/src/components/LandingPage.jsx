@@ -33,10 +33,11 @@ import {
 } from 'lucide-react';
 import { fetchPublicCreator } from '../services/api';
 import { HOME_FAQS, CORE_TOPICS_PREVIEW } from '../data/seoContent';
+import LandingEbooksShowcase from './LandingEbooksShowcase';
 
 const OFFICIAL_ASAAS_MONTHLY_URL = 'https://www.asaas.com/000/c/ak85n2ouw2z6j6xv';
 
-export default function LandingPage({ onStartChat, onOpenPlans, user, systemSettings, onOpenTopic }) {
+export default function LandingPage({ onStartChat, onOpenPlans, user, systemSettings, onOpenTopic, onOpenEbookStore }) {
   const [creator, setCreator] = useState(null);
 
   useEffect(() => {
@@ -98,6 +99,14 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
           >
             <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <span>Ver Planos (Grátis &amp; WhatsApp)</span>
+          </a>
+
+          <a
+            href="#biblioteca-ebooks"
+            className="w-full sm:w-auto px-6 sm:px-7 py-3.5 sm:py-4 rounded-2xl bg-amber-50/95 dark:bg-amber-950/50 hover:bg-amber-100/95 dark:hover:bg-amber-900/50 border border-amber-300/80 dark:border-amber-700/60 text-amber-950 dark:text-amber-200 font-medium text-sm transition flex items-center justify-center gap-2 shadow-sm active:scale-95"
+          >
+            <BookOpen className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            <span>eBooks por Thiago Prata</span>
           </a>
 
           <a
@@ -733,6 +742,9 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
         </div>
       </section>
 
+      {/* 4.7 BIBLIOTECA OFICIAL DE EBOOKS BILÍNGUES + CARRINHO INTERATIVO */}
+      <LandingEbooksShowcase onOpenEbookStore={onOpenEbookStore} />
+
       {/* 4.8 PERGUNTAS FREQUENTES (AEO — RESPOSTAS DIRETAS E CITÁVEIS) */}
       <section id="perguntas-frequentes" className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto scroll-mt-12">
         <div className="space-y-10">
@@ -817,6 +829,9 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
           </a>
           <a href="#planos" className="hover:text-teal-700 dark:hover:text-teal-400 transition font-semibold text-emerald-700 dark:text-emerald-400">
             Planos (Grátis &amp; Pago)
+          </a>
+          <a href="/loja/ebooks" className="hover:text-amber-700 dark:hover:text-amber-400 transition font-semibold text-amber-700 dark:text-amber-400">
+            Biblioteca de eBooks (Thiago Prata)
           </a>
           <a href="#perguntas-frequentes" className="hover:text-teal-700 dark:hover:text-teal-400 transition">
             Perguntas Frequentes

@@ -2,6 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import { supabaseAdmin } from '../config/supabase.js';
 import { getCached, setCached } from '../utils/memoryCache.js';
+import {
+  EBOOK_COLLECTION_META,
+  ENRICHED_EBOOKS_CATALOG,
+  COMPLETE_BUNDLE_PRODUCT,
+  findEbookProductBySlug,
+} from '../data/superadminEbooksCatalog.js';
 
 const DEFAULT_BASE_URL = 'https://isaac.lynxems.com.br';
 const SEO_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
@@ -585,8 +591,19 @@ export async function handleSitemapXml(req, res) {
 
   const urls = [
     { loc: `${baseUrl}/`, lastmod: today, changefreq: 'weekly', priority: '1.0' },
+    { loc: `${baseUrl}/loja/ebooks`, lastmod: today, changefreq: 'weekly', priority: '0.92' },
+    { loc: `${baseUrl}/loja/ebooks/colecao-completa`, lastmod: today, changefreq: 'weekly', priority: '0.90' },
     { loc: `${baseUrl}/inscricao`, lastmod: today, changefreq: 'monthly', priority: '0.8' },
   ];
+
+  for (const eb of ENRICHED_EBOOKS_CATALOG) {
+    urls.push({
+      loc: `${baseUrl}/loja/ebooks/${encodeURIComponent(eb.slug)}`,
+      lastmod: today,
+      changefreq: 'weekly',
+      priority: '0.88',
+    });
+  }
 
   for (const topic of snapshot.topics) {
     const lastmod = topic.updatedAt ? String(topic.updatedAt).split('T')[0] : today;
@@ -1163,6 +1180,84 @@ export async function serveSeoHtml(req, res, distPath) {
       pageTitle = 'Tema não encontrado — Mentoria ISAAC';
     }
   }
+  // ROTA LOJA PÚBLICA DE EBOOKS (/loja/ebooks e /loja/ebooks/:slug)
+  else if (/^\/loja\/ebooks(?:\/([^/?#]+))?\/?$/i.test(pathname)) {
+    const match = pathname.match(/^\/loja\/ebooks(?:\/([^/?#]+))?\/?$/i);
+    const rawSlug = match?.[1] ? decodeURIComponent(match[1]).trim().toLowerCase() : '';
+
+    if (!rawSlug) {
+      pageTitle = `${EBOOK_COLLECTION_META.collectionTitle} — Autor: Thiago Prata`;
+      pageDescription =
+        'Adquira os eBooks oficiais Bilíngues (Português + Inglês Britânico no mesmo PDF) da Metodologia ISAAC® por Thiago Prata. Volumes individuais por R$ 19,90 ou Pacote Completo com 30% OFF (R$ 111,44).';
+      canonicalUrl = `${baseUrl}/loja/ebooks`;
+      ogType = 'website';
+      ogImageUrl = `${baseUrl}${COMPLETE_BUNDLE_PRODUCT.coverUrl}`;
+      jsonLdGraph = [
+        orgEntity,
+        creatorEntity,
+        websiteEntity,
+        {
+          '@type': 'CollectionPage',
+          '@id': `${canonicalUrl}#collection`,
+          name: EBOOK_COLLECTION_META.collectionTitle,
+          description: pageDescription,
+          url: canonicalUrl,
+          author: { '@id': `${baseUrl}/#creator` },
+        },
+      ];
+      shellHtml = `<main data-seo-prerender="ebooks-store" class="max-w-4xl mx-auto px-6 py-16 font-serif">
+        <h1>${escapeHtml(EBOOK_COLLECTION_META.collectionTitle)}</h1>
+        <p>${escapeHtml(pageDescription)}</p>
+      </main>`;
+    } else {
+      const ebookProd = findEbookProductBySlug(rawSlug);
+      if (ebookProd) {
+        const priceFmt = ebookProd.formattedPrice || (ebookProd.isBundle ? 'R$ 111,44' : 'R$ 19,90');
+        pageTitle = `${ebookProd.title} (${priceFmt}) — Thiago Prata | Mentoria ISAAC®`;
+        pageDescription = `${ebookProd.subtitle} Edição Bilíngue Português + Inglês Britânico no mesmo PDF, com ilustrações e dedicatória personalizada. Autor: Thiago Prata.`;
+        canonicalUrl = `${baseUrl}/loja/ebooks/${encodeURIComponent(ebookProd.slug)}`;
+        ogType = 'product';
+        ogImageUrl = `${baseUrl}${ebookProd.coverUrl}`;
+        jsonLdGraph = [
+          orgEntity,
+          creatorEntity,
+          websiteEntity,
+          {
+            '@type': 'Product',
+            '@id': `${canonicalUrl}#product`,
+            name: ebookProd.title,
+            description: pageDescription,
+            image: ogImageUrl,
+            brand: { '@type': 'Brand', name: 'Mentoria ISAAC®' },
+            offers: {
+              '@type': 'Offer',
+              url: canonicalUrl,
+              priceCurrency: 'BRL',
+              price: Number(ebookProd.price || 19.90).toFixed(2),
+              availability: 'https://schema.org/InStock',
+            },
+          },
+        ];
+        shellHtml = `<main data-seo-prerender="ebook-product" class="max-w-3xl mx-auto px-6 py-16 font-serif">
+          <h1>${escapeHtml(ebookProd.title)}</h1>
+          <p>${escapeHtml(pageDescription)}</p>
+        </main>`;
+      } else {
+        statusCode = 404;
+        robotsDirective = 'noindex, nofollow';
+        pageTitle = 'eBook não encontrado — Mentoria ISAAC';
+      }
+    }
+  }
+  // ROTA PRIVADA DE DOWNLOAD DO COMPRADOR (/meus-ebooks/:token) — NÃO INDEXÁVEL
+  else if (/^\/meus-ebooks\/[^/?#]+\/?$/i.test(pathname)) {
+    statusCode = 200;
+    robotsDirective = 'noindex, nofollow, noarchive';
+    pageTitle = 'Download do Seu Exemplar Dedicado — Mentoria ISAAC®';
+    pageDescription = 'Portal seguro para baixar seus eBooks Bilíngues personalizados por Thiago Prata.';
+    canonicalUrl = `${baseUrl}/loja/ebooks`;
+    shellHtml = '';
+  }
   // ROTA PRIVADA SUPERADMIN (/ebooks ou /superadmin/ebooks) — RESTRITA E NÃO INDEXÁVEL
   else if (/^\/(?:superadmin\/)?ebooks(?:\/.*)?$/i.test(pathname)) {
     statusCode = 200;
@@ -1215,10 +1310,10 @@ export async function serveSeoHtml(req, res, distPath) {
     <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
     <meta property="og:image" content="${escapeHtml(ogImageUrl)}" />
     <meta property="og:image:secure_url" content="${escapeHtml(ogImageUrl)}" />
-    <meta property="og:image:type" content="image/png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Mentoria ISAAC — Espaço Seguro de Clareza, Escuta Profunda e Transformação" />
+    <meta property="og:image:type" content="${ogImageUrl.endsWith('.jpg') ? 'image/jpeg' : 'image/png'}" />
+    <meta property="og:image:width" content="${ogImageUrl.includes('/ebooks/covers/') ? '960' : '1200'}" />
+    <meta property="og:image:height" content="${ogImageUrl.includes('/ebooks/covers/') ? '1360' : '630'}" />
+    <meta property="og:image:alt" content="${escapeHtml(pageTitle)}" />
 
     <!-- Twitter / X Cards -->
     <meta name="twitter:card" content="summary_large_image" />
