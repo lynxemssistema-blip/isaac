@@ -1,11 +1,19 @@
 import { supabaseAdmin } from '../config/supabase.js';
-import { parseUniversalPhone } from '../utils/phoneUtils.js';
 import { invalidateAuthCache } from '../middlewares/authMiddleware.js';
 import { sendWhatsAppTextSafe, resolveWhatsAppJid, isEvolutionEnabledInDatabase } from './evolutionService.js';
 import { processAsaasEbookWebhook } from './ebookStoreService.js';
+import {
+  getAsaasConfig,
+  sanitizeCpfCnpj,
+  sanitizeBrazilMobileForAsaas,
+  asaasRequest,
+  isCustomerExclusivelyInIsaacGroup,
+  ensureIsolatedIsaacCustomer,
+  ensureUngroupedIsaacWebhookCustomerGrouped,
+} from './asaasGroupClient.js';
 
-const DEFAULT_ASAAS_URL = 'https://api.asaas.com/v3';
-const DEFAULT_CUSTOMER_GROUP = 'Isaac';
+export { sanitizeCpfCnpj, sanitizeBrazilMobileForAsaas };
+
 const WHATSAPP_PLAN_ID = 'whatsapp_monthly';
 const WHATSAPP_PLAN_PRICE = 14.99;
 const SUPERADMIN_EMAIL = (process.env.SUPERADMIN_EMAIL || 'edsonmanoel2012@gmail.com').trim().toLowerCase();
@@ -36,20 +44,6 @@ export function computeMonthlyExpirationIso(currentExpiresAt = null) {
   return next.toISOString();
 }
 
-function getAsaasConfig() {
-  let rawKey = (process.env.ASAAS_API_KEY || '').trim();
-  // Proteção contra eventual remoção de '$' inicial por shells/containers
-  if (rawKey && !rawKey.startsWith('$') && rawKey.startsWith('aact_')) {
-    rawKey = `$${rawKey}`;
-  }
-  return {
-    baseUrl: (process.env.ASAAS_API_URL || DEFAULT_ASAAS_URL).replace(/\/$/, ''),
-    apiKey: rawKey,
-    customerGroup: (process.env.ASAAS_CUSTOMER_GROUP || DEFAULT_CUSTOMER_GROUP).trim(),
-    webhookToken: (process.env.ASAAS_WEBHOOK_TOKEN || '').trim(),
-  };
-}
-
 function getTodayBrtDateString() {
   const fmt = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Sao_Paulo',
@@ -60,107 +54,21 @@ function getTodayBrtDateString() {
   return fmt.format(new Date());
 }
 
-export function sanitizeCpfCnpj(raw) {
-  return String(raw || '').replace(/\D/g, '');
-}
-
-export function sanitizeBrazilMobileForAsaas(rawPhone) {
-  const parsed = parseUniversalPhone(rawPhone);
-  // Asaas aceita apenas celular nacional BR no campo opcional mobilePhone; números internacionais (ex: +61 Austrália) são mantidos no perfil do App sem quebrar o checkout Asaas
-  if (!parsed.isValid || !parsed.isBrazil) {
-    return '';
-  }
-  let digits = parsed.e164Digits.slice(2);
-  if (digits.length === 10) {
-    digits = `${digits.slice(0, 2)}9${digits.slice(2)}`;
-  }
-  return digits.slice(0, 11);
-}
-
-async function asaasRequest(path, { method = 'GET', body = null } = {}) {
-  const cfg = getAsaasConfig();
-  if (!cfg.apiKey) {
-    throw new Error('ASAAS_API_KEY não configurada no servidor.');
-  }
-
-  const resp = await fetch(`${cfg.baseUrl}${path}`, {
-    method,
-    headers: {
-      access_token: cfg.apiKey,
-      'Content-Type': 'application/json',
-      'User-Agent': 'IsaacMentoria/1.0',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    const firstError = data?.errors?.[0]?.description || data?.message || `HTTP ${resp.status}`;
-    throw new Error(firstError);
-  }
-  return data;
-}
-
 /**
- * Cria ou atualiza o cliente no Asaas exclusivamente quando ele contrata o Plano WhatsApp (R$ 14,99),
- * sempre vinculando ao grupo de clientes "Isaac" e externalReference "isaac:<userId>".
+ * Cria ou atualiza o cliente no Asaas exclusivamente no Grupo "Isaac" (externalReference "isaac:<userId>"),
+ * criando cadastro separado mesmo quando o CPF já está cadastrado em outros grupos (ex: "horeb", "lynxems")
+ * para separar 100% os clientes e a receita financeira por grupo no Asaas.
  */
 export async function ensureAsaasCustomer({ userId, fullName, email, phone, cpfCnpj }) {
-  const cfg = getAsaasConfig();
-  const cleanCpfCnpj = sanitizeCpfCnpj(cpfCnpj);
-  if (cleanCpfCnpj.length !== 11 && cleanCpfCnpj.length !== 14) {
-    throw new Error('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido para emitir a assinatura.');
-  }
-
-  const mobilePhone = sanitizeBrazilMobileForAsaas(phone);
-  const externalReference = `isaac:${userId}`;
-
-  const { data: profile } = await supabaseAdmin
-    .from('izaque_profiles')
-    .select('asaas_customer_id')
-    .eq('id', userId)
-    .maybeSingle();
-
-  let customerId = profile?.asaas_customer_id || null;
-
-  if (!customerId) {
-    const byExt = await asaasRequest(`/customers?externalReference=${encodeURIComponent(externalReference)}&limit=1`);
-    if (Array.isArray(byExt?.data) && byExt.data[0]?.id) {
-      customerId = byExt.data[0].id;
-    }
-  }
-
-  if (!customerId) {
-    const byCpf = await asaasRequest(`/customers?cpfCnpj=${encodeURIComponent(cleanCpfCnpj)}&limit=1`);
-    if (Array.isArray(byCpf?.data) && byCpf.data[0]?.id) {
-      customerId = byCpf.data[0].id;
-    }
-  }
-
-  const customerPayload = {
-    name: (fullName || email?.split('@')[0] || 'Membro ISAAC').trim(),
-    email: email ? email.trim().toLowerCase() : undefined,
-    cpfCnpj: cleanCpfCnpj,
-    mobilePhone: mobilePhone.length >= 10 ? mobilePhone : undefined,
-    externalReference,
-    groupName: cfg.customerGroup, // "Isaac"
-    notificationDisabled: false,
-  };
-
-  let customer;
-  if (customerId) {
-    customer = await asaasRequest(`/customers/${encodeURIComponent(customerId)}`, {
-      method: 'PUT',
-      body: customerPayload,
-    });
-  } else {
-    customer = await asaasRequest('/customers', {
-      method: 'POST',
-      body: customerPayload,
-    });
-  }
-
-  return customer.id;
+  return ensureIsolatedIsaacCustomer({
+    userId,
+    fullName,
+    email,
+    phone,
+    cpfCnpj,
+    externalReferenceFallback: `isaac:${userId}`,
+    updateExistingDetails: true,
+  });
 }
 
 /**
@@ -267,7 +175,7 @@ export async function createOrGetWhatsappSubscriptionCheckout({ userId, cpfCnpj,
         value: planPrice,
         nextDueDate: getTodayBrtDateString(),
         cycle: 'MONTHLY',
-        description: `${planName} — Assinatura com Vencimento Mensal`,
+        description: `[ISAAC] ${planName} — Assinatura com Vencimento Mensal`,
         externalReference,
       },
     });
@@ -515,6 +423,11 @@ export async function processAsaasWebhook(headers = {}, body = {}) {
   const payment = body?.payment || body?.subscription || {};
   const extRef = String(payment?.externalReference || '');
 
+  // Caso seja qualquer cobrança ISAAC (isaac:*) cujo cliente tenha sido criado avulso sem grupo via PaymentLink, garante vínculo ao grupo Isaac
+  if (extRef.toLowerCase().startsWith('isaac:') && payment?.customer) {
+    await ensureUngroupedIsaacWebhookCustomerGrouped(payment.customer, extRef);
+  }
+
   // Intercepta exclusivamente pagamentos avulsos de eBooks (isaac:ebook:<orderId>)
   if (extRef.startsWith('isaac:ebook:')) {
     return processAsaasEbookWebhook(event, payment);
@@ -683,7 +596,7 @@ export async function processAsaasWebhook(headers = {}, body = {}) {
 export async function getAdminAsaasOverview() {
   const cfg = getAsaasConfig();
 
-  const [plansRes, subsRes, activeProfilesRes] = await Promise.all([
+  const [plansRes, subsRes, ebookOrdersRes, activeProfilesRes] = await Promise.all([
     supabaseAdmin
       .from('izaque_plans')
       .select('*')
@@ -695,6 +608,11 @@ export async function getAdminAsaasOverview() {
       .order('created_at', { ascending: false })
       .limit(100),
     supabaseAdmin
+      .from('izaque_ebook_orders')
+      .select('id, buyer_name, buyer_email, is_complete_bundle, items, total_amount, status, asaas_customer_id, asaas_payment_id, invoice_url, paid_at, created_at')
+      .order('created_at', { ascending: false })
+      .limit(100),
+    supabaseAdmin
       .from('izaque_profiles')
       .select('id, full_name, email, role, phone, plan_id, plan_status, plan_activated_at, plan_expires_at, asaas_customer_id, asaas_subscription_id')
       .or('role.eq.master,plan_id.eq.whatsapp_monthly')
@@ -703,12 +621,14 @@ export async function getAdminAsaasOverview() {
 
   let accountInfo = null;
   let webhookInfo = null;
+  let isaacGroupCustomerCount = 0;
 
   if (cfg.apiKey) {
     try {
-      const [acct, whList] = await Promise.all([
+      const [acct, whList, groupCusts] = await Promise.all([
         asaasRequest('/myAccount/commercialInfo').catch(() => null),
         asaasRequest('/webhooks?limit=20').catch(() => null),
+        asaasRequest(`/customers?groupName=${encodeURIComponent(cfg.customerGroup)}&limit=100`).catch(() => null),
       ]);
       accountInfo = acct
         ? {
@@ -717,6 +637,16 @@ export async function getAdminAsaasOverview() {
             cpfCnpj: acct.cpfCnpj || null,
           }
         : null;
+
+      if (groupCusts) {
+        const custList = Array.isArray(groupCusts.data) ? groupCusts.data : [];
+        const exclusiveList = custList.filter((c) => isCustomerExclusivelyInIsaacGroup(c, cfg.customerGroup));
+        isaacGroupCustomerCount =
+          typeof groupCusts.totalCount === 'number' && groupCusts.totalCount > custList.length
+            ? groupCusts.totalCount
+            : exclusiveList.length;
+      }
+
       const isaacWh = (whList?.data || []).find(
         (w) => String(w.url || '').includes('isaac.lynxems.com.br') || String(w.name || '').toLowerCase() === 'isaac'
       );
@@ -735,19 +665,84 @@ export async function getAdminAsaasOverview() {
   }
 
   const paidPlan = (plansRes.data || []).find((p) => p.id === WHATSAPP_PLAN_ID) || null;
+  const subRows = (subsRes.data || []).filter((r) => r.asaas_payment_id || r.plan_id === WHATSAPP_PLAN_ID);
+  const ebookRows = ebookOrdersRes.data || [];
+
+  const subPaidRevenue = subRows
+    .filter((r) => r.status === 'active')
+    .reduce((acc, r) => acc + Number(r.amount || 0), 0);
+  const subPendingRevenue = subRows
+    .filter((r) => r.status === 'pending')
+    .reduce((acc, r) => acc + Number(r.amount || 0), 0);
+
+  const ebookPaidRevenue = ebookRows
+    .filter((r) => r.status === 'paid')
+    .reduce((acc, r) => acc + Number(r.total_amount || 0), 0);
+  const ebookPendingRevenue = ebookRows
+    .filter((r) => r.status === 'pending')
+    .reduce((acc, r) => acc + Number(r.total_amount || 0), 0);
+
+  const unifiedOrders = [
+    ...ebookRows.map((eb) => {
+      const items = Array.isArray(eb.items) ? eb.items : [];
+      const itemLabel = eb.is_complete_bundle
+        ? 'Coleção Completa 8 eBooks (PDF Único)'
+        : items.length === 1
+          ? items[0]?.title || 'eBook ISAAC® Essential'
+          : `${items.length} eBooks ISAAC® Essential`;
+      return {
+        id: `ebook-${eb.id}`,
+        kind: 'ebook',
+        user_name: eb.buyer_name || 'Leitor ISAAC',
+        user_email: eb.buyer_email || '',
+        product_title: itemLabel,
+        cycle_label: 'Venda Direta (eBook)',
+        amount: Number(eb.total_amount || 0),
+        status: eb.status === 'paid' ? 'active' : eb.status,
+        asaas_customer_id: eb.asaas_customer_id || null,
+        asaas_payment_id: eb.asaas_payment_id || null,
+        invoice_url: eb.invoice_url || null,
+        created_at: eb.created_at,
+      };
+    }),
+    ...subRows.map((sub) => ({
+      id: `sub-${sub.id}`,
+      kind: 'subscription',
+      user_name: sub.user_name || 'Membro ISAAC',
+      user_email: sub.user_email || '',
+      product_title: 'ISAAC no WhatsApp',
+      cycle_label: 'Assinatura Mensal',
+      amount: Number(sub.amount || 14.99),
+      status: sub.status,
+      asaas_customer_id: sub.asaas_customer_id || null,
+      asaas_payment_id: sub.asaas_payment_id || null,
+      invoice_url: sub.invoice_url || null,
+      created_at: sub.created_at,
+    })),
+  ].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
   return {
     integration: {
       configured: Boolean(cfg.apiKey),
       customerGroup: cfg.customerGroup,
+      isaacGroupCustomerCount,
       webhookEndpoint: 'https://isaac.lynxems.com.br/api/webhooks/asaas',
       account: accountInfo,
       webhook: webhookInfo,
       asaasPlanLinkId: paidPlan?.asaas_payment_link_id || null,
       asaasPlanLinkUrl: paidPlan?.asaas_payment_link_url || null,
     },
+    revenueSummary: {
+      customerGroup: cfg.customerGroup,
+      ebookPaidRevenue: Number(ebookPaidRevenue.toFixed(2)),
+      ebookPaidCount: ebookRows.filter((r) => r.status === 'paid').length,
+      subscriptionPaidRevenue: Number(subPaidRevenue.toFixed(2)),
+      subscriptionPaidCount: subRows.filter((r) => r.status === 'active').length,
+      totalPaidRevenue: Number((ebookPaidRevenue + subPaidRevenue).toFixed(2)),
+      totalPendingRevenue: Number((ebookPendingRevenue + subPendingRevenue).toFixed(2)),
+    },
     plans: plansRes.data || [],
-    orders: subsRes.data || [],
+    orders: unifiedOrders,
     subscribersAndMasters: activeProfilesRes.data || [],
   };
 }

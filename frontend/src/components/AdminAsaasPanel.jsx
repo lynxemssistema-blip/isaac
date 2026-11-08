@@ -92,8 +92,15 @@ export default function AdminAsaasPanel({ currentUser }) {
   }
 
   const integration = overview?.integration || {};
+  const revenueSummary = overview?.revenueSummary || {};
   const orders = overview?.orders || [];
   const subscribers = overview?.subscribersAndMasters || [];
+  const groupLabel = integration.customerGroup || 'Isaac';
+
+  const formatBrl = (v) =>
+    Number(v || 0)
+      .toFixed(2)
+      .replace('.', ',');
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -155,6 +162,60 @@ export default function AdminAsaasPanel({ currentUser }) {
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Sincronizar Asaas</span>
           </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+          <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/60">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+              Clientes Isolados (Grupo {groupLabel})
+            </div>
+            <div className="text-lg font-serif font-bold text-stone-900 dark:text-stone-50 mt-0.5">
+              {integration.isaacGroupCustomerCount ?? 0} cadastro(s)
+            </div>
+            <div className="text-[10px] text-stone-500 dark:text-stone-400">
+              Separado 100% de outros grupos no Asaas
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/60">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-800 dark:text-indigo-300">
+              Receita eBooks ({groupLabel})
+            </div>
+            <div className="text-lg font-serif font-bold text-indigo-800 dark:text-indigo-300 mt-0.5">
+              R$ {formatBrl(revenueSummary.ebookPaidRevenue)}
+            </div>
+            <div className="text-[10px] text-stone-500 dark:text-stone-400">
+              {revenueSummary.ebookPaidCount || 0} venda(s) confirmada(s)
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-teal-50/70 dark:bg-teal-950/30 border border-teal-200/80 dark:border-teal-800/60">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-teal-800 dark:text-teal-300">
+              Receita Plano WhatsApp ({groupLabel})
+            </div>
+            <div className="text-lg font-serif font-bold text-teal-800 dark:text-teal-300 mt-0.5">
+              R$ {formatBrl(revenueSummary.subscriptionPaidRevenue)}
+            </div>
+            <div className="text-[10px] text-stone-500 dark:text-stone-400">
+              {revenueSummary.subscriptionPaidCount || 0} assinatura(s) paga(s)
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+              Receita Total Consolidada ({groupLabel})
+            </div>
+            <div className="text-lg font-serif font-bold text-amber-900 dark:text-amber-200 mt-0.5">
+              R$ {formatBrl(revenueSummary.totalPaidRevenue)}
+            </div>
+            <div className="text-[10px] text-stone-500 dark:text-stone-400">
+              Em aberto: R$ {formatBrl(revenueSummary.totalPendingRevenue)}
+            </div>
+          </div>
+        </div>
+
+        <div className="px-3.5 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-[11px] text-emerald-900 dark:text-emerald-200">
+          <strong>Regra de Isolamento Financeiro Ativa:</strong> mesmo que o comprador já tenha CPF cadastrado no Asaas em outros grupos (ex: <code>horeb</code> ou <code>lynxems</code>), o sistema cria e utiliza um cadastro <code>cus_...</code> exclusivo no grupo <strong>{groupLabel}</strong>, mantendo clientes e receitas 100% separados por grupo.
         </div>
 
         {integration.asaasPlanLinkUrl && (
@@ -319,8 +380,8 @@ export default function AdminAsaasPanel({ currentUser }) {
             <table className="w-full text-left text-xs text-stone-700 dark:text-stone-300">
               <thead className="bg-stone-100/80 dark:bg-slate-900 uppercase text-[10px] text-stone-500 font-semibold border-b border-stone-200 dark:border-slate-700">
                 <tr>
-                  <th className="p-3.5">Cliente (Grupo Isaac)</th>
-                  <th className="p-3.5">Plano / Ciclo</th>
+                  <th className="p-3.5">Cliente (Grupo {groupLabel})</th>
+                  <th className="p-3.5">Produto / Origem</th>
                   <th className="p-3.5">Valor</th>
                   <th className="p-3.5">Status Asaas</th>
                   <th className="p-3.5">Data</th>
@@ -331,12 +392,17 @@ export default function AdminAsaasPanel({ currentUser }) {
                 {orders.map((ord) => (
                   <tr key={ord.id} className="hover:bg-stone-50/70 dark:hover:bg-slate-800/60">
                     <td className="p-3.5">
-                      <div className="font-medium text-stone-900 dark:text-stone-100">{ord.user_name || 'Membro'}</div>
+                      <div className="font-medium text-stone-900 dark:text-stone-100">{ord.user_name || 'Cliente'}</div>
                       <div className="text-[11px] text-stone-400">{ord.user_email}</div>
+                      {ord.asaas_customer_id && (
+                        <div className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 mt-0.5">
+                          {ord.asaas_customer_id} • Grupo {groupLabel}
+                        </div>
+                      )}
                     </td>
                     <td className="p-3.5">
-                      <span className="font-medium">ISAAC no WhatsApp</span>
-                      <div className="text-[10px] text-stone-400">Vencimento Mensal</div>
+                      <span className="font-medium">{ord.product_title || 'ISAAC no WhatsApp'}</span>
+                      <div className="text-[10px] text-stone-400">{ord.cycle_label || 'Vencimento Mensal'}</div>
                     </td>
                     <td className="p-3.5 font-semibold text-emerald-700 dark:text-emerald-400">
                       R$ {Number(ord.amount || 14.99).toFixed(2).replace('.', ',')}

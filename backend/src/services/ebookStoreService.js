@@ -18,25 +18,16 @@ import {
   isEvolutionEnabledInDatabase,
 } from './evolutionService.js';
 import { sendWhatsAppImageSafe } from './evolutionOutreachService.js';
+import {
+  getAsaasConfig,
+  sanitizeCpfCnpj,
+  asaasRequest,
+  ensureIsolatedIsaacCustomer,
+} from './asaasGroupClient.js';
 
-const DEFAULT_ASAAS_URL = 'https://api.asaas.com/v3';
-const DEFAULT_CUSTOMER_GROUP = 'Isaac';
 const DEFAULT_APP_URL = 'https://isaac.lynxems.com.br';
 
 const inFlightFulfillments = new Set();
-
-function getAsaasConfig() {
-  let rawKey = (process.env.ASAAS_API_KEY || '').trim();
-  if (rawKey && !rawKey.startsWith('$') && rawKey.startsWith('aact_')) {
-    rawKey = `$${rawKey}`;
-  }
-  return {
-    baseUrl: (process.env.ASAAS_API_URL || DEFAULT_ASAAS_URL).replace(/\/$/, ''),
-    apiKey: rawKey,
-    customerGroup: (process.env.ASAAS_CUSTOMER_GROUP || DEFAULT_CUSTOMER_GROUP).trim(),
-    appUrl: (process.env.APP_URL || DEFAULT_APP_URL).replace(/\/$/, ''),
-  };
-}
 
 function getDueDateBrtPlusDays(daysToAdd = 1) {
   const target = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000);
@@ -47,44 +38,6 @@ function getDueDateBrtPlusDays(daysToAdd = 1) {
     day: '2-digit',
   });
   return fmt.format(target);
-}
-
-function sanitizeCpfCnpj(raw) {
-  return String(raw || '').replace(/\D/g, '');
-}
-
-function sanitizeBrazilMobileForAsaas(rawPhone) {
-  const parsed = parseUniversalPhone(rawPhone);
-  if (!parsed.isValid || !parsed.isBrazil) return '';
-  let digits = parsed.e164Digits.slice(2);
-  if (digits.length === 10) {
-    digits = `${digits.slice(0, 2)}9${digits.slice(2)}`;
-  }
-  return digits.slice(0, 11);
-}
-
-async function asaasRequest(endpointPath, { method = 'GET', body = null } = {}) {
-  const cfg = getAsaasConfig();
-  if (!cfg.apiKey) {
-    throw new Error('ASAAS_API_KEY não configurada no servidor.');
-  }
-
-  const resp = await fetch(`${cfg.baseUrl}${endpointPath}`, {
-    method,
-    headers: {
-      access_token: cfg.apiKey,
-      'Content-Type': 'application/json',
-      'User-Agent': 'IsaacEbookStore/1.0',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    const firstError = data?.errors?.[0]?.description || data?.message || `HTTP ${resp.status}`;
-    throw new Error(firstError);
-  }
-  return data;
 }
 
 /**
@@ -164,49 +117,20 @@ export function calculateCartSummary(rawItems = [], { useCompleteBundlePromo = f
 }
 
 /**
- * Localiza ou cria cliente no Asaas sem sobrescrever o externalReference de assinantes mensais existentes.
+ * Garante que o comprador tenha um registro de cliente EXCLUSIVO no grupo "Isaac" no Asaas
+ * (mesmo que o CPF já exista na mesma conta Asaas em outros grupos como "horeb" ou "lynxems"),
+ * isolando 100% os clientes e a receita financeira por grupo de clientes.
  */
 async function ensureAsaasBuyerCustomer({ userId, buyerName, buyerEmail, buyerPhone, cleanCpfCnpj }) {
-  const cfg = getAsaasConfig();
-  const mobilePhone = sanitizeBrazilMobileForAsaas(buyerPhone);
-  let customerId = null;
-
-  if (userId) {
-    const { data: profile } = await supabaseAdmin
-      .from('izaque_profiles')
-      .select('asaas_customer_id')
-      .eq('id', userId)
-      .maybeSingle();
-    if (profile?.asaas_customer_id) {
-      customerId = profile.asaas_customer_id;
-    }
-  }
-
-  if (!customerId) {
-    const byCpf = await asaasRequest(`/customers?cpfCnpj=${encodeURIComponent(cleanCpfCnpj)}&limit=1`);
-    if (Array.isArray(byCpf?.data) && byCpf.data[0]?.id) {
-      customerId = byCpf.data[0].id;
-    }
-  }
-
-  if (customerId) {
-    return customerId;
-  }
-
-  const created = await asaasRequest('/customers', {
-    method: 'POST',
-    body: {
-      name: buyerName.trim(),
-      email: buyerEmail.trim().toLowerCase(),
-      cpfCnpj: cleanCpfCnpj,
-      mobilePhone: mobilePhone.length >= 10 ? mobilePhone : undefined,
-      externalReference: userId ? `isaac:${userId}` : `isaac:reader:${cleanCpfCnpj}`,
-      groupName: cfg.customerGroup,
-      notificationDisabled: false,
-    },
+  return ensureIsolatedIsaacCustomer({
+    userId,
+    fullName: buyerName,
+    email: buyerEmail,
+    phone: buyerPhone,
+    cpfCnpj: cleanCpfCnpj,
+    externalReferenceFallback: `isaac:reader:${cleanCpfCnpj}`,
+    updateExistingDetails: false,
   });
-
-  return created.id;
 }
 
 function serializePublicOrder(order, appUrl = DEFAULT_APP_URL) {
@@ -259,6 +183,9 @@ function serializePublicOrder(order, appUrl = DEFAULT_APP_URL) {
     discountAmount: Number(order.discount_amount || 0),
     totalAmount: Number(order.total_amount || 0),
     status: order.status,
+    asaasCustomerId: order.asaas_customer_id || null,
+    asaasPaymentId: order.asaas_payment_id || null,
+    customerGroup: getAsaasConfig().customerGroup,
     invoiceUrl: order.invoice_url || null,
     pixQrCodeBase64: order.pix_qr_code_base64 || null,
     pixCopyPaste: order.pix_copy_paste || null,
@@ -273,7 +200,7 @@ function serializePublicOrder(order, appUrl = DEFAULT_APP_URL) {
 
 /**
  * Cria cobrança avulsa direta no Asaas (PIX QR Code imediato + Link Oficial Asaas Cartão/PIX/Boleto)
- * e registra o pedido com token único de download personalizado.
+ * vinculada exclusivamente ao Grupo de Clientes "Isaac", e registra o pedido com token único de download personalizado.
  */
 export async function createEbookAsaasOrder({
   items,
@@ -317,10 +244,10 @@ export async function createEbookAsaasOrder({
   });
 
   const rawDescription = summary.isCompleteBundle
-    ? 'Coleção Completa ISAAC® Essential (Todos os 8 eBooks Bilíngues PT-BR + EN-GB em 1 PDF Único) — Autor: Thiago Prata'
+    ? '[ISAAC] Coleção Completa ISAAC® Essential (8 eBooks Bilíngues PT-BR + EN-GB em 1 PDF Único) — Autor: Thiago Prata'
     : summary.items.length === 1
-      ? `eBook Bilíngue ISAAC® Essential: ${summary.items[0].title} — Autor: Thiago Prata`
-      : `Kit ${summary.items.length} eBooks Bilíngues ISAAC® Essential (${summary.items.map((i) => `Vol.0${i.volumeNumber}`).join(', ')}) — Autor: Thiago Prata`;
+      ? `[ISAAC] eBook Bilíngue ISAAC® Essential: ${summary.items[0].title} — Autor: Thiago Prata`
+      : `[ISAAC] Kit ${summary.items.length} eBooks Bilíngues ISAAC® Essential (${summary.items.map((i) => `Vol.0${i.volumeNumber}`).join(', ')}) — Autor: Thiago Prata`;
 
   const payment = await asaasRequest('/payments', {
     method: 'POST',
