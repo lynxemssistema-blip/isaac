@@ -519,6 +519,8 @@ export function handleRobotsTxt(req, res) {
     'Allow: /llms-full.txt',
     'Disallow: /api/',
     'Disallow: /admin',
+    'Disallow: /ebooks',
+    'Disallow: /superadmin',
     'Disallow: /*?token_hash=*',
     'Disallow: /*?mode=reset-password*',
     '',
@@ -1161,6 +1163,15 @@ export async function serveSeoHtml(req, res, distPath) {
       pageTitle = 'Tema não encontrado — Mentoria ISAAC';
     }
   }
+  // ROTA PRIVADA SUPERADMIN (/ebooks ou /superadmin/ebooks) — RESTRITA E NÃO INDEXÁVEL
+  else if (/^\/(?:superadmin\/)?ebooks(?:\/.*)?$/i.test(pathname)) {
+    statusCode = 200;
+    robotsDirective = 'noindex, nofollow, noarchive';
+    pageTitle = 'Acervo Editorial Restrito — Mentoria ISAAC';
+    pageDescription = 'Área editorial exclusiva para o Superadmin.';
+    canonicalUrl = `${baseUrl}/ebooks`;
+    shellHtml = '';
+  }
   // ROTA 5: QUALQUER OUTRA URL INEXISTENTE -> HTTP 404 REAL (FIM DO SOFT-404)
   else {
     statusCode = 404;
@@ -1238,7 +1249,7 @@ export async function serveSeoHtml(req, res, distPath) {
     finalHtml = finalHtml.replace('<!-- SEO_ROOT_SHELL -->', shellHtml);
   }
 
-  if (hasSensitiveToken || statusCode === 404) {
+  if (hasSensitiveToken || statusCode === 404 || robotsDirective.includes('noindex')) {
     res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
   }
 
