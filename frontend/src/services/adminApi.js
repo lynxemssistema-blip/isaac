@@ -1646,4 +1646,14 @@ export async function updateAdminWhatsappContactNameApi(contactId, name) {
   return data;
 }
 
+export async function fetchSuperAdminEbooksApi() {
+  const res = await authFetch(`${BACKEND_URL}/api/superadmin/ebooks`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Acesso negado: exclusivo para Superadmin.');
+  }
+  return data;
+}
+
+
 

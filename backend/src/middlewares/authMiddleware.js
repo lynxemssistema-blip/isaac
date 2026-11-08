@@ -101,6 +101,23 @@ export async function requireAdmin(req, res, next) {
 }
 
 /**
+ * Exige perfil estritamente Superadmin ('master' ou e-mail superadmin oficial).
+ */
+export async function requireSuperAdmin(req, res, next) {
+  return requireAuth(req, res, () => {
+    const superAdminEmail = (process.env.SUPERADMIN_EMAIL || 'edsonmanoel2012@gmail.com').trim().toLowerCase();
+    const isSuper =
+      req.user?.role === 'master' ||
+      String(req.user?.email || '').trim().toLowerCase() === superAdminEmail;
+
+    if (!isSuper) {
+      return res.status(403).json({ error: 'Acesso exclusivo do usuário Superadmin.' });
+    }
+    return next();
+  });
+}
+
+/**
  * Previne BOLA / IDOR: garante que o usuário autenticado acesse apenas seus próprios recursos,
  * exceto quando possuir perfil 'admin' ou 'master'.
  */

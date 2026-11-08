@@ -53,6 +53,7 @@ const ResetPasswordModal = lazyWithRetry(() => import('./components/ResetPasswor
 const SubscriberFeedbackModal = lazyWithRetry(() => import('./components/SubscriberFeedbackModal'));
 const WhatsappPlanModal = lazyWithRetry(() => import('./components/WhatsappPlanModal'));
 const TopicLandingPage = lazyWithRetry(() => import('./components/TopicLandingPage'));
+const SuperAdminEbooksPage = lazyWithRetry(() => import('./components/SuperAdminEbooksPage'));
 
 function LazyFallbackLoader() {
   return (
@@ -108,6 +109,16 @@ function parseTopicLocation() {
   return null;
 }
 
+function parseSuperAdminEbooksLocation() {
+  if (typeof window === 'undefined') return false;
+  const pathname = window.location.pathname || '/';
+  const searchParams = new URLSearchParams(window.location.search);
+  if (/^\/(?:superadmin\/)?ebooks(?:\/.*)?$/i.test(pathname)) {
+    return true;
+  }
+  return searchParams.has('superadmin_ebooks');
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -115,6 +126,7 @@ export default function App() {
   const [directSignupRoute, setDirectSignupRoute] = useState(() => parseDirectSignupLocation());
   const [isInscriptionRoute, setIsInscriptionRoute] = useState(() => parseInscriptionLocation());
   const [topicRoute, setTopicRoute] = useState(() => parseTopicLocation());
+  const [isSuperAdminEbooksRoute, setIsSuperAdminEbooksRoute] = useState(() => parseSuperAdminEbooksLocation());
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState('login');
   const [authInitialEmail, setAuthInitialEmail] = useState('');
@@ -235,13 +247,14 @@ export default function App() {
       setDirectSignupRoute(parseDirectSignupLocation());
       setIsInscriptionRoute(parseInscriptionLocation());
       setTopicRoute(parseTopicLocation());
+      setIsSuperAdminEbooksRoute(parseSuperAdminEbooksLocation());
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   useEffect(() => {
-    if (directSignupRoute || isInscriptionRoute || topicRoute) return;
+    if (directSignupRoute || isInscriptionRoute || topicRoute || isSuperAdminEbooksRoute) return;
     if (activeTab === 'landing') {
       document.title = 'Mentoria ISAAC — Clareza Emocional, Escuta Profunda & Transformação 24h';
     } else if (activeTab === 'chat') {
@@ -328,7 +341,8 @@ export default function App() {
         const onPublicRoute =
           Boolean(parseDirectSignupLocation()) ||
           parseInscriptionLocation() ||
-          Boolean(parseTopicLocation());
+          Boolean(parseTopicLocation()) ||
+          parseSuperAdminEbooksLocation();
         if (!onPublicRoute) {
           // REQUISITO: Usuário autenticado já abre direto na página de conversa com ISAAC
           setActiveTab('chat');
@@ -455,6 +469,38 @@ export default function App() {
     setTopicRoute(null);
     setActiveTab('landing');
   };
+
+  // PÁGINA ISOLADA E EXCLUSIVA SUPERADMIN: ACERVO DE EBOOKS SEGMENTADOS (/ebooks ou /superadmin/ebooks)
+  if (isSuperAdminEbooksRoute) {
+    return (
+      <Suspense fallback={<LazyFallbackLoader />}>
+        <SuperAdminEbooksPage
+          user={user}
+          profile={profile}
+          loadingProfile={loadingProfile}
+          onOpenLogin={() => openAuthModal('login', '')}
+          onBackToApp={() => {
+            if (typeof window !== 'undefined') {
+              window.history.pushState({}, '', '/');
+            }
+            setIsSuperAdminEbooksRoute(false);
+          }}
+        />
+        <AuthModal
+          isOpen={isAuthOpen}
+          initialMode={authInitialMode}
+          initialEmail={authInitialEmail}
+          onClose={() => setIsAuthOpen(false)}
+          onSuccess={(loggedUser, savedProfile) => {
+            setUser(loggedUser);
+            if (savedProfile) setProfile(savedProfile);
+            loadUserProfile(loggedUser);
+            setIsAuthOpen(false);
+          }}
+        />
+      </Suspense>
+    );
+  }
 
   // PÁGINAS PÚBLICAS DE TRILHAS TEMÁTICAS INDEXÁVEIS (/temas/:slug)
   if (topicRoute) {
