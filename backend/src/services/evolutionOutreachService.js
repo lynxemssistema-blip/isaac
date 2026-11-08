@@ -1456,6 +1456,7 @@ export async function sendDirectOutreachPreview({
   flowType = 'unregistered_invite_image', // 'unregistered_invite_image' | 'registered_plans_integration'
   customImageUrl = '',
   customTemplate = '',
+  customTitle = '',
   createdBy = null,
 }) {
   const [safetyCfg, savedTemplates] = await Promise.all([
@@ -1500,9 +1501,10 @@ export async function sendDirectOutreachPreview({
     .from('izaque_whatsapp_outreach_campaigns')
     .insert({
       title:
-        flowType === 'unregistered_invite_image'
+        (customTitle && String(customTitle).trim()) ||
+        (flowType === 'unregistered_invite_image'
           ? `Envio Convite com Imagem ISAAC (${phone})`
-          : `Envio Integração Planos Grátis & Pago (${phone})`,
+          : `Envio Integração Planos Grátis & Pago (${phone})`),
       audience_type: 'selected',
       status: 'running',
       scheduled_at: new Date().toISOString(),

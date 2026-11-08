@@ -32,6 +32,7 @@ import {
   Square,
   X,
   BookOpen,
+  ExternalLink,
 } from 'lucide-react';
 import {
   fetchAdminWhatsappOutreachOverview,
@@ -253,6 +254,8 @@ export default function AdminEvolutionContacts({ currentUser }) {
   const [creatingCampaign, setCreatingCampaign] = useState(false);
   const [ebookStoreCatalog, setEbookStoreCatalog] = useState({ ebooks: [], bundle: null });
   const [selectedEbookPresetSlug, setSelectedEbookPresetSlug] = useState('');
+  const [quickEbookSlug, setQuickEbookSlug] = useState('loja-geral');
+  const [sendingBulkEbook, setSendingBulkEbook] = useState(false);
 
   useEffect(() => {
     fetchPublicEbooksStore()
@@ -267,28 +270,63 @@ export default function AdminEvolutionContacts({ currentUser }) {
       .catch(() => {});
   }, []);
 
-  const handleApplyEbookCampaignPreset = (slug) => {
-    setSelectedEbookPresetSlug(slug);
-    if (!slug) return;
+  const buildEbookWhatsappPayload = useCallback(
+    (targetSlug = 'loja-geral') => {
+      const baseOrigin = 'https://isaac.lynxems.com.br';
+      const cleanSlug = targetSlug || 'loja-geral';
 
-    const baseOrigin = 'https://isaac.lynxems.com.br';
-    const isBundle = slug === 'colecao-completa';
-    const book = isBundle
-      ? ebookStoreCatalog.bundle
-      : (ebookStoreCatalog.ebooks || []).find((b) => b.slug === slug);
+      if (cleanSlug === 'loja-geral') {
+        const storeUrl = `${baseOrigin}/loja/ebooks`;
+        const coverImg = `${baseOrigin}/ebooks/covers/colecao-completa.jpg`;
+        return {
+          slug: 'loja-geral',
+          shortLabel: 'Página dos eBooks',
+          shortLabelEn: 'eBooks Store',
+          campaignTitle: 'Divulgação Página dos eBooks ISAAC® — Thiago Prata',
+          coverImg,
+          dedicatedUrl: storeUrl,
+          ptMsg: `{saudacao}, {nome}! Tudo bem com você?
 
-    if (!book) return;
+Quero compartilhar com você a *Biblioteca Oficial de eBooks ISAAC® Essential*, escrita pelo mentor *Thiago Prata* — idealizador e criador da Mentoria e do App ISAAC®.
 
-    const dedicatedUrl = `${baseOrigin}/loja/ebooks/${book.slug}`;
-    const coverImg = book.coverUrl?.startsWith('http')
-      ? book.coverUrl
-      : `${baseOrigin}${book.coverUrl || '/ebooks/covers/colecao-completa.jpg'}`;
+📚 *O que você encontra na página dos eBooks:*
+• *8 eBooks segmentados* de leitura clara, profunda e prática por *R$ 19,90* cada
+• *Promoção de 30% OFF na Coleção Completa* (todos os 8 livros em *1 Arquivo Único PDF* por *R$ 111,44*)
+• Edição *Bilíngue (Português + Inglês Britânico no mesmo PDF)* com ilustrações e linhas de anotações
+• *Dedicatória personalizada com o seu nome* na margem inferior do PDF + envio imediato no E-mail e WhatsApp
 
-    setUnregisteredImageUrl(coverImg);
+👉 Acesse a página dos eBooks, veja as capas e monte seu carrinho:
+${storeUrl}
 
-    if (isBundle) {
-      setCampTitle('Oferta Especial: Coleção Completa 8 eBooks ISAAC® (30% OFF) — Thiago Prata');
-      const ptMsg = `{saudacao}, {nome}! Tudo bem com você?
+_(Se preferir não receber novidades por aqui, basta responder "parar".)_`,
+          enMsg: `{saudacao}, {nome}! How are you doing?
+
+I would love to share with you the *Official ISAAC® Essential eBook Library*, authored by *Thiago Prata* — Mentor and Creator of the ISAAC® Mentoring App.
+
+📚 *What you will find on our eBooks page:*
+• *8 segmented volumes* designed for practical clarity (*R$ 19.90* each)
+• *30% OFF Complete Collection* (all 8 books united in *1 Single Master PDF* for *R$ 111.44*)
+• Full *Bilingual Edition (Portuguese + British English in the same PDF)* with custom illustrations and note pages
+• *Personalised dedication bearing your name* in the bottom margin + instant delivery via Email and WhatsApp
+
+👉 Visit the official eBooks page and explore all covers here:
+${storeUrl}
+
+_(If you prefer not to receive updates here, simply reply "stop".)_`,
+        };
+      }
+
+      if (cleanSlug === 'colecao-completa') {
+        const bundleUrl = `${baseOrigin}/loja/ebooks/colecao-completa`;
+        const coverImg = `${baseOrigin}/ebooks/covers/colecao-completa.jpg`;
+        return {
+          slug: 'colecao-completa',
+          shortLabel: 'Coleção 8 eBooks (30% OFF)',
+          shortLabelEn: 'All 8 eBooks (30% OFF)',
+          campaignTitle: 'Oferta Especial: Coleção Completa 8 eBooks ISAAC® (30% OFF) — Thiago Prata',
+          coverImg,
+          dedicatedUrl: bundleUrl,
+          ptMsg: `{saudacao}, {nome}! Tudo bem com você?
 
 Quero compartilhar com você o lançamento oficial da *Coleção Completa ISAAC® Essential (8 Volumes em PDF Único)*, escrita pelo mentor *Thiago Prata* — idealizador e criador da Mentoria e do App ISAAC®.
 
@@ -302,11 +340,10 @@ Quero compartilhar com você o lançamento oficial da *Coleção Completa ISAAC�
 De ~R$ 159,20~ por apenas *R$ 111,44* (pagamento direto via PIX, Cartão ou Boleto Asaas).
 
 👉 Conheça a página dedicada da Coleção Completa ou escolha volumes avulsos (R$ 19,90):
-${dedicatedUrl}
+${bundleUrl}
 
-_(Se preferir não receber novidades por aqui, basta responder "parar".)_`;
-
-      const enMsg = `{saudacao}, {nome}! How are you doing?
+_(Se preferir não receber novidades por aqui, basta responder "parar".)_`,
+          enMsg: `{saudacao}, {nome}! How are you doing?
 
 I am delighted to share with you the official release of the *Complete ISAAC® Essential Collection (All 8 Volumes in a Single PDF)*, authored by *Thiago Prata* — Mentor and Creator of the ISAAC® Mentoring App.
 
@@ -320,23 +357,33 @@ I am delighted to share with you the official release of the *Complete ISAAC® E
 All 8 bilingual volumes for *R$ 111.44* (30% OFF individual price).
 
 👉 View the dedicated collection page here:
-${dedicatedUrl}
+${bundleUrl}
 
-_(If you prefer not to receive updates here, simply reply "stop".)_`;
+_(If you prefer not to receive updates here, simply reply "stop".)_`,
+        };
+      }
 
-      setUnregisteredTemplate(ptMsg);
-      setRegisteredTemplate(ptMsg);
-      setIntlUnregisteredTemplate(enMsg);
-      setIntlRegisteredTemplate(enMsg);
-      showToast('Campanha da Coleção Completa (R$ 111,44 • 30% OFF) carregada com capa e link dedicado!');
-      return;
-    }
+      const book = (ebookStoreCatalog.ebooks || []).find((b) => b.slug === cleanSlug);
+      if (!book) {
+        return null;
+      }
 
-    const volNum = String(book.volumeNumber || 1).padStart(2, '0');
-    const enTitle = book.en?.title || book.title;
-    setCampTitle(`eBook Vol. ${volNum}: ${book.title} — Thiago Prata`);
+      const volNum = String(book.volumeNumber || 1).padStart(2, '0');
+      const enTitle = book.enTitle || book.en?.title || book.title;
+      const enSub = book.enSubtitle || book.en?.subtitle || book.subtitle;
+      const dedicatedUrl = `${baseOrigin}/loja/ebooks/${book.slug}`;
+      const coverImg = book.coverUrl?.startsWith('http')
+        ? book.coverUrl
+        : `${baseOrigin}${book.coverUrl || `/ebooks/covers/vol-${volNum}.jpg`}`;
 
-    const ptSingle = `{saudacao}, {nome}! Tudo bem com você?
+      return {
+        slug: book.slug,
+        shortLabel: `eBook Vol. ${volNum}`,
+        shortLabelEn: `eBook Vol. ${volNum}`,
+        campaignTitle: `eBook Vol. ${volNum}: ${book.title} — Thiago Prata`,
+        coverImg,
+        dedicatedUrl,
+        ptMsg: `{saudacao}, {nome}! Tudo bem com você?
 
 Acaba de sair o *Volume ${volNum} da Coleção ISAAC® Essential*, escrito pelo mentor *Thiago Prata* (criador da Mentoria e do App ISAAC®):
 
@@ -352,14 +399,13 @@ _${book.subtitle}_
 👉 Acesse a página dedicada deste eBook e veja a capa e os capítulos:
 ${dedicatedUrl}
 
-_(Se preferir não receber comunicados no WhatsApp, responda "parar".)_`;
-
-    const enSingle = `{saudacao}, {nome}! How are you doing?
+_(Se preferir não receber comunicados no WhatsApp, responda "parar".)_`,
+        enMsg: `{saudacao}, {nome}! How are you doing?
 
 We have just released *Volume ${volNum} of the ISAAC® Essential Collection*, authored by *Thiago Prata* (Mentor & Creator of the ISAAC® App):
 
 📘 *${enTitle}*
-_${book.en?.subtitle || book.subtitle}_
+_${enSub}_
 
 ✨ *Edition highlights:*
 • Complete *Bilingual Single PDF (Portuguese + British English in the same file)* with custom illustrations and practical frameworks
@@ -370,13 +416,99 @@ _${book.en?.subtitle || book.subtitle}_
 👉 Explore the dedicated page for this eBook here:
 ${dedicatedUrl}
 
-_(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`;
+_(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
+      };
+    },
+    [ebookStoreCatalog]
+  );
 
-    setUnregisteredTemplate(ptSingle);
-    setRegisteredTemplate(ptSingle);
-    setIntlUnregisteredTemplate(enSingle);
-    setIntlRegisteredTemplate(enSingle);
-    showToast(`Campanha do Volume ${volNum} (${book.title}) carregada com capa oficial e link dedicado!`);
+  const handleApplyEbookCampaignPreset = (slug) => {
+    setSelectedEbookPresetSlug(slug);
+    if (!slug) return;
+    const payload = buildEbookWhatsappPayload(slug);
+    if (!payload) return;
+
+    setQuickEbookSlug(slug);
+    setUnregisteredImageUrl(payload.coverImg);
+    setCampTitle(payload.campaignTitle);
+    setUnregisteredTemplate(payload.ptMsg);
+    setRegisteredTemplate(payload.ptMsg);
+    setIntlUnregisteredTemplate(payload.enMsg);
+    setIntlRegisteredTemplate(payload.enMsg);
+    showToast(`${payload.campaignTitle} carregada com capa oficial e link direto!`);
+  };
+
+  const handleDirectSendEbookPage = async (contact) => {
+    const phone = contact.phone_digits;
+    const isIntl = Boolean(contact.is_international);
+    const key = `${phone}:ebook_page`;
+    const payload = buildEbookWhatsappPayload(quickEbookSlug) || buildEbookWhatsappPayload('loja-geral');
+
+    try {
+      setSendingPreviewKey(key);
+      setErrorMsg('');
+      const res = await sendAdminWhatsappOutreachPreviewApi({
+        phone,
+        flowType: 'unregistered_invite_image',
+        customImageUrl: payload.coverImg,
+        customTemplate: isIntl ? payload.enMsg : payload.ptMsg,
+        customTitle: `📘 ${payload.campaignTitle} (${phone})`,
+      });
+      if (res.outcome === 'sent') {
+        const langBadge = isIntl ? ' (em Inglês Britânico 🇬🇧)' : '';
+        showToast(
+          `Página dos eBooks (${payload.shortLabel})${langBadge} enviada com capa oficial para ${
+            contact.formatted_phone || phone
+          }!`
+        );
+      } else {
+        setErrorMsg(`Resultado do disparo: ${res.outcome} ${res.error || res.reason || ''}`);
+      }
+      await loadOverview();
+    } catch (err) {
+      setErrorMsg(err.message || 'Erro ao enviar página dos eBooks.');
+    } finally {
+      setSendingPreviewKey('');
+    }
+  };
+
+  const handleBulkSendEbookPageToSelected = async () => {
+    if (selectedContactIds.length === 0 || sendingBulkEbook) return;
+    const payload = buildEbookWhatsappPayload(quickEbookSlug) || buildEbookWhatsappPayload('loja-geral');
+
+    try {
+      setSendingBulkEbook(true);
+      setErrorMsg('');
+      const res = await createAdminWhatsappCampaignApi({
+        title: `📘 ${payload.campaignTitle}`,
+        audienceType: 'selected',
+        contactIds: selectedContactIds,
+        scheduledAt: new Date().toISOString(),
+        minDelaySec: Number(minDelaySec) || 18,
+        maxDelaySec: Number(maxDelaySec) || 38,
+        dailyLimit: Number(dailyLimit) || 40,
+        windowStartHhmm: windowStart,
+        windowEndHhmm: windowEnd,
+        respectWindow: false,
+        forceFlowType: 'unregistered_invite_image',
+        unregisteredImageUrl: payload.coverImg,
+        unregisteredTemplate: payload.ptMsg,
+        registeredTemplate: payload.ptMsg,
+        intlUnregisteredTemplate: payload.enMsg,
+        intlRegisteredTemplate: payload.enMsg,
+      });
+
+      showToast(
+        `Envio da Página dos eBooks iniciado! ${res.queuedCount} contato(s) na fila Anti-Ban com capa oficial e link direto.`
+      );
+      setSelectedContactIds([]);
+      setSubTab('control');
+      await loadOverview();
+    } catch (err) {
+      setErrorMsg(err.message || 'Erro ao disparar página dos eBooks para os selecionados.');
+    } finally {
+      setSendingBulkEbook(false);
+    }
   };
 
   // Modal / Seção de Segurança (Master)
@@ -1069,6 +1201,31 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`;
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           {c.is_allowed_by_safety_lock ? (
             <>
+              {/* 1. OPÇÃO DE ENVIAR A PÁGINA DOS EBOOKS (ANTES DO CONVITE!) */}
+              <button
+                type="button"
+                disabled={Boolean(sendingPreviewKey)}
+                onClick={() => handleDirectSendEbookPage(c)}
+                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                title={
+                  isIntl
+                    ? 'Send Official Bilingual eBooks Page + Cover Image in British English'
+                    : 'Enviar Página dos eBooks (Capa Oficial + Link Direto Asaas — Autor: Thiago Prata)'
+                }
+              >
+                {sendingPreviewKey === `${c.phone_digits}:ebook_page` ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <BookOpen className="w-3.5 h-3.5" />
+                )}
+                <span>
+                  {isIntl
+                    ? (buildEbookWhatsappPayload(quickEbookSlug)?.shortLabelEn || 'eBooks Page') + ' (EN-GB)'
+                    : buildEbookWhatsappPayload(quickEbookSlug)?.shortLabel || 'Página dos eBooks'}
+                </span>
+              </button>
+
+              {/* 2. CONVITE COM IMAGEM DO APP ISAAC */}
               <button
                 type="button"
                 disabled={Boolean(sendingPreviewKey)}
@@ -1211,6 +1368,9 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`;
           className="px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-amber-400 dark:border-amber-600 text-xs font-semibold text-stone-900 dark:text-white lg:w-96 shrink-0 cursor-pointer"
         >
           <option value="">📚 Escolher eBook ou Pacote p/ Carregar Link &amp; Capa...</option>
+          <option value="loja-geral">
+            🌐 Página Principal dos eBooks (/loja/ebooks • Avulsos R$ 19,90 + Pacote 30% OFF)
+          </option>
           <option value="colecao-completa">
             🔥 Coleção Completa (PDF Único c/ 8 eBooks • 30% OFF = R$ 111,44)
           </option>
@@ -1953,6 +2113,63 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`;
             </form>
           </div>
 
+          {/* SELETOR DIRETO DE QUAL PÁGINA DE EBOOKS ENVIAR AOS CONTATOS EVOLUTION (ANTES DO CONVITE) */}
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-indigo-50/90 via-amber-50/60 to-teal-50/60 dark:from-indigo-950/35 dark:via-slate-900 dark:to-teal-950/30 border border-indigo-200 dark:border-indigo-800/60 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <img
+                src={
+                  buildEbookWhatsappPayload(quickEbookSlug)?.coverImg ||
+                  '/ebooks/covers/colecao-completa.jpg'
+                }
+                alt="Capa eBook"
+                className="w-11 h-15 object-cover rounded-lg border border-indigo-300 dark:border-indigo-700 shadow-sm shrink-0"
+              />
+              <div className="min-w-0 space-y-0.5">
+                <div className="text-xs font-bold text-indigo-950 dark:text-indigo-200 flex flex-wrap items-center gap-1.5">
+                  <BookOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <span>Enviar Página dos eBooks para Contatos da Evolution (Autor: Thiago Prata)</span>
+                </div>
+                <p className="text-[11px] text-stone-600 dark:text-stone-300">
+                  Escolha abaixo qual página de eBooks o botão roxo <strong>&ldquo;{buildEbookWhatsappPayload(quickEbookSlug)?.shortLabel || 'Página dos eBooks'}&rdquo;</strong> (antes do Convite) enviará com capa + link direto:
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
+              <select
+                value={quickEbookSlug}
+                onChange={(e) => setQuickEbookSlug(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-indigo-300 dark:border-indigo-600 text-xs font-semibold text-stone-900 dark:text-white w-full sm:w-88 cursor-pointer"
+              >
+                <option value="loja-geral">
+                  🌐 Página Geral dos eBooks (/loja/ebooks • Todos + Carrinho)
+                </option>
+                <option value="colecao-completa">
+                  🔥 Coleção Completa 8 em 1 (/loja/ebooks/colecao-completa • R$ 111,44)
+                </option>
+                {(ebookStoreCatalog.ebooks || []).map((eb) => (
+                  <option key={eb.slug} value={eb.slug}>
+                    📘 Vol. {String(eb.volumeNumber).padStart(2, '0')} — {eb.title} (R$ 19,90)
+                  </option>
+                ))}
+              </select>
+
+              <a
+                href={
+                  buildEbookWhatsappPayload(quickEbookSlug)?.dedicatedUrl ||
+                  '/loja/ebooks'
+                }
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 hover:border-indigo-500 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-1 shrink-0"
+                title="Abrir a página de eBooks selecionada em nova guia"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Ver Página</span>
+              </a>
+            </div>
+          </div>
+
           {/* BARRA DE SELEÇÃO EM MASSA ("SELECIONAR TODOS" / "DESMARCAR TODOS") */}
           <div className="p-3.5 rounded-2xl bg-stone-100/90 dark:bg-slate-900/80 border border-stone-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2.5">
@@ -2002,10 +2219,26 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`;
             </div>
 
             {selectedContactIds.length > 0 && (
-              <div className="flex items-center gap-2.5">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
                   {selectedContactIds.length} selecionado(s)
                 </span>
+                {/* OPÇÃO ANTES DO CONVITE: ENVIAR A PÁGINA DOS EBOOKS EM LOTE P/ SELECIONADOS */}
+                <button
+                  type="button"
+                  disabled={sendingBulkEbook}
+                  onClick={handleBulkSendEbookPageToSelected}
+                  className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {sendingBulkEbook ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <BookOpen className="w-3.5 h-3.5" />
+                  )}
+                  <span>
+                    Enviar {buildEbookWhatsappPayload(quickEbookSlug)?.shortLabel || 'Página dos eBooks'} p/ Selecionados
+                  </span>
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -2014,7 +2247,7 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`;
                   }}
                   className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer"
                 >
-                  Programar Envio p/ Selecionados →
+                  Programar Convite / Envio →
                 </button>
               </div>
             )}
@@ -2398,7 +2631,9 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`;
                             {badge.label}
                           </span>
                           <span className="px-2 py-0.5 rounded-full text-[10px] bg-stone-200/70 dark:bg-slate-800 text-stone-700 dark:text-stone-300">
-                            {log.flow_type === 'unregistered_invite_image'
+                            {String(log.media_url || '').includes('/ebooks/covers/')
+                              ? '📘 Capa + Página dos eBooks'
+                              : log.flow_type === 'unregistered_invite_image'
                               ? '🖼️ Imagem ISAAC + Convite'
                               : '🤝 Integração + Planos'}
                           </span>

@@ -169,6 +169,7 @@ router.post('/admin/whatsapp/outreach/send-preview', async (req, res) => {
       flowType: req.body?.flowType || 'unregistered_invite_image',
       customImageUrl: req.body?.customImageUrl || '',
       customTemplate: req.body?.customTemplate || '',
+      customTitle: req.body?.customTitle || '',
       createdBy: req.user?.id || null,
     });
     res.status(200).json(result);
