@@ -17,6 +17,7 @@ import {
   formatUniversalPhoneDisplay,
   resolveWhatsAppJid,
   sendWhatsAppTextSafe,
+  registerBotSentMessageId,
   isEvolutionEnabledInDatabase,
   randomBetween,
   sleep,
@@ -562,8 +563,11 @@ export async function sendWhatsAppImageSafe({ jidOrNumber, caption, mediaUrl, fi
     parsed = { raw: bodyText };
   }
 
+  const sentImgMsgId = parsed?.key?.id || null;
+  if (sentImgMsgId) registerBotSentMessageId(sentImgMsgId);
+
   return {
-    messageId: parsed?.key?.id || null,
+    messageId: sentImgMsgId,
     remoteJid: parsed?.key?.remoteJid || jidOrNumber,
     interRequestJitterMs,
     typingPresenceMs,

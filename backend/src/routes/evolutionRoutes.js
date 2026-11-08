@@ -29,7 +29,8 @@ const router = express.Router();
 router.get('/webhooks/evolution', (req, res) => {
   res.status(200).json({
     status: 'online',
-    version: '2.1-unified-chat',
+    version: '2.2-human-takeover-6h',
+    humanTakeoverSilenceHours: 6,
     service: 'ISAAC Evolution Webhook Receiver',
     endpoint: 'https://isaac.lynxems.com.br/api/webhooks/evolution',
     supportsEventsSubpath: true,

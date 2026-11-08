@@ -225,8 +225,11 @@ export async function sendWhatsAppTextSafe({ jidOrNumber, text }) {
     parsed = { raw: bodyText };
   }
 
+  const sentMsgId = parsed?.key?.id || null;
+  if (sentMsgId) registerBotSentMessageId(sentMsgId);
+
   return {
-    messageId: parsed?.key?.id || null,
+    messageId: sentMsgId,
     remoteJid: parsed?.key?.remoteJid || jidOrNumber,
     interRequestJitterMs,
     typingPresenceMs,
@@ -278,8 +281,11 @@ export async function sendWhatsAppAudioSafe({ jidOrNumber, audioBuffer }) {
     parsed = { raw: bodyText };
   }
 
+  const sentAudioMsgId = parsed?.key?.id || null;
+  if (sentAudioMsgId) registerBotSentMessageId(sentAudioMsgId);
+
   return {
-    messageId: parsed?.key?.id || null,
+    messageId: sentAudioMsgId,
     remoteJid: parsed?.key?.remoteJid || jidOrNumber,
     interRequestJitterMs,
     recordingPresenceMs,
@@ -588,6 +594,18 @@ export async function runDailyInactivityFollowUp({ dryRun = false, triggerType =
           continue;
         }
 
+        // Respeita janela de 6h de Atendimento Humano (fromMe manual) — não atravessa conversa humana recente
+        const takeoverCheck = await isHumanTakeoverActiveForTarget(profile.whatsapp_jid || profile.phone);
+        if (takeoverCheck.active) {
+          summary.details.push({
+            userId: profile.id,
+            name: profile.full_name,
+            action: 'skipped_human_takeover_6h',
+            mutedUntil: takeoverCheck.expiresAtIso,
+          });
+          continue;
+        }
+
         summary.inactiveOver24h++;
 
         // 2. Proteção Anti-Spam / Anti-Ban:
@@ -825,9 +843,143 @@ export async function sendTestFollowUpToPhone(rawPhone) {
   };
 }
 
-// Controle em memória contra reprocessamento de webhooks duplicados e avisos repetidos no plano gratuito
+// Controle em memória contra reprocessamento de webhooks duplicados, avisos repetidos e Atendimento Humano (6 horas)
 const processedInboundMessageIds = new Set();
 const noticeCooldownByJid = new Map();
+const botSentMessageIds = new Set();
+const humanTakeoverUntilByTarget = new Map(); // jid ou comparablePhoneKey -> expiresAtMs
+
+export const HUMAN_TAKEOVER_SILENCE_MS = 6 * 60 * 60 * 1000; // 6 horas exatas sem nenhuma ação do agente
+
+export function registerBotSentMessageId(msgId) {
+  const cleanId = String(msgId || '').trim();
+  if (!cleanId) return;
+  botSentMessageIds.add(cleanId);
+  if (botSentMessageIds.size > 2500) {
+    const oldest = botSentMessageIds.values().next().value;
+    botSentMessageIds.delete(oldest);
+  }
+}
+
+function isBotGeneratedFromMeEvent(eventType, msgId, payloadLike = {}) {
+  const cleanType = String(eventType || '').toUpperCase();
+  if (cleanType === 'SEND_MESSAGE') return true;
+  const cleanId = String(msgId || '').trim();
+  if (cleanId && botSentMessageIds.has(cleanId)) return true;
+  // Disparos automáticos via Baileys/Evolution REST API sempre geram IDs 3EB0... com pushName "Você" ou status PENDING
+  if (
+    cleanId.startsWith('3EB0') &&
+    (payloadLike?.pushName === 'Você' || payloadLike?.status === 'PENDING')
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function setHumanTakeoverMemory(jidOrPhone, expiresAtMs) {
+  if (!jidOrPhone || !Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) return;
+  const cleanTarget = String(jidOrPhone).trim();
+  const prevDirect = humanTakeoverUntilByTarget.get(cleanTarget) || 0;
+  if (expiresAtMs > prevDirect) {
+    humanTakeoverUntilByTarget.set(cleanTarget, expiresAtMs);
+  }
+  const compKey = extractComparablePhoneKey(cleanTarget);
+  if (compKey) {
+    const prevComp = humanTakeoverUntilByTarget.get(compKey) || 0;
+    if (expiresAtMs > prevComp) {
+      humanTakeoverUntilByTarget.set(compKey, expiresAtMs);
+    }
+  }
+  if (humanTakeoverUntilByTarget.size > 3000) {
+    const now = Date.now();
+    for (const [k, exp] of humanTakeoverUntilByTarget.entries()) {
+      if (exp <= now) humanTakeoverUntilByTarget.delete(k);
+    }
+  }
+}
+
+export function activateHumanTakeoverSilence(remoteJid, customDurationMs = HUMAN_TAKEOVER_SILENCE_MS) {
+  const expiresAtMs = Date.now() + customDurationMs;
+  setHumanTakeoverMemory(remoteJid, expiresAtMs);
+  return {
+    active: true,
+    expiresAtMs,
+    expiresAtIso: new Date(expiresAtMs).toISOString(),
+  };
+}
+
+let recentDbHumanEventsCache = { fetchedAt: 0, rows: [] };
+
+/**
+ * Verifica se um humano enviou mensagem manual pelo número da Evolution (fromMe: true)
+ * para este contato nas últimas 6 horas (em memória + fallback persistente no banco).
+ */
+export async function isHumanTakeoverActiveForTarget(jidOrPhone) {
+  if (!jidOrPhone) return { active: false, expiresAtIso: null };
+  const now = Date.now();
+  const cleanTarget = String(jidOrPhone).trim();
+  const compKey = extractComparablePhoneKey(cleanTarget);
+
+  const directExp = humanTakeoverUntilByTarget.get(cleanTarget) || 0;
+  const compExp = compKey ? humanTakeoverUntilByTarget.get(compKey) || 0 : 0;
+  const memExp = Math.max(directExp, compExp);
+
+  if (memExp > now) {
+    return {
+      active: true,
+      expiresAtMs: memExp,
+      expiresAtIso: new Date(memExp).toISOString(),
+    };
+  }
+
+  // Fallback persistente no Supabase (garante as 6h mesmo após deploy/restart do servidor)
+  try {
+    let rows = recentDbHumanEventsCache.rows;
+    if (now - recentDbHumanEventsCache.fetchedAt > 4000) {
+      const since6hIso = new Date(now - HUMAN_TAKEOVER_SILENCE_MS).toISOString();
+      const { data } = await supabaseAdmin
+        .from('izaque_whatsapp_webhook_events')
+        .select('remote_jid, payload, created_at')
+        .eq('event_type', 'MESSAGES_UPSERT')
+        .eq('from_me', true)
+        .gte('created_at', since6hIso)
+        .order('created_at', { ascending: false })
+        .limit(150);
+
+      rows = data || [];
+      recentDbHumanEventsCache = { fetchedAt: now, rows };
+    }
+
+    for (const row of rows) {
+      if (!row?.remote_jid) continue;
+      const rowMsgId = row?.payload?.key?.id || null;
+      if (isBotGeneratedFromMeEvent('MESSAGES_UPSERT', rowMsgId, row?.payload || {})) {
+        continue;
+      }
+      const rowComp = extractComparablePhoneKey(row.remote_jid);
+      const isMatch =
+        row.remote_jid === cleanTarget || (Boolean(compKey) && Boolean(rowComp) && rowComp === compKey);
+
+      if (isMatch) {
+        const createdMs = new Date(row.created_at).getTime();
+        const expMs = createdMs + HUMAN_TAKEOVER_SILENCE_MS;
+        if (Number.isFinite(expMs) && expMs > now) {
+          setHumanTakeoverMemory(row.remote_jid, expMs);
+          setHumanTakeoverMemory(cleanTarget, expMs);
+          return {
+            active: true,
+            expiresAtMs: expMs,
+            expiresAtIso: new Date(expMs).toISOString(),
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️ [Human Takeover Check]:', err.message);
+  }
+
+  return { active: false, expiresAtIso: null };
+}
 
 function rememberProcessedMessage(msgId) {
   if (!msgId) return false;
@@ -842,7 +994,11 @@ function rememberProcessedMessage(msgId) {
 
 /**
  * Processa eventos recebidos via Webhook da Evolution API (/api/webhooks/evolution e /api/webhooks/evolution/:event):
- * 1. Respeita imediatamente pedidos de cancelamento de lembretes (opt-out) para TODOS os usuários (texto ou áudio).
+ * 0. REGRA SOBERANA DE ATENDIMENTO HUMANO (fromMe: true):
+ *    - Qualquer mensagem enviada a partir do número da Evolution (fromMe === true) NÃO gera NENHUMA resposta nem NENHUMA ação do agente.
+ *    - Quando um HUMANO envia mensagem manual pelo celular/WhatsApp Web (MESSAGES_UPSERT com fromMe === true), o agente fica
+ *      100% DESATIVADO por 6 HORAS para aquele contato (renovando +6h a cada nova mensagem humana), sem atravessar a conversa.
+ * 1. Respeita imediatamente pedidos de cancelamento de lembretes (opt-out) para TODOS os usuários (texto ou áudio) quando não houver atendimento humano ativo.
  * 2. Para assinantes do Plano WhatsApp (R$ 14,99) e SuperAdmin: processa conversa por Texto e Áudio direto no Agente Orquestrador,
  *    gravando na mesma sessão ativa de izaque_chat_sessions / izaque_messages como se estivesse no App.
  * 3. Para usuários do Plano Gratuito: informa gentilmente (com cooldown anti-spam) que o App Web é 100% gratuito e que a conversa via WhatsApp faz parte do Plano de R$ 14,99.
@@ -852,8 +1008,9 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
     .toUpperCase()
     .replace(/[.-]/g, '_');
   const instanceName = body?.instance || getEvoConfig().instanceName;
-  const data = body?.data || {};
-  const key = data?.key || {};
+  const rawData = Array.isArray(body?.data) ? body.data[0] || {} : body?.data || {};
+  const data = rawData?.messages?.[0] || rawData;
+  const key = data?.key || rawData?.key || {};
   const rawRemoteJid = key?.remoteJid || data?.remoteJid || null;
   const altRemoteJid = key?.remoteJidAlt || key?.senderPn || data?.remoteJidAlt || null;
   const remoteJid =
@@ -862,7 +1019,11 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
       : altRemoteJid && altRemoteJid.endsWith('@s.whatsapp.net')
       ? altRemoteJid
       : rawRemoteJid;
-  const fromMe = Boolean(key?.fromMe);
+  const fromMe =
+    key?.fromMe === true ||
+    key?.fromMe === 'true' ||
+    data?.fromMe === true ||
+    data?.fromMe === 'true';
   const inboundMsgId = key?.id || null;
 
   const messageObj = data?.message || {};
@@ -893,11 +1054,104 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
     messageText: messageText ? String(messageText).slice(0, 2000) : null,
   };
 
+  // BARREIRA IMEDIATA SOBERANA PARA fromMe === true (ZERO AÇÃO DO AGENTE):
+  if (fromMe) {
+    if (isBotGeneratedFromMeEvent(eventType, inboundMsgId, compactPayload)) {
+      if (inboundMsgId) registerBotSentMessageId(inboundMsgId);
+      await supabaseAdmin.from('izaque_whatsapp_webhook_events').insert({
+        event_type: eventType,
+        instance_name: instanceName,
+        remote_jid: remoteJid,
+        matched_user_id: null,
+        from_me: true,
+        message_text: messageText ? String(messageText).slice(0, 2000) : null,
+        payload: compactPayload,
+      });
+      return { eventType, remoteJid, fromMe: true, skipped: 'bot_from_me_no_action' };
+    }
+
+    const isDirectContactJid =
+      Boolean(remoteJid && remoteJid.endsWith('@s.whatsapp.net')) &&
+      remoteJid !== getEvoConfig().instanceJid;
+
+    let mutedUntil = null;
+    if (eventType.includes('MESSAGES_UPSERT') && isDirectContactJid) {
+      const silence = activateHumanTakeoverSilence(remoteJid, HUMAN_TAKEOVER_SILENCE_MS);
+      mutedUntil = silence.expiresAtIso;
+      // Invalida micro-cache de leitura de eventos humanos para refletir instantaneamente
+      recentDbHumanEventsCache = { fetchedAt: 0, rows: [] };
+      console.log(
+        `🤫 [Evolution Human Takeover] Mensagem humana detectada (fromMe) para ${remoteJid} — agente desativado por 6h (até ${mutedUntil}).`
+      );
+    }
+
+    await supabaseAdmin.from('izaque_whatsapp_webhook_events').insert({
+      event_type: eventType,
+      instance_name: instanceName,
+      remote_jid: remoteJid,
+      matched_user_id: null,
+      from_me: true,
+      message_text: messageText ? String(messageText).slice(0, 2000) : isAudioInbound ? '[Áudio enviado pelo humano]' : null,
+      payload: compactPayload,
+    });
+
+    return {
+      eventType,
+      remoteJid,
+      fromMe: true,
+      skipped: 'human_from_me_no_action',
+      mutedUntil,
+    };
+  }
+
   const isDirectUserMessage =
     !fromMe &&
     eventType.includes('MESSAGES_UPSERT') &&
     Boolean(remoteJid && remoteJid.endsWith('@s.whatsapp.net')) &&
     remoteJid !== getEvoConfig().instanceJid;
+
+  if (!isDirectUserMessage) {
+    await supabaseAdmin.from('izaque_whatsapp_webhook_events').insert({
+      event_type: eventType,
+      instance_name: instanceName,
+      remote_jid: remoteJid,
+      matched_user_id: null,
+      from_me: false,
+      message_text: messageText ? String(messageText).slice(0, 2000) : null,
+      payload: compactPayload,
+    });
+    return { eventType, matchedUserId: null, remoteJid };
+  }
+
+  // Evita duplicidade caso a Evolution reenvie o mesmo messageId
+  if (rememberProcessedMessage(inboundMsgId)) {
+    return { eventType, matchedUserId: null, remoteJid, duplicateSkipped: true };
+  }
+
+  // BARREIRA DE 6 HORAS DE SILÊNCIO QUANDO HUMANO ASSUMIU A CONVERSA:
+  // Não transcreve áudio, não dispara aviso de cadastro/plano, não aciona IA nem realiza nenhuma ação!
+  const activeTakeover = await isHumanTakeoverActiveForTarget(remoteJid);
+  if (activeTakeover.active) {
+    await supabaseAdmin.from('izaque_whatsapp_webhook_events').insert({
+      event_type: eventType,
+      instance_name: instanceName,
+      remote_jid: remoteJid,
+      matched_user_id: null,
+      from_me: false,
+      message_text: messageText ? String(messageText).slice(0, 2000) : isAudioInbound ? '[Áudio recebido]' : null,
+      payload: compactPayload,
+    });
+    console.log(
+      `🤫 [Evolution Human Takeover] Mensagem recebida de ${remoteJid} ignorada — agente silenciado até ${activeTakeover.expiresAtIso}.`
+    );
+    return {
+      eventType,
+      matchedUserId: null,
+      remoteJid,
+      skipped: 'human_takeover_active_6h',
+      mutedUntil: activeTakeover.expiresAtIso,
+    };
+  }
 
   let matchedProfile = null;
 
@@ -922,19 +1176,10 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
     instance_name: instanceName,
     remote_jid: remoteJid,
     matched_user_id: matchedProfile?.id || null,
-    from_me: fromMe,
+    from_me: false,
     message_text: messageText ? String(messageText).slice(0, 2000) : isAudioInbound ? '[Áudio recebido]' : null,
     payload: compactPayload,
   });
-
-  if (!isDirectUserMessage) {
-    return { eventType, matchedUserId: matchedProfile?.id || null, remoteJid };
-  }
-
-  // Evita duplicidade caso a Evolution reenvie o mesmo messageId
-  if (rememberProcessedMessage(inboundMsgId)) {
-    return { eventType, matchedUserId: matchedProfile?.id || null, remoteJid, duplicateSkipped: true };
-  }
 
   const evoEnabled = await isEvolutionEnabledInDatabase();
 
@@ -1092,6 +1337,9 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
 
   // 2. Número ainda não vinculado a nenhuma conta em izaque_profiles
   if (!matchedProfile) {
+    if ((await isHumanTakeoverActiveForTarget(remoteJid)).active) {
+      return { eventType, matchedUserId: null, remoteJid, skipped: 'human_takeover_inflight_6h' };
+    }
     const lastUnknownNotice = noticeCooldownByJid.get(`unknown:${remoteJid}`) || 0;
     if (Date.now() - lastUnknownNotice > 12 * 60 * 60 * 1000) {
       noticeCooldownByJid.set(`unknown:${remoteJid}`, Date.now());
@@ -1183,6 +1431,19 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
     history: sessionHistory,
     sessionId,
   });
+
+  // Se um humano assumiu a conversa nos segundos em que o Gemini gerava a resposta, aborta totalmente o envio do agente!
+  if ((await isHumanTakeoverActiveForTarget(remoteJid)).active) {
+    console.log(
+      `🤫 [Evolution Human Takeover] Humano assumiu durante o processamento — resposta automática abortada para ${remoteJid}.`
+    );
+    return {
+      eventType,
+      matchedUserId: matchedProfile.id,
+      remoteJid,
+      skipped: 'human_takeover_inflight_6h',
+    };
+  }
 
   const wantsAudioReply =
     isAudioInbound ||
