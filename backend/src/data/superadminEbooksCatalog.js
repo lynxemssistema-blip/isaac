@@ -1001,6 +1001,11 @@ export function getPublicEbooksStorePayload(baseUrl = 'https://isaac.lynxems.com
       fullCoverUrl: `${cleanBase}${COMPLETE_BUNDLE_PRODUCT.coverUrl}`,
       fullSalesUrl: `${cleanBase}${COMPLETE_BUNDLE_PRODUCT.salesPagePath}`,
     },
+    completeBundle: {
+      ...COMPLETE_BUNDLE_PRODUCT,
+      fullCoverUrl: `${cleanBase}${COMPLETE_BUNDLE_PRODUCT.coverUrl}`,
+      fullSalesUrl: `${cleanBase}${COMPLETE_BUNDLE_PRODUCT.salesPagePath}`,
+    },
     ebooks: ENRICHED_EBOOKS_CATALOG.map((v) => ({
       id: v.id,
       volumeNumber: v.volumeNumber,

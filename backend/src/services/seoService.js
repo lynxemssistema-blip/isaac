@@ -926,7 +926,7 @@ export async function serveSeoHtml(req, res, distPath) {
     pathname === '/admin' ||
     pathname.startsWith('/admin/');
 
-  const ogImageUrl = `${baseUrl}/og-isaac-cover.png`;
+  let ogImageUrl = `${baseUrl}/og-isaac-cover.png`;
   const creatorSameAs = buildCreatorSameAs(snapshot.creator);
 
   let statusCode = 200;

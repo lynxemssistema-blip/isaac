@@ -59,7 +59,7 @@ export default function AdminBroadcastEmail({ currentUser }) {
         if (res) {
           setEbookCatalog({
             ebooks: res.ebooks || [],
-            bundle: res.completeBundle || null,
+            bundle: res.bundle || res.completeBundle || null,
           });
         }
       })

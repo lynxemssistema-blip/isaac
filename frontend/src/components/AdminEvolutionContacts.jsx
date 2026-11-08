@@ -260,7 +260,7 @@ export default function AdminEvolutionContacts({ currentUser }) {
         if (res) {
           setEbookStoreCatalog({
             ebooks: res.ebooks || [],
-            bundle: res.completeBundle || null,
+            bundle: res.bundle || res.completeBundle || null,
           });
         }
       })
