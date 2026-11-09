@@ -1899,9 +1899,21 @@ export async function createOrScheduleOutreachCampaign({
     dedupedContacts.push(c);
   }
 
-  // Ordenação Warm-First Anti-Ban: prioriza usuários já cadastrados no App e contatos salvos na agenda c/ nome próprio,
-  // gerando respostas positivas logo nos primeiros envios e elevando o Trust Score do número na Meta!
+  // Ordenação Warm-First Anti-Ban: prioriza contatos prontos (fora de cooldown) e, dentro deles,
+  // usuários já cadastrados no App e contatos salvos na agenda c/ nome próprio!
+  const cooldownWindowMs = (Number(safetyCfg.cooldownHours) || 0) * 3600 * 1000;
+  const nowSortMs = Date.now();
+  const isCurrentlyInCooldown = (c) => {
+    if (!cooldownWindowMs || !c?.last_outreach_at) return false;
+    const lastMs = new Date(c.last_outreach_at).getTime();
+    return Number.isFinite(lastMs) && nowSortMs - lastMs < cooldownWindowMs;
+  };
+
   const filteredContacts = dedupedContacts.sort((a, b) => {
+    const coolA = isCurrentlyInCooldown(a) ? 1 : 0;
+    const coolB = isCurrentlyInCooldown(b) ? 1 : 0;
+    if (coolA !== coolB) return coolA - coolB;
+
     const scoreA =
       (a.is_registered_user ? 4 : 0) +
       (a.is_saved_in_phone ? 2 : 0) +
@@ -2332,7 +2344,7 @@ export async function processOutreachQueueTick({ bypassCooldown = false } = {}) 
       }
 
       // Busca lote de candidatos prontos na fila para selecionar o primeiro cujo PAÍS esteja em horário comercial humano (08:30–20:00 local)
-      const { data: readyCandidates } = await supabaseAdmin
+      let { data: readyCandidates } = await supabaseAdmin
         .from('izaque_whatsapp_outreach_logs')
         .select('*')
         .eq('campaign_id', camp.id)
@@ -2340,6 +2352,23 @@ export async function processOutreachQueueTick({ bypassCooldown = false } = {}) 
         .lte('scheduled_for', nowIso)
         .order('scheduled_for', { ascending: true })
         .limit(120);
+
+      // Se os primeiros itens da fila foram reagendados por cooldown (72h), o próximo contato virgem já pode entrar imediatamente
+      // desde que o intervalo Anti-Ban (requiredGapMs) desde o último envio real já tenha sido cumprido!
+      if (!readyCandidates || readyCandidates.length === 0) {
+        const { data: freshCandidates } = await supabaseAdmin
+          .from('izaque_whatsapp_outreach_logs')
+          .select('*')
+          .eq('campaign_id', camp.id)
+          .eq('status', 'queued')
+          .is('error_reason', null)
+          .order('scheduled_for', { ascending: true })
+          .limit(60);
+
+        if (freshCandidates && freshCandidates.length > 0) {
+          readyCandidates = freshCandidates;
+        }
+      }
 
       if (!readyCandidates || readyCandidates.length === 0) {
         const { count: remaining } = await supabaseAdmin
@@ -2356,8 +2385,8 @@ export async function processOutreachQueueTick({ bypassCooldown = false } = {}) 
 
       const startW = camp.window_start_hhmm || '08:30';
       const endW = camp.window_end_hhmm || '20:00';
-      const targetItem = camp.respect_window
-        ? readyCandidates.find((item) =>
+      const eligibleCandidates = camp.respect_window
+        ? readyCandidates.filter((item) =>
             isContactWithinLocalWindow(
               { jid: item.jid, phone_digits: item.phone_digits },
               startW,
@@ -2365,40 +2394,59 @@ export async function processOutreachQueueTick({ bypassCooldown = false } = {}) 
               now
             )
           )
-        : readyCandidates[0];
+        : readyCandidates;
 
-      if (!targetItem) {
+      if (!eligibleCandidates || eligibleCandidates.length === 0) {
         // Todos os contatos prontos estão fora do horário diurno em seus respectivos países (ex: madrugada na Austrália ou no Brasil) -> aguarda sem perder ninguém!
         continue;
       }
 
-      const execRes = await executeSingleOutreachLogItem(targetItem, camp, safetyCfg, { bypassCooldown });
+      let sentOrAttemptedInThisTick = false;
+      for (const targetItem of eligibleCandidates.slice(0, 25)) {
+        const execRes = await executeSingleOutreachLogItem(targetItem, camp, safetyCfg, { bypassCooldown });
 
-      // Disjuntor de 3 falhas consecutivas na mesma campanha -> pausa preventiva para inspeção
-      if (execRes.outcome === 'failed') {
-        const { data: recentAttempted } = await supabaseAdmin
-          .from('izaque_whatsapp_outreach_logs')
-          .select('status')
-          .eq('campaign_id', camp.id)
-          .neq('status', 'queued')
-          .order('id', { ascending: false })
-          .limit(3);
-
+        // Se o contato apenas foi reagendado por cooldown (72h) ou pulado sem disparo na Evolution,
+        // avança imediatamente para o próximo contato elegível no mesmo ciclo sem perder 20s!
         if (
-          recentAttempted &&
-          recentAttempted.length === 3 &&
-          recentAttempted.every((r) => r.status === 'failed')
+          execRes.outcome === 'rescheduled_cooldown' ||
+          execRes.outcome === 'skipped_opt_out' ||
+          execRes.outcome === 'skipped_invalid_whatsapp' ||
+          execRes.outcome === 'blocked_safety_lock'
         ) {
-          await supabaseAdmin
-            .from('izaque_whatsapp_outreach_campaigns')
-            .update({ status: 'paused', updated_at: new Date().toISOString() })
-            .eq('id', camp.id);
+          continue;
         }
+
+        // Disjuntor de 3 falhas consecutivas na mesma campanha -> pausa preventiva para inspeção
+        if (execRes.outcome === 'failed') {
+          const { data: recentAttempted } = await supabaseAdmin
+            .from('izaque_whatsapp_outreach_logs')
+            .select('status')
+            .eq('campaign_id', camp.id)
+            .neq('status', 'queued')
+            .order('id', { ascending: false })
+            .limit(3);
+
+          if (
+            recentAttempted &&
+            recentAttempted.length === 3 &&
+            recentAttempted.every((r) => r.status === 'failed')
+          ) {
+            await supabaseAdmin
+              .from('izaque_whatsapp_outreach_campaigns')
+              .update({ status: 'paused', updated_at: new Date().toISOString() })
+              .eq('id', camp.id);
+          }
+        }
+
+        sentOrAttemptedInThisTick = true;
+        break;
       }
 
       await refreshCampaignCounters(camp.id);
-      processedCount += 1;
-      break; // Apenas 1 disparo por ciclo para nunca gerar rajadas simultâneas na Meta
+      if (sentOrAttemptedInThisTick) {
+        processedCount += 1;
+        break; // Apenas 1 disparo real por ciclo para nunca gerar rajadas simultâneas na Meta
+      }
     }
 
     return { processed: processedCount };

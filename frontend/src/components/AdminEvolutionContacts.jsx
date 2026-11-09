@@ -520,6 +520,9 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
   const [autopilotMaxDelay, setAutopilotMaxDelay] = useState(118);
   const [savingAutopilot, setSavingAutopilot] = useState(false);
   const [triggeringTickNow, setTriggeringTickNow] = useState(false);
+  const [autoRefreshCountdown, setAutoRefreshCountdown] = useState(20);
+  const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState('');
   const autopilotHydratedIdRef = useRef(null);
 
   const showToast = (msg) => {
@@ -530,13 +533,25 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
   const loadOverview = useCallback(
     async (opts = {}) => {
       try {
-        setErrorMsg('');
+        if (opts.silent) {
+          setIsAutoRefreshing(true);
+        } else {
+          setErrorMsg('');
+        }
         const data = await fetchAdminWhatsappOutreachOverview({
           search: opts.search !== undefined ? opts.search : search,
           filter: opts.filter !== undefined ? opts.filter : filter,
           limit: 2500,
         });
         setOverview(data);
+        setLastSyncedAt(
+          new Date().toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          })
+        );
+        setAutoRefreshCountdown(20);
         setSafetyRestricted(Boolean(data.safety?.restrictedMode));
         setSafetyPhones(data.safety?.allowedPhonesRaw || '31995574906');
         setSafetyDailyLimit(data.safety?.dailyLimit || 40);
@@ -588,9 +603,12 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
           templatesHydratedRef.current = true;
         }
       } catch (err) {
-        setErrorMsg(err.message || 'Erro ao carregar dados do WhatsApp.');
+        if (!opts.silent) {
+          setErrorMsg(err.message || 'Erro ao carregar dados do WhatsApp.');
+        }
       } finally {
         setLoading(false);
+        setIsAutoRefreshing(false);
       }
     },
     [search, filter]
@@ -601,6 +619,20 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
     setVisibleInvalidLimit(80);
     loadOverview();
   }, [filter]);
+
+  // Atualização automática da tela a cada 20 segundos enquanto o SuperAdmin estiver com a página aberta
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setAutoRefreshCountdown((prev) => {
+        if (prev <= 1) {
+          loadOverview({ silent: true });
+          return 20;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [loadOverview]);
 
   const handleSyncContacts = async () => {
     try {
@@ -2126,6 +2158,19 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
 
                   <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/90 dark:bg-slate-900/90 text-teal-800 dark:text-teal-300 border border-teal-300/70 dark:border-teal-700">
                     ✅ Pode fechar o App ou desligar o PC — o servidor na nuvem continua enviando sozinho!
+                  </span>
+
+                  <span
+                    onClick={() => loadOverview({ silent: true })}
+                    title="Clique para sincronizar agora (atualiza sozinho a cada 20 segundos)"
+                    className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 border border-indigo-400/40 flex items-center gap-1.5 cursor-pointer hover:bg-indigo-500/25 transition"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isAutoRefreshing ? 'animate-spin' : ''}`} />
+                    <span>
+                      {isAutoRefreshing
+                        ? 'Atualizando tela...'
+                        : `Auto-Sync 20s (${autoRefreshCountdown}s)${lastSyncedAt ? ` • ${lastSyncedAt}` : ''}`}
+                    </span>
                   </span>
                 </div>
 
