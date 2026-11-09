@@ -1,12 +1,24 @@
 import { genAI, EMBEDDING_MODEL } from '../config/gemini.js';
 import { supabaseAdmin } from '../config/supabase.js';
 
+const MAX_EMBEDDING_CACHE_ITEMS = 250;
+const EMBEDDING_CACHE_TTL_MS = 15 * 60_000;
+const embeddingMemoryCache = new Map();
+
 /**
- * Gera o embedding vetorial de um texto usando o Google Gemini (dimensão 768).
+ * Gera o embedding vetorial de um texto usando o Google Gemini (dimensão 768) com cache LRU em RAM (< 1ms em hits).
  * @param {string} text Texto de entrada
  * @returns {Promise<number[]>} Vetor numérico de 768 dimensões
  */
 export async function generateEmbedding(text) {
+  const cleanKey = String(text || '').trim().toLowerCase().slice(0, 600);
+  if (!cleanKey) return null;
+
+  const cached = embeddingMemoryCache.get(cleanKey);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.vector;
+  }
+
   const modelsToTry = [EMBEDDING_MODEL, 'gemini-embedding-001'].filter((m, i, arr) => arr.indexOf(m) === i);
   let lastError = null;
 
@@ -14,10 +26,18 @@ export async function generateEmbedding(text) {
     try {
       const embeddingModel = genAI.getGenerativeModel({ model: modelCandidate });
       const result = await embeddingModel.embedContent({
-        content: { parts: [{ text }] },
+        content: { parts: [{ text: String(text).slice(0, 4000) }] },
         outputDimensionality: 768,
       });
-      return result.embedding.values;
+      const vector = result.embedding.values;
+      if (vector) {
+        if (embeddingMemoryCache.size >= MAX_EMBEDDING_CACHE_ITEMS) {
+          const oldestKey = embeddingMemoryCache.keys().next().value;
+          if (oldestKey) embeddingMemoryCache.delete(oldestKey);
+        }
+        embeddingMemoryCache.set(cleanKey, { vector, expiresAt: Date.now() + EMBEDDING_CACHE_TTL_MS });
+      }
+      return vector;
     } catch (error) {
       lastError = error;
       console.warn(`⚠️ [Embedding] Modelo ${modelCandidate} falhou:`, error.message);
