@@ -2419,6 +2419,9 @@ export async function updateCampaignControlStatus(campaignId, action) {
       .from('izaque_whatsapp_outreach_campaigns')
       .update({ status: 'running', updated_at: nowIso })
       .eq('id', campaignId);
+    setImmediate(() => {
+      processOutreachQueueTick().catch(() => {});
+    });
   } else if (action === 'cancel') {
     await supabaseAdmin
       .from('izaque_whatsapp_outreach_campaigns')
@@ -2431,6 +2434,77 @@ export async function updateCampaignControlStatus(campaignId, action) {
       .eq('status', 'queued');
   }
   return { success: true };
+}
+
+/**
+ * Atualiza em tempo real os parâmetros do Piloto Automático no Servidor de uma campanha ativa ou pausada
+ * (Limite Diário 24h, Intervalo min/max em segundos, Janela de horário e Status), sincronizando o teto global
+ * caso o novo limite diário da campanha seja maior.
+ */
+export async function updateOutreachCampaignSettings(
+  campaignId,
+  { dailyLimit, minDelaySec, maxDelaySec, windowStartHhmm, windowEndHhmm, respectWindow, status } = {}
+) {
+  if (!campaignId) {
+    throw new Error('ID da campanha é obrigatório.');
+  }
+  const nowIso = new Date().toISOString();
+  const updates = { updated_at: nowIso };
+
+  if (dailyLimit !== undefined) {
+    const cleanDaily = Math.max(1, Math.min(250, Number(dailyLimit) || 30));
+    updates.daily_limit = cleanDaily;
+
+    // Se o usuário elevou o limite diário da campanha acima do teto global atual, sincroniza o teto global automaticamente
+    const safetyCfg = await getOutreachSafetyConfig();
+    if (cleanDaily > (safetyCfg.dailyLimit || 40)) {
+      await supabaseAdmin
+        .from('izaque_system_settings')
+        .update({
+          whatsapp_outreach_daily_limit: cleanDaily,
+          updated_at: nowIso,
+        })
+        .eq('id', 'global');
+      invalidateCache('system:settings');
+    }
+  }
+
+  if (minDelaySec !== undefined) {
+    updates.min_delay_sec = Math.max(15, Math.min(600, Number(minDelaySec) || 52));
+  }
+  if (maxDelaySec !== undefined) {
+    const minVal = updates.min_delay_sec || 52;
+    updates.max_delay_sec = Math.max(minVal + 10, Math.min(900, Number(maxDelaySec) || 118));
+  }
+  if (windowStartHhmm !== undefined && /^\d{2}:\d{2}$/.test(String(windowStartHhmm))) {
+    updates.window_start_hhmm = String(windowStartHhmm);
+  }
+  if (windowEndHhmm !== undefined && /^\d{2}:\d{2}$/.test(String(windowEndHhmm))) {
+    updates.window_end_hhmm = String(windowEndHhmm);
+  }
+  if (respectWindow !== undefined) {
+    updates.respect_window = Boolean(respectWindow);
+  }
+  if (status && ['running', 'paused', 'scheduled'].includes(status)) {
+    updates.status = status;
+  }
+
+  const { data: updatedCamp, error } = await supabaseAdmin
+    .from('izaque_whatsapp_outreach_campaigns')
+    .update(updates)
+    .eq('id', campaignId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+
+  if (updatedCamp?.status === 'running') {
+    setImmediate(() => {
+      processOutreachQueueTick().catch(() => {});
+    });
+  }
+
+  return { campaign: updatedCamp };
 }
 
 export async function getOutreachDashboardOverview({ search = '', filter = 'all', limit = 2500 } = {}) {
@@ -2565,8 +2639,119 @@ export async function getOutreachDashboardOverview({ search = '', filter = 'all'
     return 0;
   });
 
+  const campaignsList = campaignsRes.data || [];
+  const activeCamp =
+    campaignsList.find((c) => c.status === 'running') ||
+    campaignsList.find((c) => c.status === 'scheduled') ||
+    campaignsList.find((c) => c.status === 'paused' && (c.total_targets || 0) > (c.sent_count || 0)) ||
+    null;
+
+  const since1hIso = new Date(Date.now() - 3600 * 1000).toISOString();
+  const since6hIso = new Date(Date.now() - 6 * 3600 * 1000).toISOString();
+
+  const [
+    { count: sentLast1h },
+    { count: sentLast6h },
+    { data: lastSentRow },
+    { count: activeCampSent24h },
+    { count: activeCampQueuedCount },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from('izaque_whatsapp_outreach_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'sent')
+      .gte('sent_at', since1hIso),
+    supabaseAdmin
+      .from('izaque_whatsapp_outreach_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'sent')
+      .gte('sent_at', since6hIso),
+    supabaseAdmin
+      .from('izaque_whatsapp_outreach_logs')
+      .select('id, recipient_name, phone_digits, sent_at')
+      .eq('status', 'sent')
+      .order('sent_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    activeCamp
+      ? supabaseAdmin
+          .from('izaque_whatsapp_outreach_logs')
+          .select('id', { count: 'exact', head: true })
+          .eq('campaign_id', activeCamp.id)
+          .eq('status', 'sent')
+          .gte('sent_at', since24hIso)
+      : Promise.resolve({ count: 0 }),
+    activeCamp
+      ? supabaseAdmin
+          .from('izaque_whatsapp_outreach_logs')
+          .select('id', { count: 'exact', head: true })
+          .eq('campaign_id', activeCamp.id)
+          .eq('status', 'queued')
+      : Promise.resolve({ count: 0 }),
+  ]);
+
+  let nextDispatchReason = 'idle';
+  let nextDispatchAtIso = null;
+  let effectiveCampDailyCap = activeCamp
+    ? Math.min(safetyCfg.dailyLimit, Math.max(1, Number(activeCamp.daily_limit) || safetyCfg.dailyLimit))
+    : safetyCfg.dailyLimit;
+
+  if (activeCamp) {
+    if (activeCamp.status === 'paused') {
+      nextDispatchReason = 'paused';
+    } else if ((activeCampSent24h || 0) >= effectiveCampDailyCap || (sentLast24h || 0) >= safetyCfg.dailyLimit) {
+      nextDispatchReason = 'daily_limit_reached';
+    } else if ((sentLast1h || 0) >= 10) {
+      nextDispatchReason = 'hourly_cap_reached';
+    } else if (lastSentRow?.sent_at) {
+      const lastSentMs = new Date(lastSentRow.sent_at).getTime();
+      const isEbookCamp = String(activeCamp.unregistered_image_url || '').includes('/ebooks/covers/');
+      const minSec = isEbookCamp
+        ? Math.max(48, Number(activeCamp.min_delay_sec) || 52)
+        : Math.max(12, Number(activeCamp.min_delay_sec) || 18);
+      const maxSec = Math.max(
+        minSec + 25,
+        Number(activeCamp.max_delay_sec) || (isEbookCamp ? 118 : 38)
+      );
+      const isCoffeeBreakTurn = (sentLast6h || 0) > 0 && (sentLast6h || 0) % 7 === 0;
+      const requiredGapMs = isCoffeeBreakTurn
+        ? deterministicRangeFromSeed(14 * 60_000, 22 * 60_000, `coffee:${lastSentRow.id}`)
+        : deterministicRangeFromSeed(minSec * 1000, maxSec * 1000, `gap:${lastSentRow.id}`);
+      const nextMs = lastSentMs + requiredGapMs;
+      if (nextMs > Date.now()) {
+        nextDispatchReason = isCoffeeBreakTurn ? 'coffee_break' : 'cadence_wait';
+        nextDispatchAtIso = new Date(nextMs).toISOString();
+      } else {
+        nextDispatchReason = 'ready';
+      }
+    } else {
+      nextDispatchReason = 'ready';
+    }
+  }
+
   return {
     safety: safetyCfg,
+    serverAutopilot: {
+      workerRunning: Boolean(outreachInterval),
+      cycleIntervalSeconds: 20,
+      sentLast1h: sentLast1h || 0,
+      hourlyCap: 10,
+      sentLast6h: sentLast6h || 0,
+      sentLast24h: sentLast24h || 0,
+      globalDailyLimit: safetyCfg.dailyLimit,
+      lastSentAt: lastSentRow?.sent_at || null,
+      lastSentRecipient: lastSentRow?.recipient_name || null,
+      activeCampaign: activeCamp
+        ? {
+            ...activeCamp,
+            queuedCount: activeCampQueuedCount || 0,
+            campSentLast24h: activeCampSent24h || 0,
+            effectiveDailyCap: effectiveCampDailyCap,
+            nextDispatchReason,
+            nextDispatchAtIso,
+          }
+        : null,
+    },
     stats: {
       totalContacts: totalContacts || 0,
       totalRegistered: totalRegistered || 0,
@@ -2580,7 +2765,7 @@ export async function getOutreachDashboardOverview({ search = '', filter = 'all'
     },
     contacts: contactsList,
     filteredTotal: contactsRes.count || contactsList.length,
-    campaigns: campaignsRes.data || [],
+    campaigns: campaignsList,
     recentLogs: logsRes.data || [],
     templates: savedTemplates,
     defaultImageUrl: DEFAULT_ISAAC_IMAGE_URL,

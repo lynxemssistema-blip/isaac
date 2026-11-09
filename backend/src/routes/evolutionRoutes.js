@@ -12,6 +12,7 @@ import {
   updateOutreachContactName,
   createOrScheduleOutreachCampaign,
   updateCampaignControlStatus,
+  updateOutreachCampaignSettings,
   sendDirectOutreachPreview,
   updateOutreachSafetyConfig,
   getSavedOutreachTemplates,
@@ -160,6 +161,15 @@ router.post('/admin/whatsapp/outreach/campaigns/:id/control', async (req, res) =
     res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ error: 'Erro ao atualizar controle da campanha.', details: err.message });
+  }
+});
+
+router.put('/admin/whatsapp/outreach/campaigns/:id/settings', async (req, res) => {
+  try {
+    const result = await updateOutreachCampaignSettings(req.params.id, req.body || {});
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Erro ao salvar ajustes do Piloto Automático no Servidor.' });
   }
 });
 

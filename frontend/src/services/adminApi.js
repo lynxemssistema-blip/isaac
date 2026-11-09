@@ -1594,6 +1594,32 @@ export async function controlAdminWhatsappCampaignApi(campaignId, action) {
   return data;
 }
 
+export async function updateAdminWhatsappCampaignSettingsApi(campaignId, payload) {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/whatsapp/outreach/campaigns/${campaignId}/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao salvar ajustes do Piloto Automático no Servidor.');
+  }
+  return data;
+}
+
+export async function triggerAdminWhatsappProcessNowApi(bypassCooldown = false) {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/whatsapp/outreach/process-now`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bypassCooldown }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao acionar disparo imediato no servidor.');
+  }
+  return data;
+}
+
 export async function sendAdminWhatsappOutreachPreviewApi(payload) {
   const res = await authFetch(`${BACKEND_URL}/api/admin/whatsapp/outreach/send-preview`, {
     method: 'POST',

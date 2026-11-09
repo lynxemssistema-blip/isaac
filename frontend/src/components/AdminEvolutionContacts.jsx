@@ -39,6 +39,8 @@ import {
   syncAdminEvolutionContactsApi,
   createAdminWhatsappCampaignApi,
   controlAdminWhatsappCampaignApi,
+  updateAdminWhatsappCampaignSettingsApi,
+  triggerAdminWhatsappProcessNowApi,
   sendAdminWhatsappOutreachPreviewApi,
   updateAdminWhatsappSafetyApi,
   saveAdminWhatsappOutreachTemplatesApi,
@@ -512,6 +514,14 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
   const [safetyCooldownHours, setSafetyCooldownHours] = useState(72);
   const [savingSafety, setSavingSafety] = useState(false);
 
+  // Piloto Automático no Servidor (24/7) — ajuste em tempo real da campanha ativa sem precisar recriar
+  const [autopilotDailyLimit, setAutopilotDailyLimit] = useState(30);
+  const [autopilotMinDelay, setAutopilotMinDelay] = useState(52);
+  const [autopilotMaxDelay, setAutopilotMaxDelay] = useState(118);
+  const [savingAutopilot, setSavingAutopilot] = useState(false);
+  const [triggeringTickNow, setTriggeringTickNow] = useState(false);
+  const autopilotHydratedIdRef = useRef(null);
+
   const showToast = (msg) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(''), 5000);
@@ -532,6 +542,14 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
         setSafetyDailyLimit(data.safety?.dailyLimit || 40);
         setSafetyCooldownHours(data.safety?.cooldownHours ?? 72);
         setDailyLimit(data.safety?.dailyLimit || 40);
+
+        const activeCamp = data.serverAutopilot?.activeCampaign;
+        if (activeCamp && (autopilotHydratedIdRef.current !== activeCamp.id || opts.forceHydrateAutopilot)) {
+          autopilotHydratedIdRef.current = activeCamp.id;
+          setAutopilotDailyLimit(Number(activeCamp.daily_limit) || 30);
+          setAutopilotMinDelay(Number(activeCamp.min_delay_sec) || 52);
+          setAutopilotMaxDelay(Number(activeCamp.max_delay_sec) || 118);
+        }
 
         const tplData = data.templates || {};
         const effectiveImg =
@@ -988,10 +1006,58 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
   const handleCampaignControl = async (campaignId, action) => {
     try {
       await controlAdminWhatsappCampaignApi(campaignId, action);
-      showToast(`Campanha atualizada (${action}).`);
-      await loadOverview();
+      showToast(
+        action === 'resume'
+          ? '🟢 Piloto Automático no Servidor ativado! Você já pode fechar o aplicativo que o servidor continuará enviando sozinho.'
+          : action === 'pause'
+          ? '⏸️ Envio no servidor pausado.'
+          : `Campanha atualizada (${action}).`
+      );
+      await loadOverview({ forceHydrateAutopilot: true });
     } catch (err) {
       setErrorMsg(err.message);
+    }
+  };
+
+  const handleSaveAutopilotSettings = async (campaignId) => {
+    if (!campaignId) return;
+    try {
+      setSavingAutopilot(true);
+      setErrorMsg('');
+      await updateAdminWhatsappCampaignSettingsApi(campaignId, {
+        dailyLimit: Number(autopilotDailyLimit) || 30,
+        minDelaySec: Number(autopilotMinDelay) || 52,
+        maxDelaySec: Number(autopilotMaxDelay) || 118,
+        status: 'running',
+      });
+      showToast(
+        `🟢 Piloto Automático atualizado no Servidor (${autopilotDailyLimit}/dia • intervalo ${autopilotMinDelay}s–${autopilotMaxDelay}s)! Você pode fechar o App tranquilo.`
+      );
+      await loadOverview({ forceHydrateAutopilot: true });
+    } catch (err) {
+      setErrorMsg(err.message || 'Erro ao salvar ajustes no servidor.');
+    } finally {
+      setSavingAutopilot(false);
+    }
+  };
+
+  const handleTriggerServerTickNow = async () => {
+    try {
+      setTriggeringTickNow(true);
+      setErrorMsg('');
+      const res = await triggerAdminWhatsappProcessNowApi(true);
+      if (res?.processed > 0) {
+        showToast('⚡ Servidor disparou o próximo contato da fila com sucesso!');
+      } else if (res?.skipped === 'daily_limit_reached') {
+        showToast('⏳ Cota diária de 24h atingida. Aumente o Limite Diário ao lado e clique em Salvar p/ enviar mais hoje!');
+      } else {
+        showToast('🔄 Ciclo do servidor verificado.');
+      }
+      await loadOverview();
+    } catch (err) {
+      setErrorMsg(err.message || 'Erro ao acionar ciclo imediato no servidor.');
+    } finally {
+      setTriggeringTickNow(false);
     }
   };
 
@@ -1980,6 +2046,218 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
           </span>
         </div>
       </div>
+
+      {/* BARRA DE PILOTO AUTOMÁTICO NO SERVIDOR 24/7 (PODE FECHAR O APP / NAVEGADOR) */}
+      {(() => {
+        const auto = overview.serverAutopilot || {};
+        const activeCamp = auto.activeCampaign || null;
+        const isRunning = activeCamp?.status === 'running' || activeCamp?.status === 'scheduled';
+        const isPaused = activeCamp?.status === 'paused';
+        const reason = activeCamp?.nextDispatchReason || 'idle';
+        const total = Number(activeCamp?.total_targets) || 0;
+        const sent = Number(activeCamp?.sent_count) || 0;
+        const queued = Number(activeCamp?.queuedCount) || Math.max(0, total - sent);
+        const pct = total > 0 ? Math.min(100, Math.round((sent / total) * 100)) : 0;
+
+        let nextStatusBadge = '';
+        if (!activeCamp) {
+          nextStatusBadge = 'Nenhuma fila em andamento no momento — selecione contatos e clique em Enviar p/ iniciar no servidor.';
+        } else if (isPaused) {
+          nextStatusBadge = '⏸️ Fila pausada manualmente no servidor — clique em "Ativar no Servidor" para retomar.';
+        } else if (reason === 'daily_limit_reached') {
+          nextStatusBadge = `⏳ Cota de 24h atingida (${activeCamp.campSentLast24h || 0}/${activeCamp.effectiveDailyCap || 30}) — aumente o Limite Diário ao lado e clique em Salvar se quiser continuar enviando hoje!`;
+        } else if (reason === 'hourly_cap_reached') {
+          nextStatusBadge = `🛡️ Pausa de proteção horária (${auto.sentLast1h || 0}/10 na última 1h) — o servidor retomará sozinho na próxima janela.`;
+        } else if ((reason === 'coffee_break' || reason === 'cadence_wait') && activeCamp.nextDispatchAtIso) {
+          const nextTimeStr = new Date(activeCamp.nextDispatchAtIso).toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          });
+          nextStatusBadge =
+            reason === 'coffee_break'
+              ? `☕ Pausa Humana Anti-Ban ativa (a cada 7 envios) — próximo disparo automático no servidor às ${nextTimeStr}.`
+              : `⏱️ Próximo disparo automático no servidor agendado para ${nextTimeStr}.`;
+        } else {
+          nextStatusBadge = '🚀 Servidor processando e enviando automaticamente em 2º plano (ciclo de 20s).';
+        }
+
+        return (
+          <div
+            className={`p-4 sm:p-5 rounded-3xl border transition shadow-xs ${
+              isRunning
+                ? 'bg-gradient-to-r from-emerald-50/90 via-teal-50/70 to-indigo-50/60 dark:from-emerald-950/35 dark:via-slate-900 dark:to-indigo-950/30 border-emerald-300 dark:border-emerald-700/80'
+                : isPaused
+                ? 'bg-amber-50/80 dark:bg-amber-950/25 border-amber-300 dark:border-amber-700/70'
+                : 'bg-white/90 dark:bg-slate-800/80 border-stone-200 dark:border-slate-700'
+            }`}
+          >
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 ${
+                      isRunning
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : isPaused
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-stone-200 dark:bg-slate-700 text-stone-700 dark:text-stone-200'
+                    }`}
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        isRunning ? 'bg-white animate-ping' : 'bg-current'
+                      }`}
+                    />
+                    {isRunning
+                      ? '🟢 PILOTO AUTOMÁTICO NO SERVIDOR ATIVO (24/7)'
+                      : isPaused
+                      ? '⏸️ PILOTO AUTOMÁTICO PAUSADO'
+                      : '⚙️ MOTOR DO SERVIDOR PRONTO (24/7)'}
+                  </span>
+
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/90 dark:bg-slate-900/90 text-teal-800 dark:text-teal-300 border border-teal-300/70 dark:border-teal-700">
+                    ✅ Pode fechar o App ou desligar o PC — o servidor na nuvem continua enviando sozinho!
+                  </span>
+                </div>
+
+                {activeCamp ? (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-stone-900 dark:text-white">
+                      <span className="truncate">{activeCamp.title}</span>
+                      <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 text-[11px]">
+                        Enviadas: {sent} / {total} ({pct}%)
+                      </span>
+                      <span className="px-2 py-0.5 rounded-lg bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 text-[11px]">
+                        Na Fila: {queued}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-lg bg-stone-500/15 text-stone-700 dark:text-stone-300 text-[11px]">
+                        Hoje (24h): {activeCamp.campSentLast24h || 0} / {activeCamp.effectiveDailyCap || 30}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-lg bg-teal-500/15 text-teal-800 dark:text-teal-300 text-[11px]">
+                        Última 1h: {auto.sentLast1h || 0} / 10
+                      </span>
+                    </div>
+
+                    <div className="w-full h-2 rounded-full bg-stone-200/80 dark:bg-slate-800 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500"
+                        style={{ width: `${Math.max(2, pct)}%` }}
+                      />
+                    </div>
+
+                    <p className="text-[11px] text-stone-700 dark:text-stone-300 font-medium">
+                      {nextStatusBadge}
+                      {auto.lastSentRecipient && auto.lastSentAt && (
+                        <span className="text-stone-500 dark:text-stone-400 ml-1.5">
+                          • Último entregue: <strong>{auto.lastSentRecipient}</strong> às{' '}
+                          {new Date(auto.lastSentAt).toLocaleTimeString('pt-BR', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-stone-600 dark:text-stone-300">{nextStatusBadge}</p>
+                )}
+              </div>
+
+              {activeCamp && (
+                <div className="flex flex-wrap items-end gap-2.5 bg-white/85 dark:bg-slate-900/80 p-3 rounded-2xl border border-stone-200/90 dark:border-slate-700 shrink-0">
+                  <div>
+                    <label className="block text-[10px] font-bold text-stone-600 dark:text-stone-400 mb-1">
+                      Limite Diário (24h)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="250"
+                      value={autopilotDailyLimit}
+                      onChange={(e) => setAutopilotDailyLimit(e.target.value)}
+                      className="w-20 px-2.5 py-1.5 rounded-xl bg-stone-50 dark:bg-slate-800 border border-stone-300 dark:border-slate-600 text-xs font-bold text-stone-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-stone-600 dark:text-stone-400 mb-1">
+                      Intervalo Mín/Máx (s)
+                    </label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="15"
+                        max="600"
+                        value={autopilotMinDelay}
+                        onChange={(e) => setAutopilotMinDelay(e.target.value)}
+                        className="w-16 px-2 py-1.5 rounded-xl bg-stone-50 dark:bg-slate-800 border border-stone-300 dark:border-slate-600 text-xs font-bold text-stone-900 dark:text-white"
+                      />
+                      <span className="text-xs text-stone-400">a</span>
+                      <input
+                        type="number"
+                        min="30"
+                        max="900"
+                        value={autopilotMaxDelay}
+                        onChange={(e) => setAutopilotMaxDelay(e.target.value)}
+                        className="w-16 px-2 py-1.5 rounded-xl bg-stone-50 dark:bg-slate-800 border border-stone-300 dark:border-slate-600 text-xs font-bold text-stone-900 dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={savingAutopilot}
+                    onClick={() => handleSaveAutopilotSettings(activeCamp.id)}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
+                    title="Salva o novo limite/intervalo no servidor e mantém o envio rodando em 2º plano"
+                  >
+                    {savingAutopilot ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    <span>Salvar &amp; Continuar no Servidor</span>
+                  </button>
+
+                  {isRunning ? (
+                    <button
+                      type="button"
+                      onClick={() => handleCampaignControl(activeCamp.id, 'pause')}
+                      className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                      title="Pausar temporariamente o envio automático no servidor"
+                    >
+                      <Pause className="w-3.5 h-3.5" />
+                      <span>Pausar</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleCampaignControl(activeCamp.id, 'resume')}
+                      className="px-3 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                      title="Ativar o envio automático no servidor"
+                    >
+                      <Play className="w-3.5 h-3.5" />
+                      <span>Ativar no Servidor</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={triggeringTickNow}
+                    onClick={handleTriggerServerTickNow}
+                    className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+                    title="Pede ao servidor para disparar imediatamente o próximo contato da fila"
+                  >
+                    {triggeringTickNow ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5" />
+                    )}
+                    <span>Enviar 1 Agora</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* SUB-ABAS */}
       <div className="flex flex-wrap items-center gap-2 border-b border-stone-200 dark:border-slate-800 pb-2">
