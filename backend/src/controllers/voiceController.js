@@ -80,10 +80,13 @@ async function ensureAudioCacheBucket() {
   if (bucketChecked) return;
   try {
     const { data: buckets } = await supabaseAdmin.storage.listBuckets();
-    const exists = Array.isArray(buckets) && buckets.some((b) => b.name === BUCKET_NAME || b.id === BUCKET_NAME);
-    if (!exists) {
-      await supabaseAdmin.storage.createBucket(BUCKET_NAME, { public: true });
-      console.log(`🪣 [Voice Cache] Bucket '${BUCKET_NAME}' criado automaticamente.`);
+    const existing = Array.isArray(buckets) && buckets.find((b) => b.name === BUCKET_NAME || b.id === BUCKET_NAME);
+    if (!existing) {
+      await supabaseAdmin.storage.createBucket(BUCKET_NAME, { public: false });
+      console.log(`🪣 [Voice Cache] Bucket privado '${BUCKET_NAME}' criado automaticamente.`);
+    } else if (existing.public) {
+      await supabaseAdmin.storage.updateBucket(BUCKET_NAME, { public: false });
+      console.log(`🔒 [Voice Cache] Bucket '${BUCKET_NAME}' blindado como privado (public: false).`);
     }
     bucketChecked = true;
   } catch (err) {
@@ -533,6 +536,9 @@ export async function handleGenerateVoice(req, res) {
 
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return res.status(400).json({ error: 'O texto para sintetização de voz é obrigatório.' });
+    }
+    if (text.length > 4000) {
+      return res.status(400).json({ error: 'O trecho para síntese de voz excede o limite de 4.000 caracteres.' });
     }
 
     const result = await synthesizeOrGetCachedVoice(text, voiceName, { isPreview: Boolean(isPreview) });

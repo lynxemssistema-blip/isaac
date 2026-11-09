@@ -12,11 +12,13 @@ export const apiGeneralLimiter = rateLimit({
 });
 
 /**
- * Rate Limiter para Endpoints de IA / Voz (protege cotas financeiras do Gemini e TTS)
+ * Rate Limiter para Endpoints de IA / Voz (protege cotas financeiras do Gemini e TTS por usuário autenticado + IP)
  */
 export const aiResourceLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minuto
   max: 30,
+  keyGenerator: (req) => (req.user?.id ? `user:${req.user.id}` : req.ip || 'anon'),
+   validate: { xForwardedForHeader: false, default: false },
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Limite de interações por minuto atingido. Respire fundo e tente novamente em instantes.' },

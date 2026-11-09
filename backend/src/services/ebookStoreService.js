@@ -564,6 +564,22 @@ export async function processAsaasEbookWebhook(event, payment = {}) {
   const refundEvents = ['PAYMENT_REFUNDED', 'PAYMENT_CHARGEBACK_REQUESTED'];
 
   if (paidEvents.includes(event)) {
+    const cfg = getAsaasConfig();
+    const targetPayId = asaasPaymentId || order.asaas_payment_id;
+    if (cfg.apiKey && targetPayId) {
+      const verifiedPayment = await asaasRequest(`/payments/${encodeURIComponent(targetPayId)}`).catch(() => null);
+      const realStatus = String(verifiedPayment?.status || '').toUpperCase();
+      if (!['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH', 'DUNNING_RECEIVED'].includes(realStatus)) {
+        const err = new Error('Pagamento de eBook não confirmado na consulta direta à API oficial do Asaas.');
+        err.statusCode = 401;
+        throw err;
+      }
+    } else if (!cfg.webhookToken) {
+      const err = new Error('Webhook Asaas de eBook rejeitado: pagamento não verificado.');
+      err.statusCode = 401;
+      throw err;
+    }
+
     const fulfilled = await fulfillPaidEbookOrder(order.id);
     return {
       success: true,

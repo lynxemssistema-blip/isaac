@@ -484,6 +484,21 @@ export async function processAsaasWebhook(headers = {}, body = {}) {
   const overdueOrCancelEvents = ['PAYMENT_OVERDUE', 'SUBSCRIPTION_INACTIVATED', 'SUBSCRIPTION_DELETED'];
 
   if (activationEvents.includes(event)) {
+    // Blindagem Anti-Spoofing de Webhook: confirma diretamente na API oficial do Asaas que o pagamento existe e está pago
+    if (cfg.apiKey && asaasPaymentId) {
+      const verifiedPayment = await asaasRequest(`/payments/${encodeURIComponent(asaasPaymentId)}`).catch(() => null);
+      const realStatus = String(verifiedPayment?.status || '').toUpperCase();
+      if (!['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH', 'DUNNING_RECEIVED'].includes(realStatus)) {
+        const err = new Error('Pagamento não confirmado na consulta direta à API oficial do Asaas.');
+        err.statusCode = 401;
+        throw err;
+      }
+    } else if (!cfg.webhookToken) {
+      const err = new Error('Webhook Asaas rejeitado: informe pagamento válido para verificação na API.');
+      err.statusCode = 401;
+      throw err;
+    }
+
     const wasAlreadyActive =
       targetProfile.plan_id === WHATSAPP_PLAN_ID && targetProfile.plan_status === 'active';
     const expiresAt = computeMonthlyExpirationIso(targetProfile.plan_expires_at);
