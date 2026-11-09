@@ -153,9 +153,10 @@ router.post('/admin/whatsapp/outreach/campaigns', async (req, res) => {
 
 router.post('/admin/whatsapp/outreach/campaigns/:id/control', async (req, res) => {
   try {
-    const action = String(req.body?.action || '').trim();
+    const rawAction = String(req.body?.action || '').trim();
+    const action = rawAction === 'stop' ? 'cancel' : rawAction;
     if (!['pause', 'resume', 'cancel'].includes(action)) {
-      return res.status(400).json({ error: 'Ação inválida. Use pause, resume ou cancel.' });
+      return res.status(400).json({ error: 'Ação inválida. Use pause, resume, stop ou cancel.' });
     }
     const result = await updateCampaignControlStatus(req.params.id, action);
     res.status(200).json(result);

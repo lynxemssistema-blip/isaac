@@ -1005,12 +1005,20 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
 
   const handleCampaignControl = async (campaignId, action) => {
     try {
-      await controlAdminWhatsappCampaignApi(campaignId, action);
+      if (action === 'cancel' || action === 'stop') {
+        const ok = window.confirm(
+          'Deseja realmente PARAR definitivamente o envio desta campanha no servidor? Os contatos que ainda estavam aguardando nesta fila serão encerrados.'
+        );
+        if (!ok) return;
+      }
+      await controlAdminWhatsappCampaignApi(campaignId, action === 'stop' ? 'cancel' : action);
       showToast(
         action === 'resume'
           ? '🟢 Piloto Automático no Servidor ativado! Você já pode fechar o aplicativo que o servidor continuará enviando sozinho.'
           : action === 'pause'
-          ? '⏸️ Envio no servidor pausado.'
+          ? '⏸️ Envio no servidor pausado temporariamente (você pode retomar quando quiser).'
+          : action === 'cancel' || action === 'stop'
+          ? '🛑 Piloto Automático PARADO no servidor e fila encerrada com sucesso!'
           : `Campanha atualizada (${action}).`
       );
       await loadOverview({ forceHydrateAutopilot: true });
@@ -2221,7 +2229,7 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
                       type="button"
                       onClick={() => handleCampaignControl(activeCamp.id, 'pause')}
                       className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
-                      title="Pausar temporariamente o envio automático no servidor"
+                      title="Pausar temporariamente o envio automático no servidor (pode retomar depois)"
                     >
                       <Pause className="w-3.5 h-3.5" />
                       <span>Pausar</span>
@@ -2237,6 +2245,16 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
                       <span>Ativar no Servidor</span>
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleCampaignControl(activeCamp.id, 'stop')}
+                    className="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-xs"
+                    title="Parar e encerrar definitivamente o envio desta fila no servidor"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>Parar</span>
+                  </button>
 
                   <button
                     type="button"
