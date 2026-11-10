@@ -4,7 +4,7 @@ import { generateEmbedding, searchMemories, formatMemoriesForPrompt } from '../s
 import { searchAgentKnowledge, formatAgentKnowledgeForPrompt } from '../services/agentKnowledgeService.js';
 import { extractAndSaveMemoryAsync } from '../services/extractionService.js';
 import { transcribeAudioWithGemini } from '../services/audioService.js';
-import { getCached, setCached } from '../utils/memoryCache.js';
+import { getCached, setCached, getOrFetchCached } from '../utils/memoryCache.js';
 import { prewarmReplyFirstSegment } from './voiceController.js';
 import { isMultipartRequest, parseMultipartAudioRequest } from '../utils/multipartAudioParser.js';
 
@@ -12,17 +12,20 @@ const ACTIVE_AGENTS_CACHE_KEY = 'agents:active_full';
 const ACTIVE_AGENTS_TTL_MS = 60_000;
 
 async function fetchCachedActiveAgents() {
-  const cached = getCached(ACTIVE_AGENTS_CACHE_KEY);
-  if (cached) return cached;
+  return getOrFetchCached(
+    ACTIVE_AGENTS_CACHE_KEY,
+    async () => {
+      const { data, error } = await supabaseAdmin
+        .from('izaque_agents')
+        .select('id, name, slug, type, temperature, system_prompt, is_active, starter_questions')
+        .eq('is_active', true)
+        .order('created_at', { ascending: true });
 
-  const { data, error } = await supabaseAdmin
-    .from('izaque_agents')
-    .select('id, name, slug, type, temperature, system_prompt, is_active, starter_questions')
-    .eq('is_active', true)
-    .order('created_at', { ascending: true });
-
-  if (error) throw error;
-  return setCached(ACTIVE_AGENTS_CACHE_KEY, data || [], ACTIVE_AGENTS_TTL_MS);
+      if (error) throw error;
+      return data || [];
+    },
+    ACTIVE_AGENTS_TTL_MS
+  );
 }
 
 /**

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { supabaseAdmin } from '../config/supabase.js';
-import { getCached, setCached } from '../utils/memoryCache.js';
+import { getCached, setCached, getOrFetchCached } from '../utils/memoryCache.js';
 import {
   EBOOK_COLLECTION_META,
   ENRICHED_EBOOKS_CATALOG,
@@ -360,15 +360,15 @@ export const CORE_TOPICS = [
 // CARREGAMENTO DE DADOS PÚBLICOS DO SUPABASE COM CACHE EM MEMÓRIA
 // ============================================================================
 export async function getSeoPublicSnapshot() {
-  const cached = getCached('seo:public_snapshot');
-  if (cached) return cached;
+  return getOrFetchCached(
+    'seo:public_snapshot',
+    async () => {
+      let creator = null;
+      let campaigns = [];
+      let plans = [];
+      let guidedRows = [];
 
-  let creator = null;
-  let campaigns = [];
-  let plans = [];
-  let guidedRows = [];
-
-  try {
+      try {
     const [creatorRes, campRes, plansRes, guidedRes] = await Promise.all([
       supabaseAdmin
         .from('izaque_creator')
@@ -477,7 +477,10 @@ export async function getSeoPublicSnapshot() {
     generatedAt: new Date().toISOString(),
   };
 
-  return setCached('seo:public_snapshot', snapshot, SEO_CACHE_TTL_MS);
+      return snapshot;
+    },
+    SEO_CACHE_TTL_MS
+  );
 }
 
 // ============================================================================
@@ -776,10 +779,16 @@ ${faqSection}
 // ============================================================================
 let cachedHtmlTemplate = null;
 let cachedHtmlMtimeMs = 0;
+let lastHtmlStatCheckMs = 0;
 
 function loadIndexHtmlTemplate(distPath) {
+  const now = Date.now();
+  if (cachedHtmlTemplate && now - lastHtmlStatCheckMs < 60_000) {
+    return cachedHtmlTemplate;
+  }
   const indexPath = path.join(distPath, 'index.html');
   const stat = fs.statSync(indexPath);
+  lastHtmlStatCheckMs = now;
   if (!cachedHtmlTemplate || stat.mtimeMs !== cachedHtmlMtimeMs) {
     cachedHtmlTemplate = fs.readFileSync(indexPath, 'utf8');
     cachedHtmlMtimeMs = stat.mtimeMs;

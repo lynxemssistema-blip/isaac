@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { supabaseAdmin } from '../config/supabase.js';
-import { getCached, setCached, invalidateCachePrefix } from '../utils/memoryCache.js';
+import { getCached, setCached, getOrFetchCached, invalidateCachePrefix } from '../utils/memoryCache.js';
 
 const AUTH_CACHE_TTL_MS = 45_000; // 45s para evitar chamadas repetidas ao Supabase Auth a cada request
 
@@ -25,7 +25,7 @@ export function invalidateAuthCache() {
 }
 
 /**
- * Valida criptograficamente o JWT no Supabase e carrega o role atualizado em izaque_profiles
+ * Valida criptograficamente o JWT no Supabase com Coalescência Anti-Stampede (1 única chamada p/ 6 abas/requests simultâneas)
  */
 export async function verifySupabaseJwt(token) {
   if (!token) return null;
@@ -35,30 +35,33 @@ export async function verifySupabaseJwt(token) {
   const cached = getCached(cacheKey);
   if (cached) return cached;
 
-  const { data: authData, error: authErr } = await supabaseAdmin.auth.getUser(token);
-  if (authErr || !authData?.user) {
-    return null;
-  }
+  return getOrFetchCached(
+    cacheKey,
+    async () => {
+      const { data: authData, error: authErr } = await supabaseAdmin.auth.getUser(token);
+      if (authErr || !authData?.user) {
+        return null;
+      }
 
-  const authUser = authData.user;
-  const { data: profile } = await supabaseAdmin
-    .from('izaque_profiles')
-    .select('id, email, role, is_active')
-    .eq('id', authUser.id)
-    .maybeSingle();
+      const authUser = authData.user;
+      const { data: profile } = await supabaseAdmin
+        .from('izaque_profiles')
+        .select('id, email, role, is_active')
+        .eq('id', authUser.id)
+        .maybeSingle();
 
-  const superAdminEmail = (process.env.SUPERADMIN_EMAIL || 'edsonmanoel2012@gmail.com').trim().toLowerCase();
-  const isFallbackMaster = (authUser.email || '').trim().toLowerCase() === superAdminEmail;
+      const superAdminEmail = (process.env.SUPERADMIN_EMAIL || 'edsonmanoel2012@gmail.com').trim().toLowerCase();
+      const isFallbackMaster = (authUser.email || '').trim().toLowerCase() === superAdminEmail;
 
-  const resolvedUser = {
-    id: authUser.id,
-    email: authUser.email || profile?.email || '',
-    role: profile?.role || (isFallbackMaster ? 'master' : 'user'),
-    isActive: profile ? profile.is_active !== false : true,
-  };
-
-  setCached(cacheKey, resolvedUser, AUTH_CACHE_TTL_MS);
-  return resolvedUser;
+      return {
+        id: authUser.id,
+        email: authUser.email || profile?.email || '',
+        role: profile?.role || (isFallbackMaster ? 'master' : 'user'),
+        isActive: profile ? profile.is_active !== false : true,
+      };
+    },
+    AUTH_CACHE_TTL_MS
+  );
 }
 
 /**

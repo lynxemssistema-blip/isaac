@@ -1,11 +1,26 @@
+import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 
 /**
- * Rate Limiter Geral da API (proteção contra floods e scraping automatizado)
+ * Rate Limiter Geral da API:
+ * - Quando autenticado (Authorization: Bearer <jwt>), isola a cota individualmente por usuário (evita falso-positivo em Wi-Fi de eventos ou CGNAT 4G/5G com 1.000+ pessoas no mesmo IP).
+ * - Para rotas públicas sem login, suporta até 2.500 req/min por IP de rede compartilhada.
  */
 export const apiGeneralLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minuto
-  max: 300,
+  max: (req) => {
+    const auth = req.headers?.authorization || req.headers?.Authorization;
+    return auth && String(auth).startsWith('Bearer ') ? 240 : 2500;
+  },
+  keyGenerator: (req) => {
+    const auth = req.headers?.authorization || req.headers?.Authorization;
+    if (auth && typeof auth === 'string' && auth.startsWith('Bearer ') && auth.length > 20) {
+      const tokenHash = crypto.createHash('sha1').update(auth.slice(7)).digest('hex').slice(0, 16);
+      return `jwt:${tokenHash}`;
+    }
+    return `ip:${req.ip || 'anon'}`;
+  },
+  validate: { xForwardedForHeader: false, default: false },
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Muitas requisições simultâneas. Aguarde alguns segundos e tente novamente.' },

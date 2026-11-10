@@ -1,22 +1,48 @@
 import { genAI, CHAT_MODEL, FALLBACK_CHAT_MODELS } from '../config/gemini.js';
 import { saveMemory } from './memoryService.js';
 
+const MAX_CONCURRENT_EXTRACTIONS = 2;
+const MAX_EXTRACTION_QUEUE = 200;
+let activeExtractions = 0;
+const extractionQueue = [];
+
+function enqueueBackgroundExtraction(taskFn) {
+  if (extractionQueue.length >= MAX_EXTRACTION_QUEUE) {
+    extractionQueue.shift();
+  }
+  extractionQueue.push(taskFn);
+  drainExtractionQueue();
+}
+
+function drainExtractionQueue() {
+  while (activeExtractions < MAX_CONCURRENT_EXTRACTIONS && extractionQueue.length > 0) {
+    const nextTask = extractionQueue.shift();
+    activeExtractions += 1;
+    setImmediate(async () => {
+      try {
+        await nextTask();
+      } catch {} finally {
+        activeExtractions -= 1;
+        drainExtractionQueue();
+      }
+    });
+  }
+}
+
 /**
- * Analisa a interação de forma assíncrona em background para extrair aprendizados duradouros.
- * Se o usuário revelou um bloqueio, crença, trauma ou meta, resume e salva na tabela izaque_user_memories.
+ * Analisa a interação de forma assíncrona em background com fila controlada (máx. 2 simultâneas)
+ * para extrair aprendizados duradouros sem competir por cota RPM do Gemini durante picos de 100+ usuários.
  * 
  * @param {string} userId ID do usuário
  * @param {string} userMessage Mensagem enviada pelo usuário
  * @param {string} assistantReply Resposta fornecida pelo mentor
  */
 export async function extractAndSaveMemoryAsync(userId, userMessage, assistantReply = '') {
-  // Dispara a execução sem esperar, garantindo zero impacto na latência do usuário
-  setImmediate(async () => {
+  if (!userMessage || userMessage.trim().length < 8) {
+    return;
+  }
+  enqueueBackgroundExtraction(async () => {
     try {
-      // Ignora mensagens extremamente curtas (ex: 'ok', 'oi')
-      if (!userMessage || userMessage.trim().length < 8) {
-        return;
-      }
 
       const extractionPrompt = `
 Você é um observador psicológico sênior e guardião de memória contínua do sistema "ISAAC".

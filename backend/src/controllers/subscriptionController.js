@@ -3,26 +3,30 @@ import {
   sendSubscriptionOrderNotification,
   sendFeedbackToSupport,
 } from '../services/emailService.js';
-import { getCached, setCached } from '../utils/memoryCache.js';
+import { getCached, setCached, getOrFetchCached } from '../utils/memoryCache.js';
 
 /**
  * Controller de Planos e Assinaturas (Rotas Públicas e de Usuários)
  */
 
-// 1. Obter lista de planos ativos para exibição no aplicativo (Cache TTL 60s)
+// 1. Obter lista de planos ativos para exibição no aplicativo (Cache TTL 60s c/ Coalescência Anti-Stampede)
 export async function getPublicPlans(req, res) {
   try {
-    const cached = getCached('plans:public');
-    if (cached) return res.status(200).json(cached);
+    const plans = await getOrFetchCached(
+      'plans:public',
+      async () => {
+        const { data, error } = await supabaseAdmin
+          .from('izaque_plans')
+          .select('id, name, price, billing_cycle, description, features, pix_key, pix_key_type, pix_beneficiary, activation_notice, is_active')
+          .eq('is_active', true)
+          .order('price', { ascending: true });
 
-    const { data, error } = await supabaseAdmin
-      .from('izaque_plans')
-      .select('id, name, price, billing_cycle, description, features, pix_key, pix_key_type, pix_beneficiary, activation_notice, is_active')
-      .eq('is_active', true)
-      .order('price', { ascending: true });
-
-    if (error) throw error;
-    res.status(200).json(setCached('plans:public', data || [], 60_000));
+        if (error) throw error;
+        return data || [];
+      },
+      60_000
+    );
+    res.status(200).json(plans);
   } catch (error) {
     console.error('❌ Erro ao buscar planos públicos:', error);
     res.status(500).json({ error: 'Erro ao carregar planos disponíveis.' });
@@ -192,20 +196,24 @@ export async function getUserSubscriptionStatus(req, res) {
   }
 }
 
-// 5. Obter dados públicos do Idealizador para a Landing Page (Cache TTL 60s)
+// 5. Obter dados públicos do Idealizador para a Landing Page (Cache TTL 60s c/ Coalescência Anti-Stampede)
 export async function getPublicCreator(req, res) {
   try {
-    const cached = getCached('creator:public');
-    if (cached !== undefined) return res.status(200).json(cached);
+    const creator = await getOrFetchCached(
+      'creator:public',
+      async () => {
+        const { data, error } = await supabaseAdmin
+          .from('izaque_creator')
+          .select('name, title, bio, story, quote, image_url, social_instagram, social_linkedin, social_whatsapp, is_visible')
+          .eq('id', 'main')
+          .single();
 
-    const { data, error } = await supabaseAdmin
-      .from('izaque_creator')
-      .select('name, title, bio, story, quote, image_url, social_instagram, social_linkedin, social_whatsapp, is_visible')
-      .eq('id', 'main')
-      .single();
-
-    if (error && error.code !== 'PGRST116') throw error;
-    res.status(200).json(setCached('creator:public', data || null, 60_000));
+        if (error && error.code !== 'PGRST116') throw error;
+        return data || null;
+      },
+      60_000
+    );
+    res.status(200).json(creator);
   } catch (error) {
     console.error('❌ Erro ao buscar dados públicos do idealizador:', error);
     res.status(500).json({ error: 'Erro ao carregar dados do idealizador.' });
