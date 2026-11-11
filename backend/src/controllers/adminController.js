@@ -705,7 +705,7 @@ export async function updateAdminCreator(req, res) {
       .from('izaque_creator')
       .upsert({
         id: 'main',
-        name: name || 'Edson Manoel',
+        name: name || 'Thiago Prata',
         title: title || 'Idealizador & Criador do ISAAC',
         bio: bio || '',
         story: story || '',

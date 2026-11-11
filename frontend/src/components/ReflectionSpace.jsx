@@ -36,6 +36,8 @@ import {
   ChevronRight,
   HelpCircle,
   Pin,
+  Download,
+  Share2,
 } from 'lucide-react';
 import {
   sendChatMessage,
@@ -45,6 +47,7 @@ import {
   fetchChatHistory,
   clearChatHistory,
   cleanTextForSpeech,
+  downloadVoiceAudioBlob,
   updateUserProfile,
   fetchUserSessions,
   createUserSession,
@@ -125,60 +128,110 @@ function ReflectingIndicator({ guideName = 'Isaac' }) {
 }
 
 /**
- * Botão de Ouvir Reflexão com Breathing UI e Audio Ducking
+ * Botão de Ouvir Reflexão + Baixar Áudio MP3 (WhatsApp) com Breathing UI e Audio Ducking
  */
-function VoiceReflectionButton({ text, messageId, isPlaying, isAudioLoading, onTogglePlay }) {
+function VoiceReflectionButton({
+  text,
+  messageId,
+  isPlaying,
+  isAudioLoading,
+  isDownloading,
+  isSharing,
+  canNativeShare,
+  onTogglePlay,
+  onDownloadAudio,
+  onShareAudio,
+}) {
   return (
-    <div className="mt-3 pt-3 border-t border-stone-100 dark:border-slate-700/40 flex items-center justify-between">
-      <motion.button
-        type="button"
-        onClick={onTogglePlay}
-        disabled={isAudioLoading}
-        animate={
-          isPlaying
-            ? {
-                scale: [1, 1.03, 1],
-                boxShadow: [
-                  '0 0 0px rgba(20, 184, 166, 0)',
-                  '0 0 14px rgba(20, 184, 166, 0.35)',
-                  '0 0 0px rgba(20, 184, 166, 0)',
-                ],
-              }
-            : {}
-        }
-        transition={
-          isPlaying
-            ? {
-                duration: 4,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }
-            : {}
-        }
-        className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition flex items-center gap-2 border ${
-          isPlaying
-            ? 'bg-teal-700 text-white border-teal-700 shadow-md'
-            : 'bg-stone-100 dark:bg-slate-750 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-slate-700 hover:border-teal-600 hover:text-teal-800 dark:hover:text-teal-300'
-        }`}
-      >
-        {isAudioLoading ? (
-          <>
-            <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
-            <span>Preparando voz calma...</span>
-          </>
-        ) : isPlaying ? (
-          <>
-            <Pause className="w-3.5 h-3.5 fill-current" />
-            <span>Pausar Voz</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-          </>
-        ) : (
-          <>
-            <Volume2 className="w-3.5 h-3.5" />
-            <span>Ouvir Reflexão</span>
-          </>
+    <div className="mt-3 pt-3 border-t border-stone-100 dark:border-slate-700/40 flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <motion.button
+          type="button"
+          onClick={onTogglePlay}
+          disabled={isAudioLoading}
+          animate={
+            isPlaying
+              ? {
+                  scale: [1, 1.03, 1],
+                  boxShadow: [
+                    '0 0 0px rgba(20, 184, 166, 0)',
+                    '0 0 14px rgba(20, 184, 166, 0.35)',
+                    '0 0 0px rgba(20, 184, 166, 0)',
+                  ],
+                }
+              : {}
+          }
+          transition={
+            isPlaying
+              ? {
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }
+              : {}
+          }
+          className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition flex items-center gap-2 border cursor-pointer ${
+            isPlaying
+              ? 'bg-teal-700 text-white border-teal-700 shadow-md'
+              : 'bg-stone-100 dark:bg-slate-750 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-slate-700 hover:border-teal-600 hover:text-teal-800 dark:hover:text-teal-300'
+          }`}
+        >
+          {isAudioLoading ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
+              <span>Preparando voz calma...</span>
+            </>
+          ) : isPlaying ? (
+            <>
+              <Pause className="w-3.5 h-3.5 fill-current" />
+              <span>Pausar Voz</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+            </>
+          ) : (
+            <>
+              <Volume2 className="w-3.5 h-3.5" />
+              <span>Ouvir Reflexão</span>
+            </>
+          )}
+        </motion.button>
+
+        <button
+          type="button"
+          onClick={onDownloadAudio}
+          disabled={isDownloading || isSharing}
+          title="Baixar áudio em MP3 para enviar pelo WhatsApp ou ouvir offline"
+          className="px-3 py-1.5 rounded-full text-xs font-medium transition flex items-center gap-1.5 border bg-stone-100 dark:bg-slate-750 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-slate-700 hover:border-teal-600 hover:text-teal-800 dark:hover:text-teal-300 disabled:opacity-60 cursor-pointer"
+        >
+          {isDownloading ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
+              <span>Gerando MP3...</span>
+            </>
+          ) : (
+            <>
+              <Download className="w-3.5 h-3.5" />
+              <span>Baixar Áudio</span>
+            </>
+          )}
+        </button>
+
+        {canNativeShare && (
+          <button
+            type="button"
+            onClick={onShareAudio}
+            disabled={isDownloading || isSharing}
+            title="Compartilhar áudio diretamente no WhatsApp"
+            className="px-2.5 py-1.5 rounded-full text-xs font-medium transition flex items-center gap-1.5 border bg-stone-100 dark:bg-slate-750 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-slate-700 hover:border-teal-600 hover:text-teal-800 dark:hover:text-teal-300 disabled:opacity-60 cursor-pointer"
+          >
+            {isSharing ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
+            ) : (
+              <Share2 className="w-3.5 h-3.5" />
+            )}
+            <span className="hidden sm:inline">Compartilhar</span>
+          </button>
         )}
-      </motion.button>
+      </div>
 
       {isPlaying && (
         <span className="text-[10px] text-teal-700 dark:text-teal-400 font-serif italic flex items-center gap-1">
@@ -262,6 +315,11 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
   const isSendingOrStreamingRef = useRef(false);
   const [activeVoiceMessageId, setActiveVoiceMessageId] = useState(null);
   const [loadingVoiceId, setLoadingVoiceId] = useState(null);
+  const [downloadingVoiceId, setDownloadingVoiceId] = useState(null);
+  const [sharingVoiceId, setSharingVoiceId] = useState(null);
+  const downloadedAudioMapRef = useRef(new Map());
+  const canNativeShareAudio =
+    typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   const audioElementRef = useRef(null);
   const [activeUserAudioId, setActiveUserAudioId] = useState(null);
   const userAudioPlayerRef = useRef(null);
@@ -979,6 +1037,95 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
     } catch (err) {
       console.warn('⚠️ Tentando fallback de voz local devido a:', err?.message);
       playNativeSpeech(text, messageId);
+    }
+  };
+
+  const getOrCreateDownloadableAudio = async (messageId, text) => {
+    const cached = downloadedAudioMapRef.current.get(messageId);
+    if (cached) return cached;
+    const settings = humanVoiceService.getSettings();
+    const res = await downloadVoiceAudioBlob({
+      text,
+      voiceName: settings.geminiVoice || 'Aoede',
+    });
+    downloadedAudioMapRef.current.set(messageId, res);
+    return res;
+  };
+
+  const triggerBrowserBlobDownload = (blob, fileName) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
+  };
+
+  const handleDownloadVoiceAudio = async (messageId, text) => {
+    if (downloadingVoiceId) return;
+    setDownloadingVoiceId(messageId);
+    try {
+      const { blob, ext } = await getOrCreateDownloadableAudio(messageId, text);
+      const stamp = formatBrazilTime().replace(':', 'h');
+      triggerBrowserBlobDownload(blob, `isaac-reflexao-${stamp}.${ext}`);
+    } catch (err) {
+      console.error('❌ Erro ao baixar áudio da reflexão:', err);
+      alert(err?.message || 'Não foi possível gerar o arquivo de áudio agora. Tente novamente em instantes.');
+    } finally {
+      setDownloadingVoiceId(null);
+    }
+  };
+
+  const handleShareVoiceAudio = async (messageId, text) => {
+    if (sharingVoiceId || downloadingVoiceId) return;
+    setSharingVoiceId(messageId);
+    try {
+      const { blob, ext } = await getOrCreateDownloadableAudio(messageId, text);
+      const stamp = formatBrazilTime().replace(':', 'h');
+      const fileName = `isaac-reflexao-${stamp}.${ext}`;
+      const mimeType = ext === 'wav' ? 'audio/wav' : 'audio/mpeg';
+      const audioFile = new File([blob], fileName, { type: mimeType });
+
+      if (navigator.canShare && navigator.canShare({ files: [audioFile] })) {
+        await navigator.share({
+          files: [audioFile],
+          title: 'Reflexão — Mentoria ISAAC',
+        });
+      } else {
+        triggerBrowserBlobDownload(blob, fileName);
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        console.warn('Aviso ao compartilhar áudio, iniciando download direto:', err?.message);
+        try {
+          const cached = downloadedAudioMapRef.current.get(messageId);
+          if (cached) {
+            const stamp = formatBrazilTime().replace(':', 'h');
+            triggerBrowserBlobDownload(cached.blob, `isaac-reflexao-${stamp}.${cached.ext}`);
+          }
+        } catch {}
+      }
+    } finally {
+      setSharingVoiceId(null);
+    }
+  };
+
+  const handleDownloadUserVoiceItem = async (item) => {
+    if (item.audioUrl) {
+      try {
+        const resp = await fetch(item.audioUrl);
+        const blob = await resp.blob();
+        const mime = String(blob.type || '').toLowerCase();
+        const ext = mime.includes('mp4') || mime.includes('m4a') ? 'm4a' : mime.includes('mpeg') ? 'mp3' : 'webm';
+        const stamp = (item.created_at ? formatBrazilTime(item.created_at) : formatBrazilTime()).replace(':', 'h');
+        triggerBrowserBlobDownload(blob, `meu-audio-isaac-${stamp}.${ext}`);
+        return;
+      } catch {}
+    }
+    if (item.content) {
+      await handleDownloadVoiceAudio(item.id, item.content);
     }
   };
 
@@ -2042,32 +2189,50 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
                               />
                             ))}
                           </div>
-                          <div className="flex items-center justify-between text-[10px] text-teal-100 font-mono mt-1">
-                            <span>{activeUserAudioId === item.id ? 'Reproduzindo seu áudio...' : 'Áudio gravado por você'}</span>
-                            <span>{item.durationSeconds ? `${item.durationSeconds}s` : ''}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                           <div className="flex items-center justify-between text-[10px] text-teal-100 font-mono mt-1">
+                             <span>{activeUserAudioId === item.id ? 'Reproduzindo seu áudio...' : 'Áudio gravado por você'}</span>
+                             <span>{item.durationSeconds ? `${item.durationSeconds}s` : ''}</span>
+                           </div>
+                         </div>
+                         <button
+                           type="button"
+                           onClick={() => handleDownloadUserVoiceItem(item)}
+                           disabled={downloadingVoiceId === item.id}
+                           title="Baixar áudio"
+                           className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center shrink-0 transition active:scale-95 cursor-pointer disabled:opacity-50"
+                         >
+                           {downloadingVoiceId === item.id ? (
+                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                           ) : (
+                             <Download className="w-3.5 h-3.5" />
+                           )}
+                         </button>
+                       </div>
+                     )}
 
-                    {/* Conteúdo textual da mensagem com Tipografia Fluida Linear clamp() */}
-                    <p className="text-fluid-chat font-serif whitespace-pre-wrap">
-                      {item.content}
-                      {isStreamingThis && (
-                        <span className="inline-block w-1.5 h-4 ml-1 align-middle rounded-full bg-teal-600 dark:bg-teal-400 animate-pulse" />
-                      )}
-                    </p>
+                     {/* Conteúdo textual da mensagem com Tipografia Fluida Linear clamp() */}
+                     <p className="text-fluid-chat font-serif whitespace-pre-wrap">
+                       {item.content}
+                       {isStreamingThis && (
+                         <span className="inline-block w-1.5 h-4 ml-1 align-middle rounded-full bg-teal-600 dark:bg-teal-400 animate-pulse" />
+                       )}
+                     </p>
 
-                    {/* Botão para Ouvir a Reflexão do Guia com Voz Humanizada (exibido ao concluir o streaming) */}
-                    {!isUser && !isStreamingThis && (
-                      <VoiceReflectionButton
-                        text={item.content}
-                        messageId={item.id}
-                        isPlaying={isVoicePlaying}
-                        isAudioLoading={isVoiceLoading}
-                        onTogglePlay={() => handleToggleVoicePlay(item.id, item.content)}
-                      />
-                    )}
+                     {/* Botão para Ouvir ou Baixar a Reflexão do Guia com Voz Humanizada (exibido ao concluir o streaming) */}
+                     {!isUser && !isStreamingThis && (
+                       <VoiceReflectionButton
+                         text={item.content}
+                         messageId={item.id}
+                         isPlaying={isVoicePlaying}
+                         isAudioLoading={isVoiceLoading}
+                         isDownloading={downloadingVoiceId === item.id}
+                         isSharing={sharingVoiceId === item.id}
+                         canNativeShare={canNativeShareAudio}
+                         onTogglePlay={() => handleToggleVoicePlay(item.id, item.content)}
+                         onDownloadAudio={() => handleDownloadVoiceAudio(item.id, item.content)}
+                         onShareAudio={() => handleShareVoiceAudio(item.id, item.content)}
+                       />
+                     )}
                   </div>
                 </BubbleWrapper>
               );

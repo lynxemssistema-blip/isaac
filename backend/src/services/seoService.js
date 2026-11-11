@@ -459,16 +459,19 @@ export async function getSeoPublicSnapshot() {
   }
 
   const snapshot = {
+    rawCreator: creator || null,
     creator: {
-      name: creator?.name || 'Edson Manoel',
+      name: creator?.name || 'Thiago Prata',
       title: creator?.title || 'Idealizador & Criador da Mentoria ISAAC',
       bio:
         creator?.bio ||
-        'Empreendedor, mentor de clareza e apaixonado pelo potencial humano. Concebeu o Isaac após anos observando como o excesso de ruído diário, a autocobrança desmedida e a solidão nas decisões travam vidas brilhantes.',
+        'Mentor em Projetos e Negócios e apaixonado pelo potencial humano. Concebeu o ISAAC construindo um espaço onde as pessoas não precisem carregar armaduras ou provar nada.',
+      story: creator?.story || '',
       quote: creator?.quote || '',
       imageUrl: creator?.image_url || '',
       instagram: creator?.social_instagram || '',
       linkedin: creator?.social_linkedin || '',
+      whatsapp: creator?.social_whatsapp || '',
       isVisible: creator?.is_visible !== false,
     },
     campaigns,
@@ -1298,13 +1301,25 @@ export async function serveSeoHtml(req, res, distPath) {
     process.env.VITE_SUPABASE_ANON_KEY ||
     ''
   ).trim();
-  const runtimeConfigScript =
+  const creatorPreloadTag =
+    pathname === '/' && snapshot.creator?.imageUrl && snapshot.creator?.isVisible !== false
+      ? `<link rel="preload" as="image" href="${escapeHtml(snapshot.creator.imageUrl)}" fetchpriority="high" />`
+      : '';
+  const creatorHydrationScript = snapshot.rawCreator
+    ? `<script>window.__ISAAC_CREATOR__=${safeJsonLd(snapshot.rawCreator)};</script>`
+    : '';
+  const runtimeConfigScript = [
     publicSupabaseUrl && publicSupabaseAnonKey
       ? `<script>window.__ISAAC_ENV__=${safeJsonLd({
           SUPABASE_URL: publicSupabaseUrl,
           SUPABASE_ANON_KEY: publicSupabaseAnonKey,
         })};</script>`
-      : '';
+      : '',
+    creatorHydrationScript,
+    creatorPreloadTag,
+  ]
+    .filter(Boolean)
+    .join('\n    ');
 
   const headBlock = `
     <title>${escapeHtml(pageTitle)}</title>

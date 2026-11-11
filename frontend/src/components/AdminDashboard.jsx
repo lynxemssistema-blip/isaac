@@ -110,12 +110,12 @@ export default function AdminDashboard({ currentUser }) {
 
   // Perfil do Idealizador do Isaac
   const [creatorData, setCreatorData] = useState({
-    name: 'Edson Manoel',
+    name: 'Thiago Prata',
     title: 'Idealizador & Criador do ISAAC',
     bio: '',
     story: '',
     quote: '',
-    image_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop',
+    image_url: '',
     social_instagram: '',
     social_linkedin: '',
     social_whatsapp: '',
@@ -1153,15 +1153,16 @@ export default function AdminDashboard({ currentUser }) {
                       placeholder="https://exemplo.com/sua-foto.jpg"
                       className="flex-1 px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-900 text-xs text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-teal-600"
                     />
-                    <div className="w-12 h-12 rounded-2xl overflow-hidden bg-stone-200 dark:bg-slate-700 shrink-0 border-2 border-teal-700/20 dark:border-teal-500/30 flex items-center justify-center shadow-sm">
-                      <img
-                        src={creatorData.image_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop'}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop';
-                        }}
-                      />
+                    <div className="w-12 h-12 rounded-2xl overflow-hidden bg-stone-200 dark:bg-slate-700 shrink-0 border-2 border-teal-700/20 dark:border-teal-500/30 flex items-center justify-center shadow-sm text-xs font-serif font-semibold text-teal-800 dark:text-teal-300">
+                      {creatorData.image_url ? (
+                        <img
+                          src={creatorData.image_url}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span>TP</span>
+                      )}
                     </div>
                   </div>
                   <p className="text-[10px] text-stone-400 mt-1">
@@ -1269,15 +1270,16 @@ export default function AdminDashboard({ currentUser }) {
               <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700 shadow-sm space-y-4">
                 <div className="flex flex-col items-center text-center">
                   <div className="relative mb-3">
-                    <div className="w-28 h-28 rounded-3xl overflow-hidden border-2 border-teal-700/30 dark:border-teal-500/30 shadow-md bg-stone-100 dark:bg-slate-700">
-                      <img
-                        src={creatorData.image_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop'}
-                        alt={creatorData.name || 'Idealizador'}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop';
-                        }}
-                      />
+                    <div className="w-28 h-28 rounded-3xl overflow-hidden border-2 border-teal-700/30 dark:border-teal-500/30 shadow-md bg-stone-100 dark:bg-slate-700 flex items-center justify-center text-xl font-serif font-semibold text-teal-800 dark:text-teal-300">
+                      {creatorData.image_url ? (
+                        <img
+                          src={creatorData.image_url}
+                          alt={creatorData.name || 'Idealizador'}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span>TP</span>
+                      )}
                     </div>
                     <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-teal-700 text-white shadow-sm whitespace-nowrap">
                       Idealizador
@@ -1285,7 +1287,7 @@ export default function AdminDashboard({ currentUser }) {
                   </div>
 
                   <h4 className="text-lg font-serif font-medium text-stone-900 dark:text-stone-50">
-                    {creatorData.name || 'Edson Manoel'}
+                    {creatorData.name || 'Thiago Prata'}
                   </h4>
                   <p className="text-[11px] text-teal-800 dark:text-teal-400 font-serif">
                     {creatorData.title || 'Idealizador & Criador do ISAAC'}

@@ -8,6 +8,7 @@ import {
   CheckCheck,
   X,
   Radio,
+  Download,
 } from 'lucide-react';
 import {
   fetchUserNotifications,
@@ -290,6 +291,30 @@ export default function UserNotificationsPopover({ user }) {
                                 />
                               </div>
                             </div>
+
+                            <button
+                              type="button"
+                              title="Baixar áudio do comunicado"
+                              onClick={async () => {
+                                try {
+                                  const resp = await fetch(n.audio_url);
+                                  const blob = await resp.blob();
+                                  const url = URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = `comunicado-isaac-${n.id || 'audio'}.mp3`;
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  document.body.removeChild(a);
+                                  setTimeout(() => URL.revokeObjectURL(url), 10000);
+                                } catch {
+                                  window.open(n.audio_url, '_blank', 'noopener,noreferrer');
+                                }
+                              }}
+                              className="w-8 h-8 rounded-full bg-stone-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/40 text-teal-700 dark:text-teal-300 flex items-center justify-center shrink-0 transition active:scale-95 cursor-pointer"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         )}
 

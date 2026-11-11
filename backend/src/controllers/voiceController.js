@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { spawn } from 'child_process';
 import { supabaseAdmin } from '../config/supabase.js';
 import { pcmBase64ToWavOffThread } from '../utils/workerPool.js';
 
@@ -555,6 +556,290 @@ export async function handleGenerateVoice(req, res) {
     console.error('❌ [Voice Error]:', error);
     res.status(500).json({
       error: 'Erro ao gerar voz humanizada da reflexão.',
+      details: error.message,
+    });
+  }
+}
+
+/**
+ * Extrai metadados e o payload PCM bruto de um buffer WAV RIFF padrão.
+ */
+function extractWavPcmPayload(wavBuf) {
+  if (!Buffer.isBuffer(wavBuf) || wavBuf.length < 44) {
+    return { sampleRate: 24000, numChannels: 1, bitsPerSample: 16, pcm: wavBuf };
+  }
+  const riff = wavBuf.toString('ascii', 0, 4);
+  const wave = wavBuf.toString('ascii', 8, 12);
+  if (riff !== 'RIFF' || wave !== 'WAVE') {
+    return { sampleRate: 24000, numChannels: 1, bitsPerSample: 16, pcm: wavBuf };
+  }
+
+  let sampleRate = 24000;
+  let numChannels = 1;
+  let bitsPerSample = 16;
+  let offset = 12;
+
+  while (offset + 8 <= wavBuf.length) {
+    const chunkId = wavBuf.toString('ascii', offset, offset + 4);
+    const chunkSize = wavBuf.readUInt32LE(offset + 4);
+    const dataStart = offset + 8;
+
+    if (chunkId === 'fmt ' && dataStart + 16 <= wavBuf.length) {
+      numChannels = wavBuf.readUInt16LE(dataStart + 2) || 1;
+      sampleRate = wavBuf.readUInt32LE(dataStart + 4) || 24000;
+      bitsPerSample = wavBuf.readUInt16LE(dataStart + 14) || 16;
+    } else if (chunkId === 'data') {
+      const safeEnd = Math.min(wavBuf.length, dataStart + chunkSize);
+      return {
+        sampleRate,
+        numChannels,
+        bitsPerSample,
+        pcm: wavBuf.subarray(dataStart, safeEnd),
+      };
+    }
+
+    offset = dataStart + chunkSize + (chunkSize % 2);
+  }
+
+  return {
+    sampleRate,
+    numChannels,
+    bitsPerSample,
+    pcm: wavBuf.subarray(44),
+  };
+}
+
+/**
+ * Converte buffer de áudio (WAV ou MP3 concatenado) para MP3 96kbps Mono via FFmpeg
+ * (formato ideal para encaminhamento e reprodução nativa em bolha no WhatsApp).
+ * Caso FFmpeg não esteja instalado no ambiente local, retorna o buffer original com segurança.
+ */
+function transcodeBufferToMp3(inputBuffer, inputFormat = 'wav') {
+  return new Promise((resolve) => {
+    let settled = false;
+    const fallback = () => {
+      if (settled) return;
+      settled = true;
+      resolve({
+        buffer: inputBuffer,
+        mimeType: inputFormat === 'mp3' ? 'audio/mpeg' : 'audio/wav',
+        ext: inputFormat === 'mp3' ? 'mp3' : 'wav',
+      });
+    };
+
+    let ff;
+    try {
+      ff = spawn('ffmpeg', [
+        '-hide_banner',
+        '-loglevel',
+        'error',
+        '-f',
+        inputFormat,
+        '-i',
+        'pipe:0',
+        '-vn',
+        '-ar',
+        '24000',
+        '-ac',
+        '1',
+        '-codec:a',
+        'libmp3lame',
+        '-b:a',
+        '96k',
+        '-f',
+        'mp3',
+        'pipe:1',
+      ]);
+    } catch {
+      return fallback();
+    }
+
+    const outChunks = [];
+    const safetyTimer = setTimeout(() => {
+      try {
+        ff.kill('SIGKILL');
+      } catch {}
+      fallback();
+    }, 30_000);
+
+    ff.stdout.on('data', (chunk) => outChunks.push(chunk));
+    ff.on('error', () => {
+      clearTimeout(safetyTimer);
+      fallback();
+    });
+    ff.on('close', (code) => {
+      clearTimeout(safetyTimer);
+      if (settled) return;
+      const outBuf = Buffer.concat(outChunks);
+      if (code === 0 && outBuf.length > 256) {
+        settled = true;
+        resolve({
+          buffer: outBuf,
+          mimeType: 'audio/mpeg',
+          ext: 'mp3',
+        });
+      } else {
+        fallback();
+      }
+    });
+
+    ff.stdin.on('error', () => {});
+    ff.stdin.end(inputBuffer);
+  });
+}
+
+/**
+ * Gera (ou recupera do cache) o arquivo de áudio completo e contínuo de uma reflexão
+ * pronto para download e compartilhamento via WhatsApp (.mp3).
+ * POST /api/voice/download
+ */
+export async function handleDownloadVoice(req, res) {
+  try {
+    const { text, voiceName } = req.body || {};
+
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      return res.status(400).json({ error: 'O texto para download do áudio é obrigatório.' });
+    }
+    if (text.length > 16000) {
+      return res.status(400).json({ error: 'O texto excede o limite máximo de 16.000 caracteres para exportação em áudio.' });
+    }
+
+    const cleanFull = cleanTextForSpeech(text);
+    if (!cleanFull) {
+      return res.status(400).json({ error: 'O texto não possui conteúdo falável para gerar áudio.' });
+    }
+
+    const edsonConfig = await getEdsonGlobalVoiceConfig();
+    const effectiveVoice = edsonConfig.geminiVoice || normalizeGeminiVoiceId(voiceName || 'Aoede');
+    const normalizedVoice = effectiveVoice.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const fullHash = crypto
+      .createHash('sha256')
+      .update(`full_dl_v1_${normalizedVoice}_${cleanFull}`)
+      .digest('hex')
+      .slice(0, 24);
+    const fullCacheKey = `full_${normalizedVoice}_${fullHash}`;
+    const storageFileName = `voice_full_${normalizedVoice}_${fullHash}.mp3`;
+
+    // 1. Cache rápido em RAM
+    const memHit = memoryAudioCache.get(fullCacheKey);
+    if (memHit) {
+      const buf = Buffer.from(memHit.base64, 'base64');
+      const ext = memHit.ext || (memHit.mimeType === 'audio/mpeg' ? 'mp3' : 'wav');
+      res.setHeader('Content-Type', memHit.mimeType);
+      res.setHeader('Content-Length', String(buf.length));
+      res.setHeader('Content-Disposition', `attachment; filename="mentoria-isaac-reflexao.${ext}"`);
+      return res.status(200).send(buf);
+    }
+
+    await ensureAudioCacheBucket();
+
+    // 2. Cache persistente no Supabase Storage
+    try {
+      const { data: blobData, error: dlErr } = await supabaseAdmin.storage
+        .from(BUCKET_NAME)
+        .download(storageFileName);
+      if (!dlErr && blobData) {
+        const arrBuf = await blobData.arrayBuffer();
+        const storedBuf = Buffer.from(arrBuf);
+        if (storedBuf.length > 256) {
+          setMemoryAudio(fullCacheKey, {
+            base64: storedBuf.toString('base64'),
+            mimeType: 'audio/mpeg',
+            ext: 'mp3',
+            voiceName: effectiveVoice,
+          });
+          res.setHeader('Content-Type', 'audio/mpeg');
+          res.setHeader('Content-Length', String(storedBuf.length));
+          res.setHeader('Content-Disposition', 'attachment; filename="mentoria-isaac-reflexao.mp3"');
+          return res.status(200).send(storedBuf);
+        }
+      }
+    } catch {}
+
+    // 3. Sintetiza/reaproveita os segmentos idênticos ao botão "Ouvir Reflexão" (concorrência controlada = 2)
+    const segments = splitTextIntoFastSpeechSegments(text);
+    if (segments.length === 0) {
+      return res.status(400).json({ error: 'Não foi possível segmentar o texto para áudio.' });
+    }
+
+    const segResults = new Array(segments.length);
+    let cursor = 0;
+    const workerCount = Math.min(2, segments.length);
+    await Promise.all(
+      Array.from({ length: workerCount }, async () => {
+        while (cursor < segments.length) {
+          const idx = cursor++;
+          segResults[idx] = await synthesizeOrGetCachedVoice(segments[idx], effectiveVoice, {
+            isPreview: false,
+          });
+        }
+      })
+    );
+
+    const allMp3 = segResults.every((r) => r.mimeType === 'audio/mpeg');
+    let stitchedBuffer;
+    let stitchedFormat;
+
+    if (allMp3) {
+      stitchedBuffer = Buffer.concat(segResults.map((r) => Buffer.from(r.audioBase64, 'base64')));
+      stitchedFormat = 'mp3';
+    } else {
+      const pcmParts = [];
+      let sampleRate = 24000;
+      let numChannels = 1;
+      let bitsPerSample = 16;
+
+      segResults.forEach((r, idx) => {
+        const rawBuf = Buffer.from(r.audioBase64, 'base64');
+        const parsed = extractWavPcmPayload(rawBuf);
+        if (idx === 0) {
+          sampleRate = parsed.sampleRate;
+          numChannels = parsed.numChannels;
+          bitsPerSample = parsed.bitsPerSample;
+        }
+        pcmParts.push(parsed.pcm);
+        if (idx < segResults.length - 1) {
+          const blockAlign = Math.max(2, (numChannels * bitsPerSample) / 8);
+          const pauseBytes =
+            Math.floor((sampleRate * blockAlign * 0.16) / blockAlign) * blockAlign;
+          pcmParts.push(Buffer.alloc(pauseBytes));
+        }
+      });
+
+      stitchedBuffer = pcmToWav(Buffer.concat(pcmParts), sampleRate, numChannels, bitsPerSample);
+      stitchedFormat = 'wav';
+    }
+
+    const transcoded = await transcodeBufferToMp3(stitchedBuffer, stitchedFormat);
+
+    setMemoryAudio(fullCacheKey, {
+      base64: transcoded.buffer.toString('base64'),
+      mimeType: transcoded.mimeType,
+      ext: transcoded.ext,
+      voiceName: effectiveVoice,
+    });
+
+    if (transcoded.ext === 'mp3') {
+      supabaseAdmin.storage
+        .from(BUCKET_NAME)
+        .upload(storageFileName, transcoded.buffer, {
+          contentType: 'audio/mpeg',
+          upsert: true,
+        })
+        .catch(() => {});
+    }
+
+    res.setHeader('Content-Type', transcoded.mimeType);
+    res.setHeader('Content-Length', String(transcoded.buffer.length));
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="mentoria-isaac-reflexao.${transcoded.ext}"`
+    );
+    return res.status(200).send(transcoded.buffer);
+  } catch (error) {
+    console.error('❌ [Voice Download Error]:', error);
+    return res.status(500).json({
+      error: 'Não foi possível preparar o arquivo de áudio para download.',
       details: error.message,
     });
   }

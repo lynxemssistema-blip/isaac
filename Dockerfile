@@ -31,8 +31,8 @@ RUN npm run build
 # =====================================================
 FROM node:22-alpine
 
-# Fuso horário oficial do Brasil (Brasília - America/Sao_Paulo) no container
-RUN apk add --no-cache tzdata
+# Fuso horário oficial do Brasil (Brasília - America/Sao_Paulo) + FFmpeg para exportação de áudio MP3 compatível com WhatsApp
+RUN apk add --no-cache tzdata ffmpeg
 
 WORKDIR /app
 

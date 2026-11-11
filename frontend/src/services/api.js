@@ -478,6 +478,37 @@ export async function fetchVoiceAudio({ text, messageId, voiceName = 'Aoede', is
 }
 
 /**
+ * Gera e baixa o arquivo completo de áudio da reflexão (MP3 pronto para WhatsApp)
+ * @param {{ text: string, voiceName?: string }} payload
+ * @returns {Promise<{ blob: Blob, ext: string }>}
+ */
+export async function downloadVoiceAudioBlob({ text, voiceName = 'Aoede' }) {
+  const cleanText = cleanTextForSpeech(text);
+  if (!cleanText) {
+    throw new Error('Texto sem conteúdo válido para gerar áudio.');
+  }
+
+  const res = await authFetch(`${BACKEND_URL}/api/voice/download`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, voiceName }),
+  });
+
+  if (!res.ok) {
+    const errPayload = await res.json().catch(() => ({}));
+    throw new Error(errPayload.error || `Falha ao baixar áudio (status ${res.status}).`);
+  }
+
+  const contentType = String(res.headers.get('content-type') || 'audio/mpeg').toLowerCase();
+  const ext = contentType.includes('wav') ? 'wav' : 'mp3';
+  const blob = await res.blob();
+  if (!blob || blob.size < 100) {
+    throw new Error('O arquivo de áudio retornado está vazio.');
+  }
+  return { blob, ext };
+}
+
+/**
  * Busca o histórico de conversas do usuário no Supabase (filtrado opcionalmente por sessão)
  * @param {string} userId ID único do usuário
  * @param {string} [sessionId] ID da sessão específica
@@ -889,13 +920,47 @@ export async function fetchUserSubscriptionStatus(userId) {
   return { profile, latestOrder: null };
 }
 
+const CREATOR_LOCAL_CACHE_KEY = 'isaac_creator_cache_v1';
+
+export function getInitialCachedCreator() {
+  if (typeof window === 'undefined') return null;
+  if (window.__ISAAC_CREATOR__ && typeof window.__ISAAC_CREATOR__ === 'object') {
+    try {
+      localStorage.setItem(CREATOR_LOCAL_CACHE_KEY, JSON.stringify(window.__ISAAC_CREATOR__));
+    } catch {}
+    return window.__ISAAC_CREATOR__;
+  }
+  try {
+    const raw = localStorage.getItem(CREATOR_LOCAL_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch {}
+  return null;
+}
+
+function persistCreatorCache(data) {
+  if (!data || typeof data !== 'object' || typeof window === 'undefined') return;
+  window.__ISAAC_CREATOR__ = data;
+  try {
+    localStorage.setItem(CREATOR_LOCAL_CACHE_KEY, JSON.stringify(data));
+  } catch {}
+}
+
 /**
  * Consulta dados públicos do Idealizador para a Landing Page
  */
 export async function fetchPublicCreator() {
   try {
     const res = await authFetch(`${BACKEND_URL}/api/creator`);
-    if (res.ok) return await res.json();
+    if (res.ok) {
+      const json = await res.json();
+      if (json && Object.keys(json).length > 0) {
+        persistCreatorCache(json);
+        return json;
+      }
+    }
   } catch (err) {
     console.warn('Aviso ao buscar dados do idealizador:', err);
   }
@@ -906,6 +971,9 @@ export async function fetchPublicCreator() {
     .eq('id', 'main')
     .maybeSingle();
 
+  if (data) {
+    persistCreatorCache(data);
+  }
   return data;
 }
 
@@ -933,6 +1001,9 @@ export async function updateAdminCreator(creatorData) {
     throw new Error(data.error || 'Falha ao salvar dados do idealizador.');
   }
 
+  if (data?.creator) {
+    persistCreatorCache(data.creator);
+  }
   return data;
 }
 

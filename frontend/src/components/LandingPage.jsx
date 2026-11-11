@@ -31,14 +31,20 @@ import {
   X,
   ExternalLink,
 } from 'lucide-react';
-import { fetchPublicCreator } from '../services/api';
+import { fetchPublicCreator, getInitialCachedCreator } from '../services/api';
 import { HOME_FAQS, CORE_TOPICS_PREVIEW } from '../data/seoContent';
 import LandingEbooksShowcase from './LandingEbooksShowcase';
 
 const OFFICIAL_ASAAS_MONTHLY_URL = 'https://www.asaas.com/000/c/ak85n2ouw2z6j6xv';
 
 export default function LandingPage({ onStartChat, onOpenPlans, user, systemSettings, onOpenTopic, onOpenEbookStore }) {
-  const [creator, setCreator] = useState(null);
+  const [creator, setCreator] = useState(() => getInitialCachedCreator());
+  const [creatorImgLoaded, setCreatorImgLoaded] = useState(false);
+  const [creatorImgError, setCreatorImgError] = useState(false);
+
+  useEffect(() => {
+    setCreatorImgError(false);
+  }, [creator?.image_url]);
 
   useEffect(() => {
     fetchPublicCreator()
@@ -112,19 +118,40 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
               {/* FOTO E IDENTIFICAÇÃO DO IDEALIZADOR */}
               <div className="flex flex-col items-center text-center shrink-0 w-full md:w-64">
                 <div className="relative group">
-                  <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-3xl sm:rounded-4xl overflow-hidden border-2 border-teal-700/30 dark:border-teal-500/30 shadow-md bg-stone-100 dark:bg-slate-700 flex items-center justify-center">
-                    <img
-                      src={creator?.image_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop'}
-                      alt={creator?.name || 'Idealizador da Mentoria ISAAC'}
-                      width="176"
-                      height="176"
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      onError={(e) => {
-                        e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop';
-                      }}
-                    />
+                  <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-3xl sm:rounded-4xl overflow-hidden border-2 border-teal-700/30 dark:border-teal-500/30 shadow-md bg-stone-200/80 dark:bg-slate-800 relative flex items-center justify-center">
+                    {(!creator?.image_url || !creatorImgLoaded || creatorImgError) && (
+                      <div
+                        className={`absolute inset-0 flex items-center justify-center bg-stone-200/90 dark:bg-slate-800/90 text-teal-800/70 dark:text-teal-300/70 font-serif text-3xl font-semibold select-none ${
+                          !creator?.image_url && !creator ? 'animate-pulse' : !creatorImgLoaded && !creatorImgError ? 'animate-pulse' : ''
+                        }`}
+                      >
+                        {creatorImgError || (creator && !creator.image_url)
+                          ? (creator?.name || 'TP')
+                              .split(' ')
+                              .filter(Boolean)
+                              .slice(0, 2)
+                              .map((p) => p[0])
+                              .join('')
+                              .toUpperCase()
+                          : ''}
+                      </div>
+                    )}
+                    {creator?.image_url && !creatorImgError && (
+                      <img
+                        src={creator.image_url}
+                        alt={creator?.name || 'Thiago Prata — Idealizador da Mentoria ISAAC'}
+                        width="176"
+                        height="176"
+                        loading="eager"
+                        fetchPriority="high"
+                        decoding="sync"
+                        onLoad={() => setCreatorImgLoaded(true)}
+                        onError={() => setCreatorImgError(true)}
+                        className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ${
+                          creatorImgLoaded ? 'opacity-100' : 'opacity-0'
+                        }`}
+                      />
+                    )}
                   </div>
                   <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-teal-700 text-white shadow-sm whitespace-nowrap">
                     Idealizador
@@ -132,7 +159,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                 </div>
 
                 <h3 className="text-xl font-serif font-medium text-stone-900 dark:text-stone-50 mt-5">
-                  {creator?.name || 'Edson Manoel'}
+                  {creator?.name || 'Thiago Prata'}
                 </h3>
                 <p className="text-xs text-teal-800 dark:text-teal-400 font-serif mt-0.5">
                   {creator?.title || 'Idealizador & Criador do ISAAC'}
@@ -189,9 +216,17 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                   Por que este refúgio de clareza foi concebido para você
                 </h2>
 
-                <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
-                  {creator?.bio || 'Empreendedor, mentor de clareza e apaixonado pelo potencial humano. Concebeu o Isaac após anos observando como o excesso de ruído diário, a autocobrança desmedida e a solidão nas decisões travam vidas brilhantes.'}
-                </p>
+                {creator ? (
+                  <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
+                    {creator.bio}
+                  </p>
+                ) : (
+                  <div className="space-y-2 animate-pulse py-1">
+                    <div className="h-3.5 w-full rounded-full bg-stone-200 dark:bg-slate-700/80" />
+                    <div className="h-3.5 w-11/12 rounded-full bg-stone-200 dark:bg-slate-700/80" />
+                    <div className="h-3.5 w-4/5 rounded-full bg-stone-200 dark:bg-slate-700/80" />
+                  </div>
+                )}
 
                 {creator?.story && (
                   <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif leading-relaxed pt-1">

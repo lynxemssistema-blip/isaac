@@ -12,7 +12,7 @@ import {
   updateUserSession,
   deleteUserSession,
 } from '../controllers/chatController.js';
-import { handleGenerateVoice } from '../controllers/voiceController.js';
+import { handleGenerateVoice, handleDownloadVoice } from '../controllers/voiceController.js';
 import { getProfile, updateProfile } from '../controllers/profileController.js';
 import { handleForgotPassword, handleTestEmail, handleResetPasswordWithToken } from '../controllers/authController.js';
 import {
@@ -56,8 +56,9 @@ router.post(
   handleAudioChatMessage
 );
 
-// Endpoint de Voz Humanizada (Text-To-Speech com Cache no Supabase Storage)
+// Endpoint de Voz Humanizada (Text-To-Speech com Cache no Supabase Storage + Download MP3 para WhatsApp)
 router.post('/voice', requireAuth, aiResourceLimiter, handleGenerateVoice);
+router.post('/voice/download', requireAuth, aiResourceLimiter, handleDownloadVoice);
 
 // Rotas de Autenticação e Suporte Oficial (Hostinger SMTP com Rate Limit estrito)
 router.post('/auth/forgot-password', authAndMailLimiter, handleForgotPassword);
