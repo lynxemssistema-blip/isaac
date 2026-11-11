@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../config/supabase.js';
-import { genAI, CHAT_MODEL, FALLBACK_CHAT_MODELS } from '../config/gemini.js';
+import { generateUnifiedText } from '../services/aiProviderService.js';
 
 /**
  * Controller do Módulo Incômodo Criativo
@@ -21,33 +21,18 @@ export const POSTURE_LEVELS = {
 };
 
 /**
- * Helper para executar chamadas ao Gemini com fallback seguro
+ * Helper para executar chamadas ao motor de IA ativo (Gemini Cloud / Híbrido / VPS LynxHub) com fallback seguro
  */
-async function callGeminiSafe(prompt, systemInstruction = '', maxRetries = 2) {
-  const modelsToTry = [CHAT_MODEL, ...FALLBACK_CHAT_MODELS.filter(m => m !== CHAT_MODEL)];
-  let lastError = null;
-
-  for (const modelName of modelsToTry) {
-    try {
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: systemInstruction || undefined,
-        generationConfig: {
-          temperature: 0.6,
-          maxOutputTokens: 2048,
-        },
-      });
-
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-      if (text && text.trim()) return text.trim();
-    } catch (err) {
-      console.warn(`⚠️ [Creative Trouble AI] Falha com modelo ${modelName}:`, err.message);
-      lastError = err;
-    }
-  }
-
-  throw lastError || new Error('Não foi possível obter resposta dos modelos de IA.');
+async function callGeminiSafe(prompt, systemInstruction = '') {
+  const { text } = await generateUnifiedText({
+    systemInstruction: systemInstruction || '',
+    message: prompt,
+    temperature: 0.6,
+    maxOutputTokens: 2048,
+    purpose: 'chat',
+  });
+  if (text && text.trim()) return text.trim();
+  throw new Error('Não foi possível obter resposta dos modelos de IA.');
 }
 
 /**

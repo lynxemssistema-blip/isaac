@@ -60,6 +60,9 @@ import {
   updateSystemSettings,
   acceptTermsOfUse,
   getTermsAcceptanceLogs,
+  getAdminAiEngineStatus,
+  updateAdminAiEngineConfig,
+  testAdminAiEngine,
 } from '../controllers/adminController.js';
 import { requireAuth, requireAdmin, requireSelfOrAdmin } from '../middlewares/authMiddleware.js';
 
@@ -152,6 +155,11 @@ router.get('/admin/project/notifications-log', getProjectNotificationsLog);
 router.get('/system/settings', getSystemSettings);
 router.get('/admin/system/settings', getSystemSettings);
 router.put('/admin/system/settings', updateSystemSettings);
+
+// Chave Mestra do Motor de IA: Gemini Cloud ⇄ Híbrido ⇄ VPS LynxHub (Superadmin)
+router.get('/admin/ai-engine/status', getAdminAiEngineStatus);
+router.put('/admin/ai-engine/config', updateAdminAiEngineConfig);
+router.post('/admin/ai-engine/test', testAdminAiEngine);
 
 // Termos e Condições de Uso (Clickwrap com validade jurídica)
 router.post('/terms/accept', requireSelfOrAdmin('userId'), acceptTermsOfUse);

@@ -20,6 +20,12 @@ import {
   normalizeGeminiVoiceId,
   prewarmDemoVoice,
 } from './voiceController.js';
+import {
+  saveActiveAiConfig,
+  getAiEngineLiveStatus,
+  runAiEngineLiveTest,
+  normalizeAiConfig,
+} from '../services/aiProviderService.js';
 
 /**
  * Controller Administrativo (Exclusivo para Super Admin / Master)
@@ -2358,8 +2364,26 @@ export async function updateSystemSettings(req, res) {
         .maybeSingle();
 
       if (edsonRow?.id) {
+        const hasAiFields =
+          req.body?.ai_provider_mode !== undefined ||
+          req.body?.vps_model !== undefined ||
+          req.body?.vps_auto_fallback_gemini !== undefined ||
+          req.body?.gemini_auto_fallback_vps !== undefined ||
+          req.body?.vps_max_concurrent !== undefined;
+
+        const nextAiConfig = hasAiFields
+          ? {
+              ...normalizeAiConfig({
+                ...(edsonRow.preferences?.system_ai_config || {}),
+                ...req.body,
+              }),
+              updated_at: new Date().toISOString(),
+            }
+          : edsonRow.preferences?.system_ai_config;
+
         const mergedEdsonPrefs = {
           ...(edsonRow.preferences || {}),
+          ...(nextAiConfig ? { system_ai_config: nextAiConfig } : {}),
           guide_name: payload.default_guide_name,
           voice_engine: payload.default_voice_engine,
           gemini_voice: payload.default_gemini_voice,
@@ -2377,6 +2401,7 @@ export async function updateSystemSettings(req, res) {
           .from('izaque_profiles')
           .update({ preferences: mergedEdsonPrefs, updated_at: new Date().toISOString() })
           .eq('id', edsonRow.id);
+        invalidateCache('system:ai_config');
       }
     } catch (syncErr) {
       console.warn('⚠️ Aviso ao sincronizar system_settings com perfil do Edson:', syncErr.message);
@@ -2478,6 +2503,53 @@ export async function getTermsAcceptanceLogs(req, res) {
   } catch (error) {
     console.error('❌ Erro ao listar logs de termos:', error);
     res.status(500).json({ error: 'Erro ao buscar logs de termos: ' + error.message });
+  }
+}
+
+/**
+ * 62. Consultar status ao vivo e configuração da Chave Mestra de IA (Gemini Cloud ⇄ VPS LynxHub)
+ * GET /api/admin/ai-engine/status
+ */
+export async function getAdminAiEngineStatus(req, res) {
+  try {
+    const status = await getAiEngineLiveStatus();
+    res.status(200).json(status);
+  } catch (error) {
+    console.error('❌ Erro ao consultar status do motor de IA:', error);
+    res.status(500).json({ error: 'Erro ao consultar status do motor de IA: ' + error.message });
+  }
+}
+
+/**
+ * 63. Alternar imediatamente o motor de IA (Gemini Cloud / Híbrido / VPS LynxHub) sem reiniciar
+ * PUT /api/admin/ai-engine/config
+ */
+export async function updateAdminAiEngineConfig(req, res) {
+  try {
+    const saved = await saveActiveAiConfig(req.body || {});
+    res.status(200).json({
+      success: true,
+      config: saved,
+      message: 'Motor de IA atualizado em tempo real com zero perda de dados ou funcionalidades!',
+    });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar motor de IA:', error);
+    res.status(500).json({ error: 'Erro ao atualizar motor de IA: ' + error.message });
+  }
+}
+
+/**
+ * 64. Testar em tempo real a resposta e latência do Gemini Cloud ou da VPS LynxHub
+ * POST /api/admin/ai-engine/test
+ */
+export async function testAdminAiEngine(req, res) {
+  try {
+    const { targetProvider = 'vps', vpsModelOverride = '' } = req.body || {};
+    const result = await runAiEngineLiveTest({ targetProvider, vpsModelOverride });
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('❌ Erro no teste ao vivo do motor de IA:', error);
+    res.status(500).json({ error: error.message || 'Falha ao testar motor de IA.' });
   }
 }
 

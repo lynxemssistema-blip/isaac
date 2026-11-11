@@ -45,4 +45,4 @@ if (!rawEmbeddingModel || rawEmbeddingModel.includes('text-embedding-004') || ra
 }
 
 export const EMBEDDING_MODEL = rawEmbeddingModel;
-export const FALLBACK_CHAT_MODELS = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'];
+export const FALLBACK_CHAT_MODELS = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-flash-latest'];

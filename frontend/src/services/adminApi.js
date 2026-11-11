@@ -1681,5 +1681,44 @@ export async function fetchSuperAdminEbooksApi() {
   return data;
 }
 
+// ============================================================================
+// CHAVE MESTRA DO MOTOR DE IA (GEMINI CLOUD ⇄ HÍBRIDO ⇄ VPS LYNXHUB)
+// ============================================================================
+
+export async function fetchAdminAiEngineStatusApi() {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/ai-engine/status`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao consultar status do motor de IA.');
+  }
+  return data;
+}
+
+export async function updateAdminAiEngineConfigApi(payload) {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/ai-engine/config`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao alternar o motor de IA.');
+  }
+  return data;
+}
+
+export async function testAdminAiEngineApi({ targetProvider = 'vps', vpsModelOverride = '' } = {}) {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/ai-engine/test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetProvider, vpsModelOverride }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao testar motor de IA.');
+  }
+  return data;
+}
+
 
 

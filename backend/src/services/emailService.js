@@ -5,6 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { genAI, CHAT_MODEL, FALLBACK_CHAT_MODELS } from '../config/gemini.js';
 import { supabaseAdmin } from '../config/supabase.js';
+import { generateUnifiedText } from './aiProviderService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envCandidates = [
@@ -381,32 +382,17 @@ RETORNE EXCLUSIVAMENTE UM OBJETO JSON VÁLIDO (sem fences markdown extras fora d
   "callToActionText": "Texto do botão principal (ex: Visitar Meu Refúgio Agora)"
 }`;
 
-  let parsed = null;
-  let lastErr = null;
-
-  for (const modelCandidate of modelsToTry) {
-    try {
-      const model = genAI.getGenerativeModel({
-        model: modelCandidate,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 8192,
-        },
-      });
-
-      const res = await model.generateContent(prompt);
-      let text = res.response.text().trim();
-      text = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
-      parsed = JSON.parse(text);
-      if (parsed?.subject && parsed?.bodyHtml) break;
-    } catch (e) {
-      lastErr = e;
-      console.warn(`⚠️ [Broadcast Draft] Falha com modelo ${modelCandidate}:`, e.message);
-    }
-  }
+  const { text: draftJson } = await generateUnifiedText({
+    message: prompt,
+    temperature: 0.7,
+    maxOutputTokens: 4096,
+    jsonMode: true,
+    purpose: 'background',
+  });
+  const parsed = JSON.parse(draftJson);
 
   if (!parsed || !parsed.subject) {
-    throw lastErr || new Error('Não foi possível gerar a redação com a IA.');
+    throw new Error('Não foi possível gerar a redação com a IA.');
   }
 
   return parsed;

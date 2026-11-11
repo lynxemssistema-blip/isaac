@@ -28,6 +28,9 @@ import {
   Send,
   Play,
   Square,
+  Server,
+  Cloud,
+  Zap,
 } from 'lucide-react';
 import {
   fetchSystemSettings,
@@ -35,6 +38,9 @@ import {
   fetchAdminEvolutionStatus,
   toggleAdminEvolutionApi,
   sendAdminEvolutionTest,
+  fetchAdminAiEngineStatusApi,
+  updateAdminAiEngineConfigApi,
+  testAdminAiEngineApi,
 } from '../services/adminApi';
 import { THEMES } from '../services/themeService';
 import {
@@ -55,6 +61,19 @@ export default function AdminSystemSettings({ currentUser }) {
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const audioPreviewRef = React.useRef(null);
+
+  // Estado da Chave Mestra do Motor de IA (Gemini Cloud ⇄ Híbrido ⇄ VPS LynxHub)
+  const [aiStatus, setAiStatus] = useState(null);
+  const [aiConfig, setAiConfig] = useState({
+    ai_provider_mode: 'gemini',
+    vps_model: 'qwen2.5-coder:1.5b',
+    vps_auto_fallback_gemini: true,
+    gemini_auto_fallback_vps: true,
+    vps_max_concurrent: 12,
+  });
+  const [switchingAi, setSwitchingAi] = useState(false);
+  const [testingProvider, setTestingProvider] = useState('');
+  const [aiTestResult, setAiTestResult] = useState(null);
 
   // Estado dos parâmetros avançados do sistema
   const [settings, setSettings] = useState({
@@ -91,11 +110,18 @@ export default function AdminSystemSettings({ currentUser }) {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      const [data, evo] = await Promise.all([
+      const [data, evo, aiLive] = await Promise.all([
         fetchSystemSettings(),
         fetchAdminEvolutionStatus().catch(() => null),
+        fetchAdminAiEngineStatusApi().catch(() => null),
       ]);
       if (evo) setEvoStatus(evo);
+      if (aiLive) {
+        setAiStatus(aiLive);
+        if (aiLive.config) {
+          setAiConfig((prev) => ({ ...prev, ...aiLive.config }));
+        }
+      }
       if (data) {
         setSettings((prev) => ({
           ...prev,
@@ -134,6 +160,56 @@ export default function AdminSystemSettings({ currentUser }) {
     setTimeout(() => {
       setFeedback({ type: '', message: '' });
     }, 4500);
+  };
+
+  // Alterna imediatamente o Motor de IA (Gemini / Híbrido / VPS LynxHub) com 1 clique
+  const handleApplyAiConfigImmediate = async (partialUpdate, customSuccessMsg = '') => {
+    const previous = { ...aiConfig };
+    const optimistic = { ...aiConfig, ...partialUpdate };
+    setAiConfig(optimistic);
+    try {
+      setSwitchingAi(true);
+      const res = await updateAdminAiEngineConfigApi(optimistic);
+      if (res?.config) {
+        setAiConfig(res.config);
+      }
+      const freshStatus = await fetchAdminAiEngineStatusApi().catch(() => null);
+      if (freshStatus) setAiStatus(freshStatus);
+      const modeLabel =
+        optimistic.ai_provider_mode === 'vps'
+          ? `VPS LynxHub (${optimistic.vps_model})`
+          : optimistic.ai_provider_mode === 'hybrid'
+          ? 'Modo Híbrido Inteligente (Chat Gemini + Background VPS R$ 0,00)'
+          : 'Google Gemini Cloud';
+      showFeedback('success', customSuccessMsg || `Chave Mestra alterada em tempo real para: ${modeLabel}!`);
+    } catch (err) {
+      setAiConfig(previous);
+      showFeedback('error', err.message || 'Falha ao alternar o Motor de IA.');
+    } finally {
+      setSwitchingAi(false);
+    }
+  };
+
+  const handleRunLiveAiTest = async (targetProvider) => {
+    try {
+      setTestingProvider(targetProvider);
+      setAiTestResult(null);
+      const result = await testAdminAiEngineApi({
+        targetProvider,
+        vpsModelOverride: aiConfig.vps_model,
+      });
+      setAiTestResult(result);
+      const freshStatus = await fetchAdminAiEngineStatusApi().catch(() => null);
+      if (freshStatus) setAiStatus(freshStatus);
+    } catch (err) {
+      setAiTestResult({
+        ok: false,
+        providerUsed: targetProvider,
+        error: err.message || 'Erro ao testar provedor de IA.',
+      });
+    } finally {
+      setTestingProvider('');
+    }
   };
 
   // Ativa ou desativa imediatamente a função da Evolution API (WhatsApp) no banco
@@ -222,6 +298,7 @@ export default function AdminSystemSettings({ currentUser }) {
       setSaving(true);
       const payloadToSave = {
         ...settings,
+        ...aiConfig,
         default_gemini_voice: normalizeGeminiVoiceId(settings.default_gemini_voice),
         default_prefer_browser: settings.default_voice_engine === 'browser',
         updated_by: currentUser?.id || 'superadmin',
@@ -351,6 +428,267 @@ export default function AdminSystemSettings({ currentUser }) {
           <span>{feedback.message}</span>
         </div>
       )}
+
+      {/* =================================================================== */}
+      {/* CHAVE MESTRA DO MOTOR DE IA: GEMINI CLOUD ⇄ HÍBRIDO ⇄ VPS LYNXHUB    */}
+      {/* =================================================================== */}
+      <div className="p-6 rounded-3xl bg-white dark:bg-slate-800/95 border-2 border-indigo-500/35 dark:border-indigo-500/40 shadow-md space-y-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-4 border-b border-stone-200 dark:border-slate-700">
+          <div className="flex items-start gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+              <Cpu className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base font-serif font-semibold text-stone-900 dark:text-stone-100">
+                  Chave Mestra do Motor de IA (Gemini Cloud ⇄ VPS LynxHub)
+                </h3>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
+                  Troca Instantânea • Zero Perda
+                </span>
+              </div>
+              <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                Alterne com 1 clique entre Google Gemini e sua VPS própria (`lynxhub.lynxems.com.br`) preservando 100% dos livros RAG, memórias evolutivas, microfone e voz neural.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className={`px-3 py-1 rounded-full text-[11px] font-semibold border flex items-center gap-1.5 ${
+                aiStatus?.vpsOnline
+                  ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                  : 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800'
+              }`}
+            >
+              <Server className="w-3.5 h-3.5" />
+              {aiStatus?.vpsOnline
+                ? `VPS LynxHub Online (${aiStatus.vpsLatencyMs ?? 0}ms)`
+                : 'VPS LynxHub Verificando'}
+            </span>
+            {aiStatus?.loadedModels?.length > 0 && (
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800">
+                RAM Aquecida: {aiStatus.loadedModels.join(', ')}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* SELETOR DE 3 MODOS COM 1 CLIQUE */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          {[
+            {
+              id: 'gemini',
+              title: 'Google Gemini Cloud',
+              badge: 'Ultra Escala (< 1s)',
+              icon: Cloud,
+              desc: 'Chat ao vivo, streaming e memórias no Gemini Cloud, com estepe automático na VPS caso a nuvem oscile.',
+              activeRing: 'border-sky-500 bg-sky-500/10 ring-2 ring-sky-500/30',
+            },
+            {
+              id: 'hybrid',
+              title: 'Híbrido Inteligente',
+              badge: 'Recomendado • Economia 50%',
+              icon: Zap,
+              desc: 'Chat ao vivo ultrarrápido no Gemini + 100% das extrações de memória, resumos e rascunhos na VPS a R$ 0,00.',
+              activeRing: 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/30',
+            },
+            {
+              id: 'vps',
+              title: 'VPS LynxHub (Local)',
+              badge: 'Custo R$ 0,00 / Token',
+              icon: Server,
+              desc: 'Chat, streaming, mentoria, memórias e resumos direto na sua VPS KVM 8, mantendo RAG dos livros e voz neural intactos.',
+              activeRing: 'border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/30',
+            },
+          ].map((opt) => {
+            const IconComp = opt.icon;
+            const isSelected = aiConfig.ai_provider_mode === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                disabled={switchingAi}
+                onClick={() => handleApplyAiConfigImmediate({ ai_provider_mode: opt.id })}
+                className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between gap-2 cursor-pointer disabled:opacity-60 ${
+                  isSelected
+                    ? opt.activeRing
+                    : 'bg-stone-50 dark:bg-slate-900/60 border-stone-200 dark:border-slate-700 hover:border-indigo-400'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <IconComp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      <span className="text-xs font-bold text-stone-900 dark:text-stone-100">
+                        {opt.title}
+                      </span>
+                    </div>
+                    {isSelected && (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-emerald-600 text-white">
+                        Ativo
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400 leading-relaxed">
+                    {opt.desc}
+                  </p>
+                </div>
+                <span className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 mt-1">
+                  {opt.badge}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* CONTROLES DO MODELO DA VPS + CONTINGÊNCIA AUTOMÁTICA + BOTÕES DE TESTE */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-2">
+          <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-900/60 border border-stone-200/80 dark:border-slate-700">
+            <label className="block text-xs font-semibold text-stone-800 dark:text-stone-200 mb-1.5">
+              Modelo Ativo na VPS (Ollama KVM 8)
+            </label>
+            <select
+              value={aiConfig.vps_model}
+              disabled={switchingAi}
+              onChange={(e) =>
+                handleApplyAiConfigImmediate(
+                  { vps_model: e.target.value },
+                  `Modelo da VPS alterado para ${e.target.value}!`
+                )
+              }
+              className="w-full text-xs p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-stone-200 dark:border-slate-700 text-stone-800 dark:text-stone-100 focus:outline-none focus:border-indigo-500"
+            >
+              {(aiStatus?.installedModels?.length > 0
+                ? aiStatus.installedModels
+                : [
+                    { name: 'qwen2.5-coder:1.5b', parameterSize: '1.5B', sizeMb: 940 },
+                    { name: 'llama3.2:3b', parameterSize: '3.2B', sizeMb: 1925 },
+                    { name: 'deepseek-r1:7b', parameterSize: '7.6B', sizeMb: 4466 },
+                    { name: 'llama3:latest', parameterSize: '8.0B', sizeMb: 4445 },
+                    { name: 'codegemma:latest', parameterSize: '9B', sizeMb: 4780 },
+                    { name: 'gemma2:latest', parameterSize: '9.2B', sizeMb: 5191 },
+                  ]
+              ).map((m) => (
+                <option key={m.name} value={m.name}>
+                  {m.name} {m.parameterSize ? `(${m.parameterSize})` : ''}{' '}
+                  {m.name === 'qwen2.5-coder:1.5b' ? '— Ultra Leve / Recomendado RAM' : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-stone-500 dark:text-stone-400 mt-1.5">
+              `qwen2.5-coder:1.5b` usa ~1,2 GB de RAM e entrega 4 respostas simultâneas sem risco de memória.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-900/60 border border-stone-200/80 dark:border-slate-700 space-y-2.5 flex flex-col justify-center">
+            <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <div>
+                <span className="text-xs font-semibold text-stone-800 dark:text-stone-100 block">
+                  Transbordo VPS → Gemini (Anti-Fila)
+                </span>
+                <span className="text-[10px] text-stone-500 dark:text-stone-400 block">
+                  Se houver pico acima de {aiConfig.vps_max_concurrent} perguntas simultâneas na VPS, o excedente vai ao Gemini sem fila.
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={Boolean(aiConfig.vps_auto_fallback_gemini)}
+                onChange={(e) =>
+                  handleApplyAiConfigImmediate({ vps_auto_fallback_gemini: e.target.checked })
+                }
+                className="w-4 h-4 accent-indigo-600 rounded cursor-pointer shrink-0"
+              />
+            </label>
+
+            <label className="flex items-center justify-between gap-3 cursor-pointer pt-2 border-t border-stone-200 dark:border-slate-700">
+              <div>
+                <span className="text-xs font-semibold text-stone-800 dark:text-stone-100 block">
+                  Contingência Gemini → VPS
+                </span>
+                <span className="text-[10px] text-stone-500 dark:text-stone-400 block">
+                  Se a API do Gemini atingir cota (429) ou oscilar, a VPS assume na hora.
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={Boolean(aiConfig.gemini_auto_fallback_vps)}
+                onChange={(e) =>
+                  handleApplyAiConfigImmediate({ gemini_auto_fallback_vps: e.target.checked })
+                }
+                className="w-4 h-4 accent-indigo-600 rounded cursor-pointer shrink-0"
+              />
+            </label>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-900/60 border border-stone-200/80 dark:border-slate-700 flex flex-col justify-between gap-2.5">
+            <div>
+              <span className="text-xs font-semibold text-stone-800 dark:text-stone-100 block">
+                Diagnóstico &amp; Teste em Tempo Real
+              </span>
+              <span className="text-[10px] text-stone-500 dark:text-stone-400 block mt-0.5">
+                Dispare um teste real em qualquer um dos dois motores para comparar latência e resposta agora.
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={Boolean(testingProvider)}
+                onClick={() => handleRunLiveAiTest('vps')}
+                className="flex-1 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                {testingProvider === 'vps' ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Server className="w-3.5 h-3.5" />
+                )}
+                <span>Testar VPS</span>
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(testingProvider)}
+                onClick={() => handleRunLiveAiTest('gemini')}
+                className="flex-1 px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                {testingProvider === 'gemini' ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Cloud className="w-3.5 h-3.5" />
+                )}
+                <span>Testar Gemini</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {aiTestResult && (
+          <div
+            className={`p-3.5 rounded-2xl border text-xs ${
+              aiTestResult.ok
+                ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                : 'bg-rose-50/80 dark:bg-rose-950/30 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200'
+            }`}
+          >
+            {aiTestResult.ok ? (
+              <div className="space-y-1">
+                <div className="font-bold flex items-center gap-2 flex-wrap">
+                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>
+                    Resposta {aiTestResult.providerUsed === 'vps' ? 'VPS LynxHub' : 'Google Gemini'} (
+                    {aiTestResult.modelUsed}) em {aiTestResult.latencyMs} ms:
+                  </span>
+                </div>
+                <p className="pl-6 italic text-[11px] opacity-90">&ldquo;{aiTestResult.reply}&rdquo;</p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 font-semibold">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>Falha no teste ({aiTestResult.providerUsed}): {aiTestResult.error}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* GRID PRINCIPAL DE CONFIGURAÇÕES */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { genAI, CHAT_MODEL, FALLBACK_CHAT_MODELS } from '../config/gemini.js';
 import { supabaseAdmin } from '../config/supabase.js';
 import { invalidateCache } from '../utils/memoryCache.js';
+import { generateUnifiedText } from './aiProviderService.js';
 import { processChatMessageCore, ensureUserSession } from '../controllers/chatController.js';
 import { transcribeAudioWithGemini } from './audioService.js';
 import { cleanTextForSpeech, generateGeminiAudio, getEdsonGlobalVoiceConfig } from '../controllers/voiceController.js';
@@ -468,30 +469,13 @@ Retorne EXCLUSIVAMENTE um JSON válido neste formato:
 }
 `;
 
-  const modelsToTry = [CHAT_MODEL, ...(FALLBACK_CHAT_MODELS || [])].filter(
-    (m, idx, arr) => Boolean(m) && arr.indexOf(m) === idx
-  );
-
-  let rawJson = '';
-  for (const modelName of modelsToTry) {
-    try {
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.88,
-        },
-      });
-      const result = await model.generateContent(prompt);
-      rawJson = result.response.text();
-      if (rawJson) break;
-    } catch (err) {
-      if (err?.message && (err.message.includes('404') || err.message.includes('not found'))) {
-        continue;
-      }
-      throw err;
-    }
-  }
+  const { text: rawJson } = await generateUnifiedText({
+    message: prompt,
+    temperature: 0.88,
+    maxOutputTokens: 900,
+    jsonMode: true,
+    purpose: 'background',
+  });
 
   let parsed = null;
   try {

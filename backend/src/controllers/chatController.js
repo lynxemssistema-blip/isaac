@@ -7,6 +7,7 @@ import { transcribeAudioWithGemini } from '../services/audioService.js';
 import { getCached, setCached, getOrFetchCached } from '../utils/memoryCache.js';
 import { prewarmReplyFirstSegment } from './voiceController.js';
 import { isMultipartRequest, parseMultipartAudioRequest } from '../utils/multipartAudioParser.js';
+import { generateUnifiedText, streamUnifiedChat } from '../services/aiProviderService.js';
 
 const ACTIVE_AGENTS_CACHE_KEY = 'agents:active_full';
 const ACTIVE_AGENTS_TTL_MS = 60_000;
@@ -301,25 +302,18 @@ export function maybeSummarizeSessionAsync(sessionId, userId) {
         sess?.summary ? `RESUMO ANTERIOR:\n${sess.summary}\n\n` : ''
       }NOVOS TRECHOS:\n${transcript}`;
 
-      const modelsToTry = [CHAT_MODEL, ...(FALLBACK_CHAT_MODELS || [])].filter((m, i, a) => Boolean(m) && a.indexOf(m) === i);
-      for (const mName of modelsToTry) {
-        try {
-          const model = genAI.getGenerativeModel({
-            model: mName,
-            generationConfig: { temperature: 0.2, maxOutputTokens: 320 },
-          });
-          const res = await model.generateContent(sumPrompt);
-          const summaryText = res.response.text()?.trim();
-          if (summaryText) {
-            await supabaseAdmin
-              .from('izaque_chat_sessions')
-              .update({ summary: summaryText, summary_msg_count: total })
-              .eq('id', sessionId);
-            break;
-          }
-        } catch {
-          continue;
-        }
+      const { text: summaryText } = await generateUnifiedText({
+        message: sumPrompt,
+        temperature: 0.2,
+        maxOutputTokens: 320,
+        purpose: 'background',
+      });
+
+      if (summaryText && summaryText.trim()) {
+        await supabaseAdmin
+          .from('izaque_chat_sessions')
+          .update({ summary: summaryText.trim(), summary_msg_count: total })
+          .eq('id', sessionId);
       }
     } catch (err) {
       console.warn('⚠️ [Session Summarizer] Aviso:', err.message);
@@ -519,47 +513,15 @@ export async function processChatMessageCore(params) {
     recentHistory,
   } = await prepareChatContext(params);
 
-  const modelsToTry = [CHAT_MODEL, ...(FALLBACK_CHAT_MODELS || [])].filter((m, i, arr) => arr.indexOf(m) === i);
-  let replyText = '';
-  let lastChatError = null;
-
-  for (const modelCandidate of modelsToTry) {
-    try {
-      const maxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS) || 8192;
-      const model = genAI.getGenerativeModel({
-        model: modelCandidate,
-        systemInstruction: fullSystemInstruction,
-        generationConfig: {
-          temperature: Number(selectedAgent.temperature) || 0.7,
-          maxOutputTokens,
-        },
-      });
-
-      const chatSession = model.startChat({ history: recentHistory });
-      const result = await chatSession.sendMessage(message);
-      replyText = result.response.text();
-
-      const candidate = result.response.candidates?.[0];
-      if (candidate?.finishReason === 'MAX_TOKENS') {
-        console.warn(`⚠️ [Gemini Chat] Aviso: Resposta atingiu o limite de tokens (${maxOutputTokens}).`);
-      }
-
-      lastChatError = null;
-      if (replyText) break;
-    } catch (err) {
-      lastChatError = err;
-      const isNotFound = err.message && (err.message.includes('404') || err.message.includes('not found'));
-      if (isNotFound) {
-        console.warn(`⚠️ [Gemini Chat Fallback] Modelo "${modelCandidate}" retornou 404. Tentando próximo modelo...`);
-        continue;
-      }
-      throw err;
-    }
-  }
-
-  if (lastChatError) {
-    throw lastChatError;
-  }
+  const maxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS) || 8192;
+  const { text: replyText } = await generateUnifiedText({
+    systemInstruction: fullSystemInstruction,
+    recentHistory,
+    message,
+    temperature: Number(selectedAgent.temperature) || 0.7,
+    maxOutputTokens,
+    purpose: 'chat',
+  });
 
   extractAndSaveMemoryAsync(userId, message, replyText);
 
@@ -878,56 +840,25 @@ export async function handleChatMessageStream(req, res) {
     };
     sendSse(metaPayload);
 
-    const modelsToTry = [CHAT_MODEL, ...(FALLBACK_CHAT_MODELS || [])].filter((m, i, arr) => arr.indexOf(m) === i);
-    let fullReply = '';
     let firstSentencePrewarmed = false;
-    let streamError = null;
+    const maxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS) || 8192;
 
-    for (const modelCandidate of modelsToTry) {
-      try {
-        const maxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS) || 8192;
-        const model = genAI.getGenerativeModel({
-          model: modelCandidate,
-          systemInstruction: fullSystemInstruction,
-          generationConfig: {
-            temperature: Number(selectedAgent.temperature) || 0.7,
-            maxOutputTokens,
-          },
-        });
-
-        const chatSession = model.startChat({ history: recentHistory });
-        const streamRes = await chatSession.sendMessageStream(message);
-
-        for await (const chunk of streamRes.stream) {
-          if (clientClosed) break;
-          const delta = chunk.text();
-          if (delta) {
-            fullReply += delta;
-            sendSse({ type: 'delta', text: delta });
-
-            // Assim que a 1ª frase completa nasce (>= 60 chars + pontuação), já dispara o TTS em paralelo!
-            if (!firstSentencePrewarmed && fullReply.length >= 65 && /[.!?\n]/.test(fullReply.slice(45))) {
-              firstSentencePrewarmed = true;
-              prewarmReplyFirstSegment(fullReply).catch(() => {});
-            }
-          }
+    const { fullReply, providerUsed, modelUsed } = await streamUnifiedChat({
+      systemInstruction: fullSystemInstruction,
+      recentHistory,
+      message,
+      temperature: Number(selectedAgent.temperature) || 0.7,
+      maxOutputTokens,
+      isClientClosed: () => clientClosed,
+      onDelta: (delta, fullSoFar) => {
+        sendSse({ type: 'delta', text: delta });
+        // Assim que a 1ª frase completa nasce (>= 60 chars + pontuação), já dispara o TTS em paralelo!
+        if (!firstSentencePrewarmed && fullSoFar.length >= 65 && /[.!?\n]/.test(fullSoFar.slice(45))) {
+          firstSentencePrewarmed = true;
+          prewarmReplyFirstSegment(fullSoFar).catch(() => {});
         }
-
-        streamError = null;
-        if (fullReply) break;
-      } catch (err) {
-        streamError = err;
-        const isNotFound = err.message && (err.message.includes('404') || err.message.includes('not found'));
-        if (isNotFound && !fullReply) {
-          continue;
-        }
-        throw err;
-      }
-    }
-
-    if (streamError && !fullReply) {
-      throw streamError;
-    }
+      },
+    });
 
     if (fullReply.trim()) {
       try {
@@ -952,6 +883,8 @@ export async function handleChatMessageStream(req, res) {
       ...metaPayload,
       type: 'done',
       reply: fullReply,
+      aiProvider: providerUsed,
+      aiModel: modelUsed,
       timestamp: new Date().toISOString(),
     });
     res.end();
