@@ -84,50 +84,23 @@ export default function Navbar({
 
         {/* NAVEGAÇÃO CENTRAL TERAPÊUTICA */}
         <nav className="hidden md:flex items-center space-x-1 bg-stone-200/50 dark:bg-slate-800/50 p-1.5 rounded-2xl border border-stone-300/50 dark:border-slate-700/50">
-          <button
-            onClick={() => setActiveTab('landing')}
-            className={`px-4 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 ${
-              activeTab === 'landing'
-                ? 'bg-white dark:bg-slate-700 text-stone-900 dark:text-white shadow-sm'
-                : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
-            }`}
-          >
-            <Home className="w-3.5 h-3.5" />
-            Início
-          </button>
-
-          <button
-            onClick={() => {
-              if (!user) {
-                onOpenAuth();
-              } else {
-                setActiveTab('chat');
-              }
-            }}
-            className={`px-4 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 ${
-              activeTab === 'chat'
-                ? 'bg-teal-700 dark:bg-teal-600 text-white shadow-sm'
-                : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
-            }`}
-          >
-            <Wind className="w-3.5 h-3.5" />
-            Sessão com {guideName}
-            {!user && (
-              <span className="text-[9px] bg-stone-300 dark:bg-slate-700 text-stone-700 dark:text-stone-300 px-1.5 py-0.2 rounded">
-                Entrar
-              </span>
-            )}
-          </button>
-
-          {(isSuperAdmin || systemSettings?.show_creative_troubles !== false) && (
+          {user && activeTab !== 'landing' && (
             <button
-              onClick={() => {
-                if (!user) {
-                  onOpenAuth();
-                } else {
-                  setActiveTab('incomodo');
-                }
-              }}
+              onClick={() => setActiveTab('chat')}
+              className={`px-4 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 ${
+                activeTab === 'chat'
+                  ? 'bg-teal-700 dark:bg-teal-600 text-white shadow-sm'
+                  : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
+              }`}
+            >
+              <Wind className="w-3.5 h-3.5" />
+              Sessão com {guideName}
+            </button>
+          )}
+
+          {user && (isSuperAdmin || systemSettings?.show_creative_troubles !== false) && (
+            <button
+              onClick={() => setActiveTab('incomodo')}
               className={`px-4 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 ${
                 activeTab === 'incomodo'
                   ? 'bg-teal-700 dark:bg-teal-600 text-white shadow-sm'
@@ -136,22 +109,6 @@ export default function Navbar({
             >
               <Compass className="w-3.5 h-3.5" />
               Incômodo Criativo
-            </button>
-          )}
-
-          {onOpenEbookStore && (
-            <button
-              type="button"
-              onClick={() => onOpenEbookStore('')}
-              className="px-3.5 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 text-amber-900 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/50 cursor-pointer"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-              <span>eBooks</span>
-              {itemCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px] font-bold">
-                  {cart.isBundle ? '8' : itemCount}
-                </span>
-              )}
             </button>
           )}
 
@@ -291,39 +248,8 @@ export default function Navbar({
             </div>
           )}
 
-          {/* BOTÃO DE PREFERÊNCIAS / CONFIGURAÇÕES (NO MOBILE JÁ ESTÁ NA BARRA INFERIOR) */}
-          {onOpenSettings && (isSuperAdmin || (systemSettings ? systemSettings.show_settings_button !== false : true)) && (
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              title="Configurações e Preferências Sensoriais (Voz Neural Gemini, Áudio Ambiente e Ajustes)"
-              className="hidden sm:flex p-2 text-stone-500 hover:text-teal-700 dark:hover:text-teal-400 hover:bg-stone-200/60 dark:hover:bg-slate-800 rounded-xl transition items-center gap-1.5 cursor-pointer"
-            >
-              <Sliders className="w-4 h-4" />
-              <span className="hidden lg:inline text-xs font-serif">Configurações</span>
-            </button>
-          )}
-
           {user ? (
             <div className="flex items-center space-x-1 sm:space-x-2">
-              {/* Botão Planos & WhatsApp (R$ 0 Grátis vs R$ 14,99 Pago) */}
-              {onOpenWhatsappPlan && (
-                <button
-                  type="button"
-                  onClick={onOpenWhatsappPlan}
-                  title="Ver Planos (Gratuito e Pago R$ 14,99/mês via Asaas)"
-                  className={`hidden sm:flex px-2.5 py-1.5 rounded-xl text-xs font-medium transition items-center gap-1.5 cursor-pointer border ${
-                    profile?.role === 'master' ||
-                    (profile?.plan_id === 'whatsapp_monthly' && profile?.plan_status === 'active')
-                      ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100'
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs'
-                  }`}
-                >
-                  <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span className="hidden sm:inline">Planos</span>
-                </button>
-              )}
-
               {/* Notificações & Mural de Comunicados (Áudio e Texto) */}
               <UserNotificationsPopover user={user} />
 
@@ -387,26 +313,6 @@ export default function Navbar({
             </div>
           ) : (
             <div className="flex items-center gap-1.5 sm:gap-2">
-              {onOpenEbookStore && (
-                <button
-                  type="button"
-                  onClick={() => onOpenEbookStore('')}
-                  className="md:hidden px-2.5 py-2 rounded-2xl bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-300 text-xs font-medium transition flex items-center gap-1 shrink-0 cursor-pointer"
-                >
-                  <BookOpen className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
-                  <span>eBooks</span>
-                </button>
-              )}
-              {onOpenWhatsappPlan && (
-                <button
-                  type="button"
-                  onClick={onOpenWhatsappPlan}
-                  className="px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-medium transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                >
-                  <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span>Planos</span>
-                </button>
-              )}
               <button
                 onClick={onOpenAuth}
                 className="px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white text-xs font-medium tracking-wide shadow-md shadow-teal-700/20 transition flex items-center gap-1.5 shrink-0"

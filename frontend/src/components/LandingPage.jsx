@@ -58,16 +58,6 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
 
       {/* 1. SEÇÃO PRINCIPAL (HERO) */}
       <section className="relative pt-12 sm:pt-28 pb-14 sm:pb-20 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center">
-        {/* Pílula de Acolhimento */}
-        <div className="inline-flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 px-3.5 sm:px-4 py-1.5 rounded-full bg-stone-200/70 dark:bg-slate-800/80 border border-stone-300/60 dark:border-slate-700/80 text-[11px] sm:text-xs text-stone-600 dark:text-stone-300 mb-6 sm:mb-8 backdrop-blur-md shadow-sm">
-          <span className="flex h-2 w-2 rounded-full bg-teal-600 dark:bg-teal-400 animate-pulse" />
-          <span className="font-serif font-medium text-teal-800 dark:text-teal-300">
-            Mentoria de Clareza & Desenvolvimento
-          </span>
-          <span className="hidden sm:inline">•</span>
-          <span className="hidden sm:inline">Um espaço seguro para desacelerar e se reencontrar</span>
-        </div>
-
         {/* Título Principal Humanizado */}
         <h1 className="text-3xl sm:text-5xl lg:text-7xl font-serif font-normal tracking-tight text-stone-900 dark:text-stone-50 max-w-4xl mx-auto leading-[1.18]">
           Desate os nós da sua mente.{' '}
@@ -108,49 +98,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
             <BookOpen className="w-4 h-4 text-amber-600 dark:text-amber-400" />
             <span>eBooks por Thiago Prata</span>
           </a>
-
-          <a
-            href="#quem-e-isaac"
-            className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 border border-stone-200 dark:border-slate-700 text-stone-700 dark:text-stone-200 font-medium text-sm transition flex items-center justify-center gap-2 shadow-sm active:scale-95"
-          >
-            <span>Conhecer a Mentoria</span>
-            <ChevronRight className="w-4 h-4 text-stone-400" />
-          </a>
         </div>
-
-        {/* CARTÕES DE SENSAÇÕES TERAPÊUTICAS */}
-        {systemSettings?.show_landing_sensations !== false && (
-          <div className="mt-12 sm:mt-16 grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4 max-w-3xl mx-auto pt-8 sm:pt-10 border-t border-stone-200 dark:border-slate-800">
-            <a
-              href="#sigilo-seguranca"
-              className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white/60 dark:bg-slate-800/40 border border-stone-200/80 dark:border-slate-700/60 shadow-sm hover:border-teal-600/50 hover:bg-white/90 dark:hover:bg-slate-800/70 transition group block text-left"
-            >
-              <span className="block text-xl sm:text-2xl font-serif font-medium text-teal-800 dark:text-teal-400 group-hover:translate-x-0.5 transition-transform">100%</span>
-              <span className="text-[11px] sm:text-xs text-stone-500 dark:text-stone-400 mt-0.5 sm:mt-1 block">Sigilo & Proteção</span>
-            </a>
-            <a
-              href="#sigilo-seguranca"
-              className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white/60 dark:bg-slate-800/40 border border-stone-200/80 dark:border-slate-700/60 shadow-sm hover:border-stone-400 dark:hover:border-slate-500 hover:bg-white/90 dark:hover:bg-slate-800/70 transition group block text-left"
-            >
-              <span className="block text-xl sm:text-2xl font-serif font-medium text-stone-800 dark:text-stone-200 group-hover:translate-x-0.5 transition-transform">Sem Pressa</span>
-              <span className="text-[11px] sm:text-xs text-stone-500 dark:text-stone-400 mt-0.5 sm:mt-1 block">No seu próprio tempo</span>
-            </a>
-            <a
-              href="#sigilo-seguranca"
-              className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white/60 dark:bg-slate-800/40 border border-stone-200/80 dark:border-slate-700/60 shadow-sm hover:border-amber-500/50 hover:bg-white/90 dark:hover:bg-slate-800/70 transition group block text-left"
-            >
-              <span className="block text-xl sm:text-2xl font-serif font-medium text-amber-700 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform">Memória</span>
-              <span className="text-[11px] sm:text-xs text-stone-500 dark:text-stone-400 mt-0.5 sm:mt-1 block">Evolução contínua</span>
-            </a>
-            <a
-              href="#sigilo-seguranca"
-              className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white/60 dark:bg-slate-800/40 border border-stone-200/80 dark:border-slate-700/60 shadow-sm hover:border-teal-600/50 hover:bg-white/90 dark:hover:bg-slate-800/70 transition group block text-left"
-            >
-              <span className="block text-xl sm:text-2xl font-serif font-medium text-stone-800 dark:text-stone-200 group-hover:translate-x-0.5 transition-transform">Zero</span>
-              <span className="text-[11px] sm:text-xs text-stone-500 dark:text-stone-400 mt-0.5 sm:mt-1 block">Julgamento ou crítica</span>
-            </a>
-          </div>
-        )}
       </section>
 
       {/* 1.1 APRESENTAÇÃO DO IDEALIZADOR DO ISAAC (NO INÍCIO DA PÁGINA) */}
