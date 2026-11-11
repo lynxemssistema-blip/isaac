@@ -48,6 +48,7 @@ import {
 } from '../services/adminApi';
 import { fetchPublicEbooksStore } from '../services/ebookStoreApi';
 import { formatContactPhoneBadge } from '../utils/phoneUtils';
+import { formatBrazilTime, formatBrazilDateTime } from '../utils/dateTimeBrazil';
 
 const FALLBACK_DEFAULT_UNREGISTERED_TEMPLATE = `{saudacao}, {nome}! Tudo bem com você?
 
@@ -545,9 +546,7 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
         });
         setOverview(data);
         setLastSyncedAt(
-          new Date().toLocaleTimeString('pt-BR', {
-            hour: '2-digit',
-            minute: '2-digit',
+          formatBrazilTime(new Date(), {
             second: '2-digit',
           })
         );
@@ -2109,9 +2108,7 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
         } else if (reason === 'hourly_cap_reached') {
           nextStatusBadge = `🛡️ Pausa de proteção horária (${auto.sentLast1h || 0}/10 na última 1h) — o servidor retomará sozinho na próxima janela.`;
         } else if ((reason === 'coffee_break' || reason === 'cadence_wait') && activeCamp.nextDispatchAtIso) {
-          const nextTimeStr = new Date(activeCamp.nextDispatchAtIso).toLocaleTimeString('pt-BR', {
-            hour: '2-digit',
-            minute: '2-digit',
+          const nextTimeStr = formatBrazilTime(activeCamp.nextDispatchAtIso, {
             second: '2-digit',
           });
           nextStatusBadge =
@@ -2204,10 +2201,7 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
                       {auto.lastSentRecipient && auto.lastSentAt && (
                         <span className="text-stone-500 dark:text-stone-400 ml-1.5">
                           • Último entregue: <strong>{auto.lastSentRecipient}</strong> às{' '}
-                          {new Date(auto.lastSentAt).toLocaleTimeString('pt-BR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                          {formatBrazilTime(auto.lastSentAt)}
                         </span>
                       )}
                     </p>
@@ -2894,7 +2888,7 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
                         </span>
                       </div>
                       <p className="text-[11px] text-stone-500 mt-1">
-                        Programado: {new Date(camp.scheduled_at).toLocaleString('pt-BR')} • Alvos: {camp.total_targets} • Enviados: <strong>{camp.sent_count}</strong> • Bloqueados Trava: {camp.blocked_safety_count} • Falhas: {camp.failed_count}
+                        Programado: {formatBrazilDateTime(camp.scheduled_at)} • Alvos: {camp.total_targets} • Enviados: <strong>{camp.sent_count}</strong> • Bloqueados Trava: {camp.blocked_safety_count} • Falhas: {camp.failed_count}
                       </p>
                     </div>
 
@@ -2994,8 +2988,8 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
                         )}
                         <p className="text-[10px] text-stone-400">
                           {log.sent_at
-                            ? `Enviado em ${new Date(log.sent_at).toLocaleString('pt-BR')} • Cadência humana: ${log.anti_ban_delay_ms || 0}ms • ID: ${log.evolution_message_id || '-'}`
-                            : `Agendado para ${log.scheduled_for ? new Date(log.scheduled_for).toLocaleString('pt-BR') : '-'}`}
+                            ? `Enviado em ${formatBrazilDateTime(log.sent_at)} • Cadência humana: ${log.anti_ban_delay_ms || 0}ms • ID: ${log.evolution_message_id || '-'}`
+                            : `Agendado para ${log.scheduled_for ? formatBrazilDateTime(log.scheduled_for) : '-'}`}
                         </p>
                       </div>
                     </div>

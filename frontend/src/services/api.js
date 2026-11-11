@@ -5,6 +5,7 @@
 
 import { supabase } from './supabase';
 import { authFetch, BACKEND_URL } from './authFetch';
+import { formatBrazilTime, formatBrazilDate, sortChatMessagesChronologically } from '../utils/dateTimeBrazil';
 
 /**
  * Remove formatações Markdown, emojis, URLs e caracteres que quebram o fluxo da fala.
@@ -495,7 +496,13 @@ export async function fetchChatHistory(userId, sessionId = null) {
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
         const data = await response.json();
-        if (Array.isArray(data)) return data;
+        if (Array.isArray(data)) {
+          return sortChatMessagesChronologically(data).map((msg) => ({
+            ...msg,
+            timestamp: msg.created_at ? formatBrazilTime(msg.created_at) : msg.timestamp,
+            date: msg.created_at ? formatBrazilDate(msg.created_at) : msg.date,
+          }));
+        }
       }
     }
   } catch {}
@@ -513,23 +520,25 @@ export async function fetchChatHistory(userId, sessionId = null) {
     }
 
     const { data: messages, error } = await query
-      .order('created_at', { ascending: true })
-      .limit(100);
+      .order('created_at', { ascending: false })
+      .limit(200);
 
     if (error) {
       console.warn('⚠️ Erro ao consultar Supabase izaque_messages:', error.message);
       return [];
     }
 
-    return (messages || []).map((msg) => ({
+    const orderedMessages = sortChatMessagesChronologically(messages || []);
+
+    return orderedMessages.map((msg) => ({
       id: msg.id,
       sessionId: msg.session_id,
       role: msg.role === 'assistant' ? 'guide' : 'user',
       content: msg.content,
       isVoice: Boolean(msg.is_audio),
       durationSeconds: msg.audio_duration_seconds || 0,
-      timestamp: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      date: new Date(msg.created_at).toLocaleDateString('pt-BR'),
+      timestamp: formatBrazilTime(msg.created_at),
+      date: formatBrazilDate(msg.created_at),
       created_at: msg.created_at,
       agentUsed: msg.izaque_agents ? {
         id: msg.izaque_agents.id,

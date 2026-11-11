@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { sendChatMessage, checkBackendHealth, fetchActiveAgents } from '../services/api';
 import { Bot, Sparkles, ChevronDown, Check } from 'lucide-react';
+import { formatBrazilTime } from '../utils/dateTimeBrazil';
 
 export default function ChatHermes({ userId }) {
   const [messages, setMessages] = useState([
@@ -10,7 +11,7 @@ export default function ChatHermes({ userId }) {
       content: 'Olá. Eu sou o ISAAC. Estou aqui para mapear seus padrões, quebrar bloqueios emocionais e alinhar sua mentalidade com a sua melhor versão. Sobre o que você tem hesitado ultimamente?',
       memoriesUsed: [],
       agentUsed: { name: 'ISAAC - Arquiteto da Mentalidade', slug: 'isaac-master', type: 'mindset' },
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: formatBrazilTime(),
     },
   ]);
   const [inputText, setInputText] = useState('');
@@ -64,7 +65,7 @@ export default function ChatHermes({ userId }) {
       id: Date.now().toString(),
       role: 'user',
       content: cleanText,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: formatBrazilTime(),
     };
 
     setMessages((prev) => [...prev, userMessageObj]);
@@ -90,7 +91,7 @@ export default function ChatHermes({ userId }) {
         content: response.reply,
         agentUsed: response.agentUsed,
         memoriesUsed: response.memoriesUsed || [],
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: formatBrazilTime(),
       };
 
       setMessages((prev) => [...prev, assistantMessageObj]);
@@ -102,7 +103,7 @@ export default function ChatHermes({ userId }) {
           role: 'assistant',
           content: '⚠️ Não foi possível se conectar ao orquestrador no momento. Verifique a conexão com o servidor.',
           isError: true,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timestamp: formatBrazilTime(),
         },
       ]);
     } finally {

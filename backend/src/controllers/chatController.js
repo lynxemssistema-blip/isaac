@@ -8,6 +8,7 @@ import { getCached, setCached, getOrFetchCached } from '../utils/memoryCache.js'
 import { prewarmReplyFirstSegment } from './voiceController.js';
 import { isMultipartRequest, parseMultipartAudioRequest } from '../utils/multipartAudioParser.js';
 import { generateUnifiedText, streamUnifiedChat } from '../services/aiProviderService.js';
+import { formatBrazilTime, formatBrazilDate, sortChatMessagesChronologically } from '../utils/dateTimeBrazil.js';
 
 const ACTIVE_AGENTS_CACHE_KEY = 'agents:active_full';
 const ACTIVE_AGENTS_TTL_MS = 60_000;
@@ -686,6 +687,9 @@ export async function handleChatMessage(req, res) {
       return res.status(400).json({ error: 'O campo "userId" é obrigatório.' });
     }
 
+    const userSentAtMs = Date.now();
+    const userSentAtIso = new Date(userSentAtMs).toISOString();
+
     const { reply, selectedAgent, relevantMemories, relevantKnowledge, guidedConversation } = await processChatMessageCore({
       message,
       userId,
@@ -695,6 +699,8 @@ export async function handleChatMessage(req, res) {
       guidedConversationId,
     });
 
+    const assistantSentAtIso = new Date(Math.max(Date.now(), userSentAtMs + 50)).toISOString();
+
     // Garante que a mensagem pertença a uma sessão de conversa do usuário
     let resolvedSessionId = null;
     try {
@@ -703,15 +709,23 @@ export async function handleChatMessage(req, res) {
       console.warn('⚠️ Aviso ao resolver sessão do chat:', sErr.message);
     }
 
-    // Salva mensagem de texto no banco de dados (histórico em izaque_messages)
+    // Salva mensagem de texto no banco de dados (histórico em izaque_messages com instante exato de envio e resposta)
+    let userMessageId = null;
+    let assistantMessageId = null;
     try {
       const isAgentUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selectedAgent?.id || '');
       const safeAgentId = isAgentUuid ? selectedAgent.id : null;
 
-      await supabaseAdmin.from('izaque_messages').insert([
-        { user_id: userId, agent_id: safeAgentId, session_id: resolvedSessionId, role: 'user', content: message, is_audio: false },
-        { user_id: userId, agent_id: safeAgentId, session_id: resolvedSessionId, role: 'assistant', content: reply, is_audio: false },
-      ]);
+      const { data: insertedRows } = await supabaseAdmin
+        .from('izaque_messages')
+        .insert([
+          { user_id: userId, agent_id: safeAgentId, session_id: resolvedSessionId, role: 'user', content: message, is_audio: false, created_at: userSentAtIso },
+          { user_id: userId, agent_id: safeAgentId, session_id: resolvedSessionId, role: 'assistant', content: reply, is_audio: false, created_at: assistantSentAtIso },
+        ])
+        .select('id, role');
+
+      userMessageId = insertedRows?.find((r) => r.role === 'user')?.id || null;
+      assistantMessageId = insertedRows?.find((r) => r.role === 'assistant')?.id || null;
     } catch (dbErr) {
       console.warn('⚠️ Aviso ao persistir mensagens em izaque_messages:', dbErr.message);
     }
@@ -719,6 +733,12 @@ export async function handleChatMessage(req, res) {
     res.status(200).json({
       reply,
       sessionId: resolvedSessionId,
+      userMessageId,
+      assistantMessageId,
+      userCreatedAt: userSentAtIso,
+      assistantCreatedAt: assistantSentAtIso,
+      userTimestamp: formatBrazilTime(userSentAtIso),
+      assistantTimestamp: formatBrazilTime(assistantSentAtIso),
       agentUsed: {
         id: selectedAgent.id,
         name: selectedAgent.name,
@@ -771,6 +791,9 @@ export async function handleChatMessageStream(req, res) {
   if (!userId) {
     return res.status(400).json({ error: 'O campo "userId" é obrigatório.' });
   }
+
+  const userSentAtMs = Date.now();
+  const userSentAtIso = new Date(userSentAtMs).toISOString();
 
   res.status(200);
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
@@ -860,14 +883,24 @@ export async function handleChatMessageStream(req, res) {
       },
     });
 
+    const assistantSentAtIso = new Date(Math.max(Date.now(), userSentAtMs + 50)).toISOString();
+    let userMessageId = null;
+    let assistantMessageId = null;
+
     if (fullReply.trim()) {
       try {
         const isAgentUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selectedAgent?.id || '');
         const safeAgentId = isAgentUuid ? selectedAgent.id : null;
-        await supabaseAdmin.from('izaque_messages').insert([
-          { user_id: userId, agent_id: safeAgentId, session_id: resolvedSessionId, role: 'user', content: message, is_audio: false },
-          { user_id: userId, agent_id: safeAgentId, session_id: resolvedSessionId, role: 'assistant', content: fullReply, is_audio: false },
-        ]);
+        const { data: insertedRows } = await supabaseAdmin
+          .from('izaque_messages')
+          .insert([
+            { user_id: userId, agent_id: safeAgentId, session_id: resolvedSessionId, role: 'user', content: message, is_audio: false, created_at: userSentAtIso },
+            { user_id: userId, agent_id: safeAgentId, session_id: resolvedSessionId, role: 'assistant', content: fullReply, is_audio: false, created_at: assistantSentAtIso },
+          ])
+          .select('id, role');
+
+        userMessageId = insertedRows?.find((r) => r.role === 'user')?.id || null;
+        assistantMessageId = insertedRows?.find((r) => r.role === 'assistant')?.id || null;
       } catch (dbErr) {
         console.warn('⚠️ Aviso ao persistir mensagens do stream em izaque_messages:', dbErr.message);
       }
@@ -883,6 +916,12 @@ export async function handleChatMessageStream(req, res) {
       ...metaPayload,
       type: 'done',
       reply: fullReply,
+      userMessageId,
+      assistantMessageId,
+      userCreatedAt: userSentAtIso,
+      assistantCreatedAt: assistantSentAtIso,
+      userTimestamp: formatBrazilTime(userSentAtIso),
+      assistantTimestamp: formatBrazilTime(assistantSentAtIso),
       aiProvider: providerUsed,
       aiModel: modelUsed,
       timestamp: new Date().toISOString(),
@@ -957,6 +996,9 @@ export async function handleAudioChatMessage(req, res) {
       return res.status(400).json({ error: 'O campo "userId" é obrigatório.' });
     }
 
+    const userSentAtMs = Date.now();
+    const userSentAtIso = new Date(userSentAtMs).toISOString();
+
     console.log(`\n🎙️ [Audio Chat] Novo áudio recebido do usuário [${userId}] (${mimeType}). Iniciando transcrição...`);
 
     // 1. OUVIR E TRANSCREVER O ÁUDIO COM O GEMINI
@@ -994,26 +1036,35 @@ export async function handleAudioChatMessage(req, res) {
     // 3. SALVAR A TRANSCRIÇÃO E A RESPOSTA NO BANCO DE DADOS
     const isAgentUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selectedAgent?.id || '');
     const safeAgentId = isAgentUuid ? selectedAgent.id : null;
+    const assistantSentAtIso = new Date(Math.max(Date.now(), userSentAtMs + 50)).toISOString();
 
-    const { error: msgErr } = await supabaseAdmin.from('izaque_messages').insert([
-      {
-        user_id: userId,
-        agent_id: safeAgentId,
-        session_id: resolvedSessionId,
-        role: 'user',
-        content: transcription,
-        is_audio: true,
-        audio_duration_seconds: durationSeconds || null,
-      },
-      {
-        user_id: userId,
-        agent_id: safeAgentId,
-        session_id: resolvedSessionId,
-        role: 'assistant',
-        content: reply,
-        is_audio: false,
-      },
-    ]);
+    const { data: insertedAudioRows, error: msgErr } = await supabaseAdmin
+      .from('izaque_messages')
+      .insert([
+        {
+          user_id: userId,
+          agent_id: safeAgentId,
+          session_id: resolvedSessionId,
+          role: 'user',
+          content: transcription,
+          is_audio: true,
+          audio_duration_seconds: durationSeconds || null,
+          created_at: userSentAtIso,
+        },
+        {
+          user_id: userId,
+          agent_id: safeAgentId,
+          session_id: resolvedSessionId,
+          role: 'assistant',
+          content: reply,
+          is_audio: false,
+          created_at: assistantSentAtIso,
+        },
+      ])
+      .select('id, role');
+
+    const userMessageId = insertedAudioRows?.find((r) => r.role === 'user')?.id || null;
+    const assistantMessageId = insertedAudioRows?.find((r) => r.role === 'assistant')?.id || null;
 
     if (msgErr) {
       console.warn('⚠️ Aviso ao gravar transcrição em izaque_messages:', msgErr);
@@ -1026,6 +1077,12 @@ export async function handleAudioChatMessage(req, res) {
       transcription,
       reply,
       sessionId: resolvedSessionId,
+      userMessageId,
+      assistantMessageId,
+      userCreatedAt: userSentAtIso,
+      assistantCreatedAt: assistantSentAtIso,
+      userTimestamp: formatBrazilTime(userSentAtIso),
+      assistantTimestamp: formatBrazilTime(assistantSentAtIso),
       agentUsed: {
         id: selectedAgent.id,
         name: selectedAgent.name,
@@ -1260,20 +1317,22 @@ export async function getChatHistory(req, res) {
     }
 
     const { data, error } = await query
-      .order('created_at', { ascending: true })
-      .limit(100);
+      .order('created_at', { ascending: false })
+      .limit(200);
 
     if (error) throw error;
 
-    const formatted = (data || []).map((msg) => ({
+    const orderedRows = sortChatMessagesChronologically(data || []);
+
+    const formatted = orderedRows.map((msg) => ({
       id: msg.id,
       sessionId: msg.session_id,
       role: msg.role === 'assistant' ? 'guide' : 'user',
       content: msg.content,
       isVoice: Boolean(msg.is_audio),
       durationSeconds: msg.audio_duration_seconds || 0,
-      timestamp: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      date: new Date(msg.created_at).toLocaleDateString('pt-BR'),
+      timestamp: formatBrazilTime(msg.created_at),
+      date: formatBrazilDate(msg.created_at),
       created_at: msg.created_at,
       agentUsed: msg.izaque_agents ? {
         id: msg.izaque_agents.id,

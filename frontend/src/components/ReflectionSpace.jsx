@@ -56,6 +56,7 @@ import { fetchSystemSettings } from '../services/adminApi';
 import { ambientAudio } from '../services/ambientAudioService';
 import { humanVoiceService, unlockHtmlAudioElement } from '../services/voiceService';
 import { THEMES, saveAppTheme, getCurrentTheme, MULTI_THEME_ENABLED } from '../services/themeService';
+import { formatBrazilTime, formatBrazilDate, formatBrazilDateTime, sortChatMessagesChronologically } from '../utils/dateTimeBrazil';
 
 const LazyUserSettingsModal = React.lazy(() => import('./UserSettingsModal'));
 
@@ -234,7 +235,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
       id: 'initial',
       role: 'guide',
       content: `Olá... Respire fundo e sinta-se em paz. Este é o seu refúgio pessoal, livre de cobranças ou julgamentos do mundo lá fora.\n\nO que tem pesado na sua mente ou no seu coração ultimamente?`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: formatBrazilTime(),
       memoriesRecalled: 0,
       knowledgeApplied: 0,
     },
@@ -515,7 +516,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
                   id: 'initial',
                   role: 'guide',
                   content: `Olá... Respire fundo e sinta-se em paz. Este é o seu espaço de reflexão dedicado a "${currentSessObj?.title || 'sua jornada'}", livre de cobranças ou julgamentos do mundo lá fora.\n\nO que tem pesado na sua mente ou no seu coração ultimamente?`,
-                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                  timestamp: formatBrazilTime(),
                   memoriesRecalled: 0,
                   knowledgeApplied: 0,
                 },
@@ -548,6 +549,8 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
     };
   }, [user?.id]);
 
+  const isSendingOrStreamingRef = useRef(false);
+
   // Sincronização contínua via HTTPS (sem depender de WebSocket Realtime do Supabase Self-Hosted)
   // Atualiza conversas originadas pelo WhatsApp ao focar a guia e a cada 15s enquanto a aba estiver visível
   useEffect(() => {
@@ -555,18 +558,40 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
 
     let cancelled = false;
     const refreshCurrentSessionSilently = async () => {
-      if (cancelled || isReflecting || document.visibilityState !== 'visible') return;
+      if (
+        cancelled ||
+        isReflecting ||
+        streamingMessageId ||
+        isSendingOrStreamingRef.current ||
+        document.visibilityState !== 'visible'
+      ) {
+        return;
+      }
       try {
         const latest = await fetchChatHistory(user.id, activeSessionId);
-        if (cancelled || !Array.isArray(latest) || latest.length === 0) return;
+        if (
+          cancelled ||
+          isSendingOrStreamingRef.current ||
+          !Array.isArray(latest) ||
+          latest.length === 0
+        ) {
+          return;
+        }
+        const sortedLatest = sortChatMessagesChronologically(latest);
         setReflections((prev) => {
-          if (latest.length < prev.length) return prev;
-          const prevLastId = prev[prev.length - 1]?.id;
-          const nextLastId = latest[latest.length - 1]?.id;
-          if (latest.length === prev.length && prevLastId === nextLastId) {
+          const nonInitialPrev = prev.filter((m) => m.id !== 'initial');
+          if (sortedLatest.length < nonInitialPrev.length) return prev;
+          const prevLastId = nonInitialPrev[nonInitialPrev.length - 1]?.id;
+          const nextLastId = sortedLatest[sortedLatest.length - 1]?.id;
+          if (sortedLatest.length === nonInitialPrev.length && prevLastId === nextLastId) {
             return prev;
           }
-          return latest;
+          const prevAudioMap = new Map(
+            nonInitialPrev.filter((m) => m?.audioUrl).map((m) => [m.id, m.audioUrl])
+          );
+          return sortedLatest.map((msg) =>
+            prevAudioMap.has(msg.id) ? { ...msg, audioUrl: prevAudioMap.get(msg.id) } : msg
+          );
         });
       } catch {
         // Silencioso em segundo plano
@@ -589,7 +614,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       window.clearInterval(syncTimer);
     };
-  }, [user?.id, activeSessionId, isReflecting]);
+  }, [user?.id, activeSessionId, isReflecting, streamingMessageId]);
 
   const handleSelectSession = async (sessionId) => {
     if (sessionId === activeSessionId || !user?.id) {
@@ -622,7 +647,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
             id: 'initial',
             role: 'guide',
             content: `Olá... Este é o espaço de reflexão dedicado a "${sessionObj?.title || 'esta conversa'}".\n\nFique à vontade para desabafar ou dar continuidade aos seus pensamentos com total sigilo.`,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            timestamp: formatBrazilTime(),
             memoriesRecalled: 0,
             knowledgeApplied: 0,
           },
@@ -650,7 +675,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
             id: 'initial',
             role: 'guide',
             content: `Olá... Respire fundo. Iniciamos uma nova conversa para você organizar seus pensamentos e novos desafios.\n\nO que gostaria de trabalhar ou desabafar agora?`,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            timestamp: formatBrazilTime(),
             memoriesRecalled: 0,
             knowledgeApplied: 0,
           },
@@ -704,7 +729,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
           id: 'initial',
           role: 'guide',
           content: `Olá... Seja muito bem-vindo(a) a esta conversa direcionada sobre "${guided.title}".\n\n${guided.description || 'Este é um espaço seguro e focado para reflexão profunda.'}${questionsPreview}\n\nO mentor conduzirá a reflexão priorizando explorar estas perguntas do roteiro. Você pode tocar em uma das perguntas sugeridas logo abaixo ou responder como isso ressoa em você agora.`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timestamp: formatBrazilTime(),
           memoriesRecalled: 0,
           knowledgeApplied: 0,
         },
@@ -1036,14 +1061,18 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
     const text = (directText !== null ? directText : inputVal).trim();
     if (!text || isReflecting) return;
 
+    const optimisticUserId = `user-${Date.now()}`;
+    const userNowIso = new Date().toISOString();
     const userEntry = {
-      id: Date.now().toString(),
+      id: optimisticUserId,
       role: 'user',
       content: text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      created_at: userNowIso,
+      timestamp: formatBrazilTime(userNowIso),
     };
 
-    setReflections((prev) => [...prev, userEntry]);
+    isSendingOrStreamingRef.current = true;
+    setReflections((prev) => [...prev.filter((r) => r.id !== 'initial'), userEntry]);
     if (directText === null) setInputVal('');
     isUserNearBottomRef.current = true;
     setShowScrollBottomPill(false);
@@ -1087,7 +1116,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
                   id: streamGuideId,
                   role: 'guide',
                   content: fullSoFar,
-                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                  timestamp: formatBrazilTime(),
                 },
               ]);
             } else {
@@ -1117,23 +1146,39 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
         }).catch(() => {});
       }
 
+      const syncedUserIso = res.userCreatedAt || userNowIso;
+      const guideCreatedIso =
+        res.assistantCreatedAt ||
+        new Date(Math.max(Date.now(), new Date(syncedUserIso).getTime() + 50)).toISOString();
+      const finalGuideId = res.assistantMessageId || streamGuideId;
       const finalGuideEntry = {
-        id: streamGuideId,
+        id: finalGuideId,
         role: 'guide',
         content: res.reply,
         agentUsed: res.agentUsed || null,
         memoriesRecalled: res.memoriesUsed?.length || 0,
         knowledgeApplied: res.knowledgeUsed?.length || 0,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        created_at: guideCreatedIso,
+        timestamp: formatBrazilTime(guideCreatedIso),
       };
 
-      if (streamBubbleInserted) {
-        setReflections((prev) =>
-          prev.map((item) => (item.id === streamGuideId ? finalGuideEntry : item))
-        );
-      } else {
-        setReflections((prev) => [...prev, finalGuideEntry]);
-      }
+      setReflections((prev) => {
+        const updated = prev.map((item) => {
+          if (item.id === optimisticUserId) {
+            return {
+              ...item,
+              id: res.userMessageId || optimisticUserId,
+              created_at: syncedUserIso,
+              timestamp: formatBrazilTime(syncedUserIso),
+            };
+          }
+          if (streamBubbleInserted && item.id === streamGuideId) {
+            return finalGuideEntry;
+          }
+          return item;
+        });
+        return streamBubbleInserted ? updated : [...updated, finalGuideEntry];
+      });
 
       // Pré-aquece o 1º trecho de áudio em background no cache do navegador para clique instantâneo
       humanVoiceService.prewarmFirstSegment(finalGuideEntry.content);
@@ -1152,10 +1197,11 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
           id: (Date.now() + 1).toString(),
           role: 'guide',
           content: 'Houve uma breve pausa na conexão da mentoria. Mas estou aqui ouvindo você. Gostaria de reenviar?',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timestamp: formatBrazilTime(),
         },
       ]);
     } finally {
+      isSendingOrStreamingRef.current = false;
       setIsReflecting(false);
       setStreamingMessageId(null);
     }
@@ -1247,6 +1293,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
 
   const processVoiceReflection = async (audioPayload, durationSeconds, mimeType = 'audio/webm', dataUrl = null) => {
     isUserNearBottomRef.current = true;
+    isSendingOrStreamingRef.current = true;
     setIsReflecting(true);
 
     try {
@@ -1286,29 +1333,36 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
         }).catch(() => {});
       }
 
+      const userAudioIso = res.userCreatedAt || new Date().toISOString();
+      const guideAudioIso =
+        res.assistantCreatedAt ||
+        new Date(Math.max(Date.now(), new Date(userAudioIso).getTime() + 50)).toISOString();
+
       // Mensagem transcrita do usuário (Estilo WhatsApp)
       const userAudioEntry = {
-        id: Date.now().toString(),
+        id: res.userMessageId || `user-audio-${Date.now()}`,
         role: 'user',
         content: res.transcription || 'Reflexão em áudio gravada.',
         isVoice: true,
         audioUrl: dataUrl,
         durationSeconds,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        created_at: userAudioIso,
+        timestamp: formatBrazilTime(userAudioIso),
       };
 
       // Resposta do guia
       const guideAudioEntry = {
-        id: (Date.now() + 1).toString(),
+        id: res.assistantMessageId || `guide-audio-${Date.now() + 1}`,
         role: 'guide',
         content: res.reply,
         agentUsed: res.agentUsed || null,
         memoriesRecalled: res.memoriesUsed?.length || 0,
         knowledgeApplied: res.knowledgeUsed?.length || 0,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        created_at: guideAudioIso,
+        timestamp: formatBrazilTime(guideAudioIso),
       };
 
-      setReflections((prev) => [...prev, userAudioEntry, guideAudioEntry]);
+      setReflections((prev) => [...prev.filter((r) => r.id !== 'initial'), userAudioEntry, guideAudioEntry]);
 
       // Pré-aquece o 1º trecho de áudio em background no cache do navegador para clique instantâneo
       humanVoiceService.prewarmFirstSegment(guideAudioEntry.content);
@@ -1323,6 +1377,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
     } catch (err) {
       console.error(err);
     } finally {
+      isSendingOrStreamingRef.current = false;
       setIsReflecting(false);
     }
   };
@@ -1462,7 +1517,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
           {sessions.map((sess) => {
             const isActive = sess.id === activeSessionId;
             const isEditing = editingSessionId === sess.id;
-            const dateStr = new Date(sess.updated_at || sess.created_at).toLocaleDateString('pt-BR', {
+            const dateStr = formatBrazilDate(sess.updated_at || sess.created_at, {
               day: '2-digit',
               month: 'short',
             });
@@ -1939,7 +1994,9 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
                         )}
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span>{item.timestamp}</span>
+                        <span title={item.created_at ? formatBrazilDateTime(item.created_at) : undefined}>
+                          {item.created_at ? formatBrazilTime(item.created_at) : item.timestamp}
+                        </span>
                         {isUser && <CheckCheck className="w-3.5 h-3.5 text-teal-200" />}
                       </div>
                     </div>

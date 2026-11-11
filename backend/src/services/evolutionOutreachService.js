@@ -1511,7 +1511,7 @@ export async function executeSingleOutreachLogItem(logItem, campaign, safetyCfg,
         .update({
           status: 'queued',
           scheduled_for: safeNextIso,
-          error_reason: `Reagendado automaticamente p/ ${new Date(safeNextIso).toLocaleString('pt-BR')} (intervalo seguro de ${effectiveCooldownHours}h por contato — zero perda).`,
+          error_reason: `Reagendado automaticamente p/ ${new Date(safeNextIso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (intervalo seguro de ${effectiveCooldownHours}h por contato — zero perda).`,
         })
         .eq('id', logItem.id);
       return { outcome: 'rescheduled_cooldown', scheduledFor: safeNextIso };

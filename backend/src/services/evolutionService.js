@@ -1394,6 +1394,8 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
   }
 
   // 4. CONVERSA UNIFICADA NO MESMO CHAT DO APP (izaque_chat_sessions + izaque_messages + Agente Orquestrador)
+  const userSentAtMs = Date.now();
+  const userSentAtIso = new Date(userSentAtMs).toISOString();
   const sessionId = await ensureUserSession(matchedProfile.id, null, messageText);
 
   let sessionHistory = [];
@@ -1439,6 +1441,8 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
   const isAgentUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selectedAgent?.id || '');
   const safeAgentId = isAgentUuid ? selectedAgent.id : null;
 
+  const assistantSentAtIso = new Date(Math.max(Date.now(), userSentAtMs + 1)).toISOString();
+
   await supabaseAdmin.from('izaque_messages').insert([
     {
       user_id: matchedProfile.id,
@@ -1447,6 +1451,7 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
       role: 'user',
       content: messageText,
       is_audio: isAudioInbound,
+      created_at: userSentAtIso,
     },
     {
       user_id: matchedProfile.id,
@@ -1455,6 +1460,7 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
       role: 'assistant',
       content: reply,
       is_audio: wantsAudioReply,
+      created_at: assistantSentAtIso,
     },
   ]);
 

@@ -224,10 +224,12 @@ export default function UserNotificationsPopover({ user }) {
                   notifications.map((n) => {
                     const isPlaying = playingAudioId === n.id;
                     const dateStr = new Date(n.created_at).toLocaleDateString('pt-BR', {
+                      timeZone: 'America/Sao_Paulo',
                       day: '2-digit',
                       month: 'short',
                       hour: '2-digit',
                       minute: '2-digit',
+                      hour12: false,
                     });
 
                     return (

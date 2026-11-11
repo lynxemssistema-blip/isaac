@@ -71,6 +71,7 @@ import AdminSystemSettings from './AdminSystemSettings';
 import AdminPdfCampaigns from './AdminPdfCampaigns';
 import AdminAsaasPanel from './AdminAsaasPanel';
 import AdminEvolutionContacts from './AdminEvolutionContacts';
+import { formatBrazilDate, formatBrazilDateTime } from '../utils/dateTimeBrazil';
 
 export default function AdminDashboard({ currentUser }) {
   const isSuperAdmin = currentUser?.role === 'master' || currentUser?.email === 'edsonmanoel2012@gmail.com';
@@ -907,7 +908,7 @@ export default function AdminDashboard({ currentUser }) {
                         </td>
 
                         <td className="p-4 text-stone-400">
-                          {new Date(u.created_at).toLocaleDateString('pt-BR')}
+                          {formatBrazilDate(u.created_at)}
                         </td>
 
                         {/* BOTÕES DE AÇÃO */}
@@ -1022,7 +1023,7 @@ export default function AdminDashboard({ currentUser }) {
                           </h4>
                         </div>
                         <span className="text-[11px] text-stone-400">
-                          {new Date(fb.created_at).toLocaleString('pt-BR')}
+                          {formatBrazilDateTime(fb.created_at)}
                         </span>
                       </div>
 
@@ -1344,7 +1345,7 @@ export default function AdminDashboard({ currentUser }) {
                       <span className="capitalize text-teal-800 dark:text-teal-400 font-medium">
                         {m.category}
                       </span>
-                      <span>{new Date(m.created_at).toLocaleDateString('pt-BR')}</span>
+                      <span>{formatBrazilDate(m.created_at)}</span>
                     </div>
                     <p className="text-stone-700 dark:text-stone-200 font-serif leading-relaxed">
                       {m.content}

@@ -1000,7 +1000,7 @@ export default function AdminUserGroups({ allUsers = [], currentUser }) {
                       )}
 
                       <p className="text-[10px] text-stone-400">
-                        Enviado em {new Date(b.created_at).toLocaleString('pt-BR')}
+                        Enviado em {new Date(b.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', hour12: false })}
                       </p>
                     </div>
 

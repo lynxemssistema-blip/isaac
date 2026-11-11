@@ -31,11 +31,15 @@ RUN npm run build
 # =====================================================
 FROM node:22-alpine
 
+# Fuso horário oficial do Brasil (Brasília - America/Sao_Paulo) no container
+RUN apk add --no-cache tzdata
+
 WORKDIR /app
 
 # Variáveis de ambiente padrão para Produção
 # (As sensíveis — GEMINI_API_KEY, SUPABASE_SERVICE_ROLE_KEY — devem ser definidas
 #  no painel de Environment Variables do Easypanel, NUNCA aqui no Dockerfile)
+ENV TZ=America/Sao_Paulo
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV CORS_ORIGIN=*

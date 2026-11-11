@@ -96,7 +96,7 @@ export function formatMemoriesForPrompt(memories) {
   }
 
   const formattedLines = memories.map((m, index) => {
-    const dataFormatada = new Date(m.created_at).toLocaleDateString('pt-BR');
+    const dataFormatada = new Date(m.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     const categoria = (m.category || 'bloqueio').toUpperCase();
     const confianca = Math.round((m.similarity || 0) * 100);
     return `${index + 1}. [${categoria} | Registrado em ${dataFormatada} | Relevância: ${confianca}%]: "${m.content}"`;
