@@ -60,7 +60,7 @@ export default function Navbar({
 
   return (
     <header className="w-full border-b border-stone-200/80 dark:border-slate-800 bg-stone-50/95 dark:bg-slate-900/95 backdrop-blur-xl transition-colors shadow-xs">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+      <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-2">
         {/* LOGO DA MENTORIA */}
         <div
           onClick={() => setActiveTab('landing')}

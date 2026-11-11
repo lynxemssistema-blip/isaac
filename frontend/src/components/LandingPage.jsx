@@ -57,9 +57,9 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
       </div>
 
       {/* 1. SEÇÃO PRINCIPAL (HERO) */}
-      <section className="relative pt-12 sm:pt-28 pb-14 sm:pb-20 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center">
+      <section className="relative pt-6 sm:pt-9 pb-4 sm:pb-6 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center">
         {/* Título Principal Humanizado */}
-        <h1 className="text-3xl sm:text-5xl lg:text-7xl font-serif font-normal tracking-tight text-stone-900 dark:text-stone-50 max-w-4xl mx-auto leading-[1.18]">
+        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif font-normal tracking-tight text-stone-900 dark:text-stone-50 max-w-4xl mx-auto leading-[1.16]">
           Desate os nós da sua mente.{' '}
           <span className="italic font-medium text-teal-800 dark:text-teal-300">
             Cure a hesitação.
@@ -68,15 +68,15 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
         </h1>
 
         {/* Descrição Apresentando Isaac */}
-        <p className="mt-5 sm:mt-6 text-sm sm:text-lg lg:text-xl text-stone-600 dark:text-stone-300 max-w-2xl mx-auto leading-relaxed font-serif">
+        <p className="mt-3.5 sm:mt-4 text-sm sm:text-lg text-stone-600 dark:text-stone-300 max-w-2xl mx-auto leading-relaxed font-serif">
           Conheça <strong>Isaac</strong>: um mentor de presença calma e escuta profunda, dedicado a ajudar você a compreender bloqueios emocionais, quebrar ciclos de autossabotagem e reconstruir a confiança no seu caminho.
         </p>
 
         {/* Chamadas para Ação */}
-        <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-md sm:max-w-none mx-auto">
+        <div className="mt-5 sm:mt-6 flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-3.5 w-full max-w-md sm:max-w-none mx-auto">
           <button
             onClick={onStartChat}
-            className="w-full sm:w-auto px-7 sm:px-9 py-3.5 sm:py-4 rounded-2xl bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white font-medium text-sm tracking-wide shadow-xl shadow-teal-700/25 transition-all duration-300 transform active:scale-95 sm:hover:-translate-y-0.5 flex items-center justify-center gap-2.5 sm:gap-3"
+            className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-3.5 rounded-2xl bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white font-medium text-sm tracking-wide shadow-xl shadow-teal-700/25 transition-all duration-300 transform active:scale-95 sm:hover:-translate-y-0.5 flex items-center justify-center gap-2.5"
           >
             <Feather className="w-4 h-4 stroke-[2]" />
             <span>{user ? 'Acessar Minha Mentoria' : 'Conversar com Isaac'}</span>
@@ -85,7 +85,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
 
           <a
             href="#planos"
-            className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl bg-emerald-50/90 dark:bg-emerald-950/50 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 border border-emerald-300/80 dark:border-emerald-700/60 text-emerald-900 dark:text-emerald-200 font-medium text-sm transition flex items-center justify-center gap-2 shadow-sm active:scale-95"
+            className="w-full sm:w-auto px-5 sm:px-7 py-3 sm:py-3.5 rounded-2xl bg-emerald-50/90 dark:bg-emerald-950/50 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 border border-emerald-300/80 dark:border-emerald-700/60 text-emerald-900 dark:text-emerald-200 font-medium text-sm transition flex items-center justify-center gap-2 shadow-sm active:scale-95"
           >
             <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <span>Ver Planos (Grátis &amp; WhatsApp)</span>
@@ -93,7 +93,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
 
           <a
             href="#biblioteca-ebooks"
-            className="w-full sm:w-auto px-6 sm:px-7 py-3.5 sm:py-4 rounded-2xl bg-amber-50/95 dark:bg-amber-950/50 hover:bg-amber-100/95 dark:hover:bg-amber-900/50 border border-amber-300/80 dark:border-amber-700/60 text-amber-950 dark:text-amber-200 font-medium text-sm transition flex items-center justify-center gap-2 shadow-sm active:scale-95"
+            className="w-full sm:w-auto px-5 sm:px-6 py-3 sm:py-3.5 rounded-2xl bg-amber-50/95 dark:bg-amber-950/50 hover:bg-amber-100/95 dark:hover:bg-amber-900/50 border border-amber-300/80 dark:border-amber-700/60 text-amber-950 dark:text-amber-200 font-medium text-sm transition flex items-center justify-center gap-2 shadow-sm active:scale-95"
           >
             <BookOpen className="w-4 h-4 text-amber-600 dark:text-amber-400" />
             <span>eBooks por Thiago Prata</span>
@@ -103,12 +103,12 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
 
       {/* 1.1 APRESENTAÇÃO DO IDEALIZADOR DO ISAAC (NO INÍCIO DA PÁGINA) */}
       {systemSettings?.show_landing_creator !== false && (!creator || creator.is_visible !== false) && (
-        <section id="idealizador" className="py-14 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto scroll-mt-12">
-          <div className="p-6 sm:p-12 rounded-3xl sm:rounded-4xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-lg relative overflow-hidden">
+        <section id="idealizador" className="pt-3 sm:pt-4 pb-8 sm:pb-10 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto scroll-mt-12">
+          <div className="p-5 sm:p-8 rounded-3xl sm:rounded-4xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-lg relative overflow-hidden">
             {/* Efeito orgânico sutil de fundo */}
             <div className="absolute top-0 right-0 w-72 h-72 bg-teal-600/5 dark:bg-teal-500/10 rounded-full blur-3xl pointer-events-none -mr-24 -mt-24" />
 
-            <div className="flex flex-col md:flex-row items-center md:items-start gap-8 lg:gap-12 relative z-10">
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-6 lg:gap-8 relative z-10">
               {/* FOTO E IDENTIFICAÇÃO DO IDEALIZADOR */}
               <div className="flex flex-col items-center text-center shrink-0 w-full md:w-64">
                 <div className="relative group">
@@ -213,13 +213,13 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
 
       {/* 2. QUEM É ISAAC E O QUE ELE FAZ POR VOCÊ */}
       {systemSettings?.show_landing_features !== false && (
-        <section id="quem-e-isaac" className="py-20 bg-stone-100/60 dark:bg-slate-800/30 border-y border-stone-200/80 dark:border-slate-800 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-5xl mx-auto space-y-16">
-            <div className="text-center max-w-2xl mx-auto space-y-3">
+        <section id="quem-e-isaac" className="py-9 sm:py-11 bg-stone-100/60 dark:bg-slate-800/30 border-y border-stone-200/80 dark:border-slate-800 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-5xl mx-auto space-y-7 sm:space-y-8">
+            <div className="text-center max-w-2xl mx-auto space-y-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-teal-800 dark:text-teal-400">
                 A Proposta da Mentoria
               </span>
-              <h2 className="text-2xl sm:text-4xl lg:text-5xl font-serif font-normal text-stone-900 dark:text-stone-50 tracking-tight">
+              <h2 className="text-2xl sm:text-4xl font-serif font-normal text-stone-900 dark:text-stone-50 tracking-tight">
                 Uma presença que caminha ao seu lado
               </h2>
               <p className="text-xs sm:text-base text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
@@ -227,8 +227,8 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-              <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm space-y-3">
                 <div className="w-10 h-10 rounded-2xl bg-teal-700/10 dark:bg-teal-500/15 border border-teal-700/20 dark:border-teal-500/30 flex items-center justify-center text-teal-800 dark:text-teal-400">
                   <Heart className="w-5 h-5 stroke-[1.75]" />
                 </div>
@@ -240,7 +240,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                 </p>
               </div>
 
-              <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm space-y-4">
+              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm space-y-3">
                 <div className="w-10 h-10 rounded-2xl bg-amber-600/10 dark:bg-amber-500/15 border border-amber-600/20 dark:border-amber-500/30 flex items-center justify-center text-amber-700 dark:text-amber-400">
                   <Compass className="w-5 h-5 stroke-[1.75]" />
                 </div>
@@ -252,7 +252,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                 </p>
               </div>
 
-              <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm space-y-4">
+              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm space-y-3">
                 <div className="w-10 h-10 rounded-2xl bg-teal-800/10 dark:bg-teal-600/15 border border-teal-800/20 dark:border-teal-600/30 flex items-center justify-center text-teal-900 dark:text-teal-300">
                   <ShieldCheck className="w-5 h-5 stroke-[1.75]" />
                 </div>
@@ -270,14 +270,14 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
 
       {/* 3. ESPAÇO DE CONFIANÇA: SIGILO ABSOLUTO, NÃO JULGAMENTO & VANTAGENS */}
       {systemSettings?.show_landing_security !== false && (
-        <section id="sigilo-seguranca" className="py-20 sm:py-24 bg-stone-100/70 dark:bg-slate-800/40 border-y border-stone-200/80 dark:border-slate-800 px-4 sm:px-6 lg:px-8 scroll-mt-12">
-          <div className="max-w-6xl mx-auto space-y-14">
-            <div className="text-center max-w-3xl mx-auto space-y-4">
+        <section id="sigilo-seguranca" className="py-9 sm:py-11 bg-stone-100/70 dark:bg-slate-800/40 border-b border-stone-200/80 dark:border-slate-800 px-4 sm:px-6 lg:px-8 scroll-mt-12">
+          <div className="max-w-6xl mx-auto space-y-7 sm:space-y-8">
+            <div className="text-center max-w-3xl mx-auto space-y-2.5">
               <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200/80 dark:border-teal-800/40 text-xs font-serif text-teal-800 dark:text-teal-300">
                 <Lock className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
                 <span>Privacidade Incondicional & Segurança Emocional</span>
               </div>
-              <h2 className="text-2xl sm:text-4xl lg:text-5xl font-serif font-normal text-stone-900 dark:text-stone-50 tracking-tight">
+              <h2 className="text-2xl sm:text-4xl font-serif font-normal text-stone-900 dark:text-stone-50 tracking-tight">
                 O que você fala aqui, <span className="italic font-medium text-teal-800 dark:text-teal-300">fica apenas aqui.</span>
               </h2>
               <p className="text-xs sm:text-base text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
@@ -285,11 +285,11 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
               {/* Card 1: Sigilo Total */}
-              <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                <div className="space-y-3">
-                  <div className="w-11 h-11 rounded-2xl bg-teal-700/10 dark:bg-teal-500/15 border border-teal-700/20 dark:border-teal-500/30 flex items-center justify-center text-teal-800 dark:text-teal-400">
+              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                <div className="space-y-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-teal-700/10 dark:bg-teal-500/15 border border-teal-700/20 dark:border-teal-500/30 flex items-center justify-center text-teal-800 dark:text-teal-400">
                     <Lock className="w-5 h-5 stroke-[1.75]" />
                   </div>
                   <h3 className="text-lg font-serif font-medium text-stone-900 dark:text-stone-100">
@@ -299,16 +299,16 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                     Suas reflexões, textos e áudios são guardados com criptografia e isolamento individual restrito. Nenhuma informação pessoal ou confidencial sua é compartilhada, comercializada ou exposta.
                   </p>
                 </div>
-                <div className="mt-5 pt-4 border-t border-stone-100 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-teal-800 dark:text-teal-300 font-medium font-serif">
+                <div className="mt-4 pt-3 border-t border-stone-100 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-teal-800 dark:text-teal-300 font-medium font-serif">
                   <ShieldCheck className="w-4 h-4 text-teal-600" />
                   <span>Privacidade ponta a ponta</span>
                 </div>
               </div>
 
               {/* Card 2: Zero Julgamento */}
-              <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                <div className="space-y-3">
-                  <div className="w-11 h-11 rounded-2xl bg-amber-600/10 dark:bg-amber-500/15 border border-amber-600/20 dark:border-amber-500/30 flex items-center justify-center text-amber-700 dark:text-amber-400">
+              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                <div className="space-y-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-600/10 dark:bg-amber-500/15 border border-amber-600/20 dark:border-amber-500/30 flex items-center justify-center text-amber-700 dark:text-amber-400">
                     <HeartHandshake className="w-5 h-5 stroke-[1.75]" />
                   </div>
                   <h3 className="text-lg font-serif font-medium text-stone-900 dark:text-stone-100">
@@ -318,16 +318,16 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                     Não existem perguntas tolas, erros vergonhosos ou emoções proibidas. Isaac não aponta dedos, não faz palestras moralistas e não rotula você. O foco é compreender suas razões, nunca condená-lo.
                   </p>
                 </div>
-                <div className="mt-5 pt-4 border-t border-stone-100 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-amber-800 dark:text-amber-300 font-medium font-serif">
+                <div className="mt-4 pt-3 border-t border-stone-100 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-amber-800 dark:text-amber-300 font-medium font-serif">
                   <CheckCircle2 className="w-4 h-4 text-amber-600" />
                   <span>Acolhimento sincero e respeitoso</span>
                 </div>
               </div>
 
               {/* Card 3: Sem Máscaras */}
-              <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                <div className="space-y-3">
-                  <div className="w-11 h-11 rounded-2xl bg-teal-800/10 dark:bg-teal-600/15 border border-teal-800/20 dark:border-teal-600/30 flex items-center justify-center text-teal-900 dark:text-teal-300">
+              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                <div className="space-y-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-teal-800/10 dark:bg-teal-600/15 border border-teal-800/20 dark:border-teal-600/30 flex items-center justify-center text-teal-900 dark:text-teal-300">
                     <EyeOff className="w-5 h-5 stroke-[1.75]" />
                   </div>
                   <h3 className="text-lg font-serif font-medium text-stone-900 dark:text-stone-100">
@@ -337,16 +337,16 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                     Você não precisa provar nada a ninguém ou fingir firmeza quando estiver com medo. Aqui é o lugar onde você pode tirar as armaduras e ser autêntico com suas fragilidades.
                   </p>
                 </div>
-                <div className="mt-5 pt-4 border-t border-stone-100 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-teal-800 dark:text-teal-300 font-medium font-serif">
+                <div className="mt-4 pt-3 border-t border-stone-100 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-teal-800 dark:text-teal-300 font-medium font-serif">
                   <Smile className="w-4 h-4 text-teal-600" />
                   <span>Liberdade para respirar em paz</span>
                 </div>
               </div>
 
               {/* Card 4: No Seu Ritmo */}
-              <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                <div className="space-y-3">
-                  <div className="w-11 h-11 rounded-2xl bg-stone-200/70 dark:bg-slate-700/60 border border-stone-300 dark:border-slate-600 flex items-center justify-center text-stone-800 dark:text-stone-200">
+              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                <div className="space-y-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-stone-200/70 dark:bg-slate-700/60 border border-stone-300 dark:border-slate-600 flex items-center justify-center text-stone-800 dark:text-stone-200">
                     <Clock className="w-5 h-5 stroke-[1.75]" />
                   </div>
                   <h3 className="text-lg font-serif font-medium text-stone-900 dark:text-stone-100">
@@ -356,16 +356,16 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                     Sem pressa de relógio, sem cobrança de tempo limite. Desabafe às 3 da madrugada ou nos intervalos do almoço. Seu espaço de mentoria está sempre acessível quando a mente pedir calmaria.
                   </p>
                 </div>
-                <div className="mt-5 pt-4 border-t border-stone-100 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-stone-600 dark:text-stone-400 font-medium font-serif">
+                <div className="mt-4 pt-3 border-t border-stone-100 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-stone-600 dark:text-stone-400 font-medium font-serif">
                   <Check className="w-4 h-4 text-stone-500" />
                   <span>Disponível 24 horas por dia</span>
                 </div>
               </div>
 
               {/* Card 5: Memória & Constância */}
-              <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                <div className="space-y-3">
-                  <div className="w-11 h-11 rounded-2xl bg-amber-600/10 dark:bg-amber-500/15 border border-amber-600/20 dark:border-amber-500/30 flex items-center justify-center text-amber-700 dark:text-amber-400">
+              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                <div className="space-y-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-600/10 dark:bg-amber-500/15 border border-amber-600/20 dark:border-amber-500/30 flex items-center justify-center text-amber-700 dark:text-amber-400">
                     <Sparkles className="w-5 h-5 stroke-[1.75]" />
                   </div>
                   <h3 className="text-lg font-serif font-medium text-stone-900 dark:text-stone-100">
@@ -375,16 +375,16 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                     Chega de recomeçar sua história toda vez que precisa conversar. Isaac conecta o que você superou ontem com o obstáculo de hoje, oferecendo constância e profundidade real ao seu processo.
                   </p>
                 </div>
-                <div className="mt-5 pt-4 border-t border-stone-100 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-amber-800 dark:text-amber-300 font-medium font-serif">
+                <div className="mt-4 pt-3 border-t border-stone-100 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-amber-800 dark:text-amber-300 font-medium font-serif">
                   <Check className="w-4 h-4 text-amber-600" />
                   <span>Memória atenta e personalizada</span>
                 </div>
               </div>
 
               {/* Card 6: Atmosfera Sonora */}
-              <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                <div className="space-y-3">
-                  <div className="w-11 h-11 rounded-2xl bg-teal-700/10 dark:bg-teal-500/15 border border-teal-700/20 dark:border-teal-500/30 flex items-center justify-center text-teal-800 dark:text-teal-400">
+              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                <div className="space-y-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-teal-700/10 dark:bg-teal-500/15 border border-teal-700/20 dark:border-teal-500/30 flex items-center justify-center text-teal-800 dark:text-teal-400">
                     <Wind className="w-5 h-5 stroke-[1.75]" />
                   </div>
                   <h3 className="text-lg font-serif font-medium text-stone-900 dark:text-stone-100">
@@ -394,7 +394,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                     Diminua os batimentos e a ansiedade enquanto reflete. Frequências em 432Hz, chuva calma, lareira e tigelas tibetanas acalmam o cérebro, com a opção de ouvir respostas em áudio humano e sereno.
                   </p>
                 </div>
-                <div className="mt-5 pt-4 border-t border-stone-100 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-teal-800 dark:text-teal-300 font-medium font-serif">
+                <div className="mt-4 pt-3 border-t border-stone-100 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-teal-800 dark:text-teal-300 font-medium font-serif">
                   <Check className="w-4 h-4 text-teal-600" />
                   <span>Harmonia mental e sensorial</span>
                 </div>
@@ -402,9 +402,9 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
             </div>
 
             {/* Destaque / Caixa de Compromisso Ético */}
-            <div className="p-6 sm:p-8 rounded-3xl sm:rounded-4xl bg-white/95 dark:bg-slate-800/90 border border-teal-700/30 dark:border-teal-500/30 shadow-sm flex flex-col sm:flex-row items-center gap-5 max-w-4xl mx-auto">
-              <div className="w-14 h-14 rounded-2xl bg-teal-700/10 dark:bg-teal-500/15 flex items-center justify-center text-teal-800 dark:text-teal-400 shrink-0">
-                <Shield className="w-7 h-7 stroke-[1.75]" />
+            <div className="p-5 sm:p-6 rounded-3xl bg-white/95 dark:bg-slate-800/90 border border-teal-700/30 dark:border-teal-500/30 shadow-sm flex flex-col sm:flex-row items-center gap-4 max-w-4xl mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-teal-700/10 dark:bg-teal-500/15 flex items-center justify-center text-teal-800 dark:text-teal-400 shrink-0">
+                <Shield className="w-6 h-6 stroke-[1.75]" />
               </div>
               <div className="text-center sm:text-left space-y-1">
                 <h3 className="text-base sm:text-lg font-serif font-medium text-stone-900 dark:text-stone-100">
@@ -421,19 +421,19 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
 
       {/* 4. COMO FUNCIONA A EXPERIÊNCIA */}
       {systemSettings?.show_landing_steps !== false && (
-        <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-          <div className="space-y-12">
-            <div className="text-center max-w-2xl mx-auto space-y-3">
+        <section className="py-9 sm:py-11 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+          <div className="space-y-6 sm:space-y-7">
+            <div className="text-center max-w-2xl mx-auto space-y-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-teal-800 dark:text-teal-400">
                 Passo a Passo
               </span>
-              <h2 className="text-2xl sm:text-4xl lg:text-5xl font-serif font-normal text-stone-900 dark:text-stone-50 tracking-tight">
+              <h2 className="text-2xl sm:text-4xl font-serif font-normal text-stone-900 dark:text-stone-50 tracking-tight">
                 Como funciona o seu momento
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              <div className="p-6 rounded-3xl bg-white dark:bg-slate-800/60 border border-stone-200/80 dark:border-slate-700/60 flex items-start gap-4 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 max-w-4xl mx-auto">
+              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/60 border border-stone-200/80 dark:border-slate-700/60 flex items-start gap-4 shadow-sm">
                 <div className="w-8 h-8 rounded-full bg-teal-700/10 dark:bg-teal-500/15 flex items-center justify-center text-teal-800 dark:text-teal-400 font-serif font-semibold shrink-0 mt-0.5">
                   1
                 </div>
@@ -447,7 +447,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                 </div>
               </div>
 
-              <div className="p-6 rounded-3xl bg-white dark:bg-slate-800/60 border border-stone-200/80 dark:border-slate-700/60 flex items-start gap-4 shadow-sm">
+              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/60 border border-stone-200/80 dark:border-slate-700/60 flex items-start gap-4 shadow-sm">
                 <div className="w-8 h-8 rounded-full bg-teal-700/10 dark:bg-teal-500/15 flex items-center justify-center text-teal-800 dark:text-teal-400 font-serif font-semibold shrink-0 mt-0.5">
                   2
                 </div>
@@ -466,13 +466,13 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
       )}
 
       {/* 4.5 TRILHAS DE CLAREZA & LABORATÓRIO DO INCÔMODO CRIATIVO (SEO & GEO TOPICAL HUB) */}
-      <section id="trilhas-de-clareza" className="py-20 bg-stone-100/60 dark:bg-slate-800/30 border-y border-stone-200/80 dark:border-slate-800 px-4 sm:px-6 lg:px-8 scroll-mt-12">
-        <div className="max-w-6xl mx-auto space-y-12">
-          <div className="text-center max-w-3xl mx-auto space-y-3">
+      <section id="trilhas-de-clareza" className="py-9 sm:py-11 bg-stone-100/60 dark:bg-slate-800/30 border-y border-stone-200/80 dark:border-slate-800 px-4 sm:px-6 lg:px-8 scroll-mt-12">
+        <div className="max-w-6xl mx-auto space-y-7 sm:space-y-8">
+          <div className="text-center max-w-3xl mx-auto space-y-2">
             <span className="text-xs font-semibold uppercase tracking-widest text-teal-800 dark:text-teal-400">
               Caminhos de Aprofundamento
             </span>
-            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-serif font-normal text-stone-900 dark:text-stone-50 tracking-tight">
+            <h2 className="text-2xl sm:text-4xl font-serif font-normal text-stone-900 dark:text-stone-50 tracking-tight">
               Temas reais nos quais o Isaac caminha com você
             </h2>
             <p className="text-xs sm:text-base text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
@@ -480,7 +480,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {CORE_TOPICS_PREVIEW.map((topic) => (
               <a
                 key={topic.slug}
@@ -490,9 +490,9 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                   e.preventDefault();
                   onOpenTopic(topic.slug);
                 }}
-                className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 hover:border-teal-600/50 shadow-sm hover:shadow-md transition group flex flex-col justify-between gap-4"
+                className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 hover:border-teal-600/50 shadow-sm hover:shadow-md transition group flex flex-col justify-between gap-3"
               >
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <span className="inline-block text-[10px] font-semibold uppercase tracking-wider text-teal-800 dark:text-teal-400">
                     {topic.category}
                   </span>
@@ -514,14 +514,14 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
       </section>
 
       {/* 4.6 PLANOS DA MENTORIA ISAAC — CARD GRÁTIS VS CARD PAGO + OPÇÃO DE PAGAMENTO ASAAS */}
-      <section id="planos" className="py-20 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto scroll-mt-12">
-        <div className="space-y-12">
-          <div className="text-center max-w-3xl mx-auto space-y-3">
+      <section id="planos" className="py-9 sm:py-11 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto scroll-mt-12">
+        <div className="space-y-7 sm:space-y-8">
+          <div className="text-center max-w-3xl mx-auto space-y-2">
             <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800/40 text-xs font-serif text-emerald-800 dark:text-emerald-300">
               <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Planos Transparentes • Escolha Como Caminhar</span>
             </div>
-            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-serif font-normal text-stone-900 dark:text-stone-50 tracking-tight">
+            <h2 className="text-2xl sm:text-4xl font-serif font-normal text-stone-900 dark:text-stone-50 tracking-tight">
               Plano Gratuito vs Plano Pago no WhatsApp
             </h2>
             <p className="text-xs sm:text-base text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
@@ -529,9 +529,9 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6 items-stretch">
             {/* CARD 1: PLANO GRATUITO (LIVRE, SEM ASAAS) */}
-            <div className="p-6 sm:p-8 rounded-3xl sm:rounded-4xl bg-white dark:bg-slate-800/85 border border-stone-200 dark:border-slate-700 shadow-md flex flex-col justify-between gap-6">
+            <div className="p-5 sm:p-7 rounded-3xl sm:rounded-4xl bg-white dark:bg-slate-800/85 border border-stone-200 dark:border-slate-700 shadow-md flex flex-col justify-between gap-5">
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-lg sm:text-xl font-serif font-semibold text-stone-900 dark:text-stone-100">
@@ -600,7 +600,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
             </div>
 
             {/* CARD 2: PLANO PAGO — ISAAC NO WHATSAPP (R$ 14,99 / VENCIMENTO MENSAL VIA ASAAS) */}
-            <div className="p-6 sm:p-8 rounded-3xl sm:rounded-4xl bg-gradient-to-b from-emerald-50/95 via-white to-teal-50/60 dark:from-emerald-950/45 dark:via-slate-800/95 dark:to-slate-800/90 border-2 border-emerald-500/80 dark:border-emerald-500/60 shadow-xl flex flex-col justify-between gap-6 relative">
+            <div className="p-5 sm:p-7 rounded-3xl sm:rounded-4xl bg-gradient-to-b from-emerald-50/95 via-white to-teal-50/60 dark:from-emerald-950/45 dark:via-slate-800/95 dark:to-slate-800/90 border-2 border-emerald-500/80 dark:border-emerald-500/60 shadow-xl flex flex-col justify-between gap-5 relative">
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-lg sm:text-xl font-serif font-semibold text-emerald-950 dark:text-emerald-200 flex items-center gap-2">
@@ -694,9 +694,9 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
       <LandingEbooksShowcase onOpenEbookStore={onOpenEbookStore} />
 
       {/* 4.8 PERGUNTAS FREQUENTES (AEO — RESPOSTAS DIRETAS E CITÁVEIS) */}
-      <section id="perguntas-frequentes" className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto scroll-mt-12">
-        <div className="space-y-10">
-          <div className="text-center max-w-2xl mx-auto space-y-3">
+      <section id="perguntas-frequentes" className="py-9 sm:py-11 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto scroll-mt-12">
+        <div className="space-y-6 sm:space-y-7">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200/80 dark:border-teal-800/40 text-xs font-serif text-teal-800 dark:text-teal-300">
               <HelpCircle className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
               <span>Transparência &amp; Clareza</span>
@@ -709,12 +709,12 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
             </p>
           </div>
 
-          <div className="space-y-3.5">
+          <div className="space-y-2.5">
             {HOME_FAQS.map((faq, idx) => (
               <details
                 key={idx}
                 open={idx === 0}
-                className="group p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-xs transition"
+                className="group p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-800/80 border border-stone-200/80 dark:border-slate-700/80 shadow-xs transition"
               >
                 <summary className="cursor-pointer list-none flex items-center justify-between gap-4 font-serif font-medium text-sm sm:text-base text-stone-900 dark:text-stone-100">
                   <h3>{faq.question}</h3>
@@ -722,7 +722,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                     +
                   </span>
                 </summary>
-                <p className="mt-3.5 pt-3.5 border-t border-stone-100 dark:border-slate-700/60 text-xs sm:text-sm font-serif text-stone-600 dark:text-stone-300 leading-relaxed">
+                <p className="mt-3 pt-3 border-t border-stone-100 dark:border-slate-700/60 text-xs sm:text-sm font-serif text-stone-600 dark:text-stone-300 leading-relaxed">
                   {faq.answer}
                 </p>
               </details>
@@ -733,13 +733,13 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
 
       {/* 5. CONVITE FINAL DE ENTRADA NA MENTORIA */}
       {systemSettings?.show_landing_cta !== false && (
-        <section className="py-14 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto text-center">
-          <div className="p-6 sm:p-14 rounded-3xl sm:rounded-4xl bg-stone-100/90 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 shadow-xl space-y-5 sm:space-y-6">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl sm:rounded-3xl bg-teal-700/10 dark:bg-teal-500/15 border border-teal-700/20 dark:border-teal-500/30 flex items-center justify-center text-teal-800 dark:text-teal-400 mx-auto">
-              <Feather className="w-6 h-6 sm:w-7 sm:h-7 stroke-[1.75]" />
+        <section className="py-8 sm:py-10 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto text-center">
+          <div className="p-6 sm:p-9 rounded-3xl sm:rounded-4xl bg-stone-100/90 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 shadow-xl space-y-4">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-teal-700/10 dark:bg-teal-500/15 border border-teal-700/20 dark:border-teal-500/30 flex items-center justify-center text-teal-800 dark:text-teal-400 mx-auto">
+              <Feather className="w-5 h-5 sm:w-6 sm:h-6 stroke-[1.75]" />
             </div>
 
-            <h2 className="text-2xl sm:text-4xl font-serif font-normal text-stone-900 dark:text-stone-50 max-w-xl mx-auto leading-snug">
+            <h2 className="text-2xl sm:text-3xl font-serif font-normal text-stone-900 dark:text-stone-50 max-w-xl mx-auto leading-snug">
               O primeiro passo para destravar é ter a coragem de desabafar.
             </h2>
 
@@ -747,10 +747,10 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
               Respire fundo. Não há nada a provar aqui dentro. Seu mentor está pronto para ouvir o que você precisa dizer.
             </p>
 
-            <div className="pt-2">
+            <div className="pt-1">
               <button
                 onClick={onStartChat}
-                className="w-full sm:w-auto px-7 sm:px-9 py-3.5 sm:py-4 rounded-2xl bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white font-medium text-sm tracking-wide shadow-xl shadow-teal-700/25 transition duration-300 inline-flex items-center justify-center gap-2 active:scale-95"
+                className="w-full sm:w-auto px-7 sm:px-9 py-3 sm:py-3.5 rounded-2xl bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white font-medium text-sm tracking-wide shadow-xl shadow-teal-700/25 transition duration-300 inline-flex items-center justify-center gap-2 active:scale-95"
               >
                 <span>{user ? 'Acessar Mentoria' : 'Começar Minha Sessão Agora'}</span>
                 <ArrowRight className="w-4 h-4" />
@@ -761,7 +761,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
       )}
 
       {/* RODAPÉ INSTITUCIONAL & NAVEGAÇÃO SEMÂNTICA */}
-      <footer className="py-10 px-4 border-t border-stone-200/80 dark:border-slate-800 text-center space-y-3 text-xs text-stone-500 dark:text-stone-400 font-serif">
+      <footer className="py-6 sm:py-8 px-4 border-t border-stone-200/80 dark:border-slate-800 text-center space-y-2.5 text-xs text-stone-500 dark:text-stone-400 font-serif">
         <p className="font-medium text-stone-700 dark:text-stone-300">
           Mentoria ISAAC • Espaço Confidencial de Clareza, Escuta Atenta e Desenvolvimento Pessoal
         </p>

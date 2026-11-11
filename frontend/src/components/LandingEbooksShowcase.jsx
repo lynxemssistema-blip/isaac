@@ -40,11 +40,11 @@ export default function LandingEbooksShowcase({ onOpenEbookStore }) {
   return (
     <section
       id="biblioteca-ebooks"
-      className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto scroll-mt-14"
+      className="py-8 sm:py-11 px-4 sm:px-6 lg:px-8 border-y border-stone-200/80 dark:border-slate-800 bg-stone-100/40 dark:bg-slate-800/20 scroll-mt-14"
     >
-      <div className="space-y-10">
+      <div className="max-w-7xl mx-auto space-y-7">
         {/* CABEÇALHO DA SEÇÃO NA PÁGINA PRINCIPAL */}
-        <div className="text-center max-w-3xl mx-auto space-y-3">
+        <div className="text-center max-w-3xl mx-auto space-y-2">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 border border-amber-300/80 dark:border-amber-700/60 text-xs font-serif font-semibold text-amber-900 dark:text-amber-300">
             <BookOpen className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
             <span>Biblioteca Oficial ISAAC® Essential • Edição Bilíngue (PT-BR &amp; EN-GB)</span>
