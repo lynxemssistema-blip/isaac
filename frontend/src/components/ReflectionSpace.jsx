@@ -258,6 +258,25 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
   const [editingTitleText, setEditingTitleText] = useState('');
   const [isCreatingSession, setIsCreatingSession] = useState(false);
 
+  // Estados de Streaming, Scroll e Reprodução/Gravação de Voz (declarados no topo para evitar TDZ)
+  const isSendingOrStreamingRef = useRef(false);
+  const [activeVoiceMessageId, setActiveVoiceMessageId] = useState(null);
+  const [loadingVoiceId, setLoadingVoiceId] = useState(null);
+  const audioElementRef = useRef(null);
+  const [activeUserAudioId, setActiveUserAudioId] = useState(null);
+  const userAudioPlayerRef = useRef(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const timerIntervalRef = useRef(null);
+  const endRef = useRef(null);
+  const chatScrollRef = useRef(null);
+  const isUserNearBottomRef = useRef(true);
+  const [showScrollBottomPill, setShowScrollBottomPill] = useState(false);
+  const [streamingMessageId, setStreamingMessageId] = useState(null);
+  const [visibleWindowSize, setVisibleWindowSize] = useState(CHAT_VIRTUAL_WINDOW_STEP);
+
   // Fixação (Pin) do Painel Lateral
   const [isSidebarPinned, setIsSidebarPinned] = useState(() => {
     return localStorage.getItem('izaque_sidebar_pinned') === 'true';
@@ -549,8 +568,6 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
     };
   }, [user?.id]);
 
-  const isSendingOrStreamingRef = useRef(false);
-
   // Sincronização contínua via HTTPS (sem depender de WebSocket Realtime do Supabase Self-Hosted)
   // Atualiza conversas originadas pelo WhatsApp ao focar a guia e a cada 15s enquanto a aba estiver visível
   useEffect(() => {
@@ -788,28 +805,6 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
       console.error('Erro ao excluir sessão:', err);
     }
   };
-
-  // Estado de Reprodução de Voz do Guia
-  const [activeVoiceMessageId, setActiveVoiceMessageId] = useState(null);
-  const [loadingVoiceId, setLoadingVoiceId] = useState(null);
-  const audioElementRef = useRef(null);
-
-  // Estado de Reprodução do Áudio Enviado pelo Usuário
-  const [activeUserAudioId, setActiveUserAudioId] = useState(null);
-  const userAudioPlayerRef = useRef(null);
-
-  // Estado de Gravação de Áudio (Voz do Usuário)
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const timerIntervalRef = useRef(null);
-  const endRef = useRef(null);
-  const chatScrollRef = useRef(null);
-  const isUserNearBottomRef = useRef(true);
-  const [showScrollBottomPill, setShowScrollBottomPill] = useState(false);
-  const [streamingMessageId, setStreamingMessageId] = useState(null);
-  const [visibleWindowSize, setVisibleWindowSize] = useState(CHAT_VIRTUAL_WINDOW_STEP);
 
   const handleChatScroll = () => {
     const el = chatScrollRef.current;
