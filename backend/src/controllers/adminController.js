@@ -2178,7 +2178,7 @@ export async function getSystemSettings(req, res) {
 
     const settings = data || {
       id: 'global',
-      show_theme_selector: true,
+      show_theme_selector: false,
       show_settings_button: true,
       show_ambient_sound_button: true,
       show_creative_troubles: true,
@@ -2189,7 +2189,7 @@ export async function getSystemSettings(req, res) {
       show_landing_security: true,
       show_landing_steps: true,
       show_landing_cta: true,
-      default_theme: 'indigo',
+      default_theme: 'gold',
       default_guide_name: 'Isaac',
       default_ambient_track: '432hz',
       default_ambient_volume: 0.20,
@@ -2210,6 +2210,8 @@ export async function getSystemSettings(req, res) {
 
     const normalizedSettings = {
       ...settings,
+      show_theme_selector: false,
+      default_theme: 'gold',
       show_creative_troubles: settings.show_creative_troubles !== undefined ? settings.show_creative_troubles : true,
       evolution_whatsapp_enabled:
         settings.evolution_whatsapp_enabled !== undefined ? settings.evolution_whatsapp_enabled : true,
@@ -2238,7 +2240,7 @@ export async function getSystemSettings(req, res) {
     console.error('❌ Erro ao buscar parâmetros do sistema:', error);
     res.status(200).json({
       id: 'global',
-      show_theme_selector: true,
+      show_theme_selector: false,
       show_settings_button: true,
       show_ambient_sound_button: true,
       show_creative_troubles: true,
@@ -2249,7 +2251,7 @@ export async function getSystemSettings(req, res) {
       show_landing_security: true,
       show_landing_steps: true,
       show_landing_cta: true,
-      default_theme: 'indigo',
+      default_theme: 'gold',
       default_guide_name: 'Isaac',
       default_ambient_track: '432hz',
       default_ambient_volume: 0.20,
@@ -2318,7 +2320,7 @@ export async function updateSystemSettings(req, res) {
     const payload = {
       ...(currentRow || {}),
       id: 'global',
-      show_theme_selector: show_theme_selector !== undefined ? Boolean(show_theme_selector) : Boolean(currentRow?.show_theme_selector ?? true),
+      show_theme_selector: false,
       show_settings_button: show_settings_button !== undefined ? Boolean(show_settings_button) : Boolean(currentRow?.show_settings_button ?? true),
       show_ambient_sound_button: show_ambient_sound_button !== undefined ? Boolean(show_ambient_sound_button) : Boolean(currentRow?.show_ambient_sound_button ?? true),
       show_creative_troubles: show_creative_troubles !== undefined ? Boolean(show_creative_troubles) : Boolean(currentRow?.show_creative_troubles ?? true),
@@ -2330,7 +2332,7 @@ export async function updateSystemSettings(req, res) {
       show_landing_security: show_landing_security !== undefined ? Boolean(show_landing_security) : Boolean(currentRow?.show_landing_security ?? true),
       show_landing_steps: show_landing_steps !== undefined ? Boolean(show_landing_steps) : Boolean(currentRow?.show_landing_steps ?? true),
       show_landing_cta: show_landing_cta !== undefined ? Boolean(show_landing_cta) : Boolean(currentRow?.show_landing_cta ?? true),
-      default_theme: default_theme || currentRow?.default_theme || 'indigo',
+      default_theme: 'gold',
       default_guide_name: default_guide_name || currentRow?.default_guide_name || 'Isaac',
       default_ambient_track: default_ambient_track || currentRow?.default_ambient_track || '432hz',
       default_ambient_volume: default_ambient_volume !== undefined ? Number(default_ambient_volume) : Number(currentRow?.default_ambient_volume ?? 0.20),

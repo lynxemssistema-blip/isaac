@@ -7,7 +7,7 @@ import AuthModal from './components/AuthModal';
 import MobileBottomNav from './components/MobileBottomNav';
 import TermsOfUseModal, { TERMS_VERSION } from './components/TermsOfUseModal';
 import { AlertTriangle, LifeBuoy, Loader2 } from 'lucide-react';
-import { applyAppTheme, getCurrentTheme } from './services/themeService';
+import { applyAppTheme, getCurrentTheme, MULTI_THEME_ENABLED, LOCKED_ACTIVE_THEME_ID } from './services/themeService';
 import { fetchSystemSettings, acceptTermsOfUseApi } from './services/adminApi';
 import { humanVoiceService } from './services/voiceService';
 
@@ -217,7 +217,11 @@ export default function App() {
           if (p.ambient_volume !== undefined) localStorage.setItem('izaque_ambient_volume', p.ambient_volume.toString());
           if (p.ambient_enabled !== undefined) localStorage.setItem('izaque_ambient_enabled', p.ambient_enabled ? 'true' : 'false');
           if (p.immersive_voice !== undefined) localStorage.setItem('izaque_immersive_voice', p.immersive_voice ? 'true' : 'false');
-          if (p.app_theme) {
+          if (!MULTI_THEME_ENABLED) {
+            localStorage.setItem('isaac_app_theme', LOCKED_ACTIVE_THEME_ID);
+            localStorage.setItem('izaque_app_theme', LOCKED_ACTIVE_THEME_ID);
+            applyAppTheme(LOCKED_ACTIVE_THEME_ID);
+          } else if (p.app_theme) {
             localStorage.setItem('izaque_app_theme', p.app_theme);
             applyAppTheme(p.app_theme);
           }
@@ -317,11 +321,13 @@ export default function App() {
       if (res) {
         setSystemSettings(res);
         const savedTheme = localStorage.getItem('isaac_app_theme') || localStorage.getItem('izaque_app_theme');
-        // Se o Superadmin ocultou a seleção de temas ou se ainda não há tema salvo, aplica o padrão global (indigo)
-        const themeToApply = (!res.show_theme_selector || !savedTheme)
-          ? (res.default_theme || 'indigo')
-          : savedTheme;
+        const themeToApply = !MULTI_THEME_ENABLED
+          ? LOCKED_ACTIVE_THEME_ID
+          : (!res.show_theme_selector || !savedTheme)
+            ? (res.default_theme || LOCKED_ACTIVE_THEME_ID)
+            : savedTheme;
         applyAppTheme(themeToApply);
+        localStorage.setItem('isaac_app_theme', themeToApply);
         localStorage.setItem('izaque_app_theme', themeToApply);
 
         // Aplica SEMPRE os parâmetros globais de voz/áudio herdados da conta do Edson para todos os casos

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Feather, Shield, Wind, LogOut, Heart, Home, Edit3, Sparkles, LifeBuoy, Sliders, Palette, Compass, MessageCircle, BookOpen } from 'lucide-react';
-import { THEMES, saveAppTheme, getCurrentTheme } from '../services/themeService';
+import { THEMES, saveAppTheme, getCurrentTheme, MULTI_THEME_ENABLED } from '../services/themeService';
 import { updateUserProfile } from '../services/api';
 import { useEbookCart } from '../services/ebookCartStore';
 import UserNotificationsPopover from './UserNotificationsPopover';
@@ -153,8 +153,8 @@ export default function Navbar({
 
         {/* ÁREA DO USUÁRIO OU ENTRADA */}
         <div className="flex items-center space-x-1 sm:space-x-2">
-          {/* SELETOR RÁPIDO DE TEMA VISUAL (PC & DESKTOP — SEMPRE VISÍVEL PARA SUPERADMIN) */}
-          {(isSuperAdmin || (systemSettings ? systemSettings.show_theme_selector !== false : true)) && (
+          {/* SELETOR RÁPIDO DE TEMA VISUAL (DESATIVADO TEMPORARIAMENTE ENQUANTO MULTI_THEME_ENABLED === false) */}
+          {MULTI_THEME_ENABLED && (isSuperAdmin || (systemSettings ? systemSettings.show_theme_selector !== false : true)) && (
             <div className="relative">
               <button
                 ref={themeBtnRef}

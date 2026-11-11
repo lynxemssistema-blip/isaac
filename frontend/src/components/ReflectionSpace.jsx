@@ -55,7 +55,7 @@ import {
 import { fetchSystemSettings } from '../services/adminApi';
 import { ambientAudio } from '../services/ambientAudioService';
 import { humanVoiceService, unlockHtmlAudioElement } from '../services/voiceService';
-import { THEMES, saveAppTheme, getCurrentTheme } from '../services/themeService';
+import { THEMES, saveAppTheme, getCurrentTheme, MULTI_THEME_ENABLED } from '../services/themeService';
 
 const LazyUserSettingsModal = React.lazy(() => import('./UserSettingsModal'));
 
@@ -211,7 +211,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
   const isSuperAdmin =
     user?.role === 'master' ||
     user?.email === 'edsonmanoel2012@gmail.com';
-  const canShowTheme = isSuperAdmin || (systemSettings ? systemSettings.show_theme_selector !== false : true);
+  const canShowTheme = MULTI_THEME_ENABLED && (isSuperAdmin || (systemSettings ? systemSettings.show_theme_selector !== false : true));
   const canShowSettings = isSuperAdmin || (systemSettings ? systemSettings.show_settings_button !== false : true);
   const canShowAmbient = isSuperAdmin || (systemSettings ? systemSettings.show_ambient_sound_button !== false : true);
 

@@ -31,7 +31,7 @@ import {
   unlockHtmlAudioElement,
 } from '../services/voiceService';
 import { updateUserProfile } from '../services/api';
-import { THEMES, applyAppTheme, saveAppTheme, getCurrentTheme } from '../services/themeService';
+import { THEMES, applyAppTheme, saveAppTheme, getCurrentTheme, MULTI_THEME_ENABLED } from '../services/themeService';
 
 const GUIDE_NAME_SUGGESTIONS = ['Isaac', 'Mentor', 'Guia', 'Hermes', 'Sophia', 'Conselheiro'];
 
@@ -485,7 +485,8 @@ export default function UserSettingsModal({
             </div>
           </div>
 
-          {/* 2. ESTILO VISUAL, CORES & FONTES (EXCLUSIVO DO USUÁRIO) */}
+          {/* 2. ESTILO VISUAL, CORES & FONTES (OCULTO TEMPORARIAMENTE ENQUANTO MULTI_THEME_ENABLED === false) */}
+          {MULTI_THEME_ENABLED && (
           <div className="space-y-3.5 pt-4 border-t border-stone-200/80 dark:border-slate-800">
             <div className="flex items-center justify-between">
               <div>
@@ -565,6 +566,7 @@ export default function UserSettingsModal({
               })}
             </div>
           </div>
+          )}
 
           {/* 3. SOM AMBIENTE & FREQUÊNCIA DE CURA */}
           <div className="space-y-4 pt-4 border-t border-stone-200/80 dark:border-slate-800">

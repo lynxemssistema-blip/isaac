@@ -1170,7 +1170,7 @@ export async function fetchSystemSettings() {
   // Fallback seguro caso não haja conexão
   return {
     id: 'global',
-    show_theme_selector: true,
+    show_theme_selector: false,
     show_settings_button: true,
     show_ambient_sound_button: true,
     show_creative_troubles: true,
@@ -1180,7 +1180,7 @@ export async function fetchSystemSettings() {
     show_landing_security: true,
     show_landing_steps: true,
     show_landing_cta: true,
-    default_theme: 'indigo',
+    default_theme: 'gold',
     default_guide_name: 'Isaac',
     default_ambient_track: '432hz',
     default_ambient_volume: 0.20,

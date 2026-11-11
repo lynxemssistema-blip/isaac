@@ -42,7 +42,7 @@ import {
   updateAdminAiEngineConfigApi,
   testAdminAiEngineApi,
 } from '../services/adminApi';
-import { THEMES } from '../services/themeService';
+import { THEMES, MULTI_THEME_ENABLED, LOCKED_ACTIVE_THEME_ID } from '../services/themeService';
 import {
   GEMINI_VOICES,
   humanVoiceService,
@@ -79,7 +79,7 @@ export default function AdminSystemSettings({ currentUser }) {
   const [settings, setSettings] = useState({
     id: 'global',
     // Visibilidade na Sessão de Mentoria
-    show_theme_selector: true,
+    show_theme_selector: false,
     show_settings_button: true,
     show_ambient_sound_button: true,
     // Módulos
@@ -126,7 +126,8 @@ export default function AdminSystemSettings({ currentUser }) {
         setSettings((prev) => ({
           ...prev,
           ...data,
-          default_theme: data.default_theme || 'gold',
+          show_theme_selector: MULTI_THEME_ENABLED ? Boolean(data.show_theme_selector) : false,
+          default_theme: MULTI_THEME_ENABLED ? (data.default_theme || 'gold') : LOCKED_ACTIVE_THEME_ID,
           default_gemini_voice: normalizeGeminiVoiceId(data.default_gemini_voice || 'Aoede'),
           default_voice_engine: data.default_voice_engine || 'gemini',
           default_voice_gender: data.default_voice_gender || 'male',
@@ -1093,6 +1094,8 @@ export default function AdminSystemSettings({ currentUser }) {
 
             <div className="space-y-3.5">
               {/* SELETOR DE ESTILOS VISUAIS */}
+              {/* BOTÃO DE TEMAS VISUAIS (OCULTO ENQUANTO MULTI_THEME_ENABLED === false) */}
+              {MULTI_THEME_ENABLED && (
               <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-900/60 border border-stone-200/80 dark:border-slate-700 flex items-center justify-between gap-4">
                 <div className="flex items-start gap-3">
                   <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 mt-0.5">
@@ -1127,6 +1130,7 @@ export default function AdminSystemSettings({ currentUser }) {
                   <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
                 </label>
               </div>
+              )}
 
               {/* BOTÃO DE AJUSTES */}
               <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-900/60 border border-stone-200/80 dark:border-slate-700 flex items-center justify-between gap-4">

@@ -1,9 +1,15 @@
 /**
  * Serviço de Gerenciamento de Temas Visuais & Tipografia
- * Mentoria ISAAC — Exclusivo a nível de usuário (Guest, Free, Pro, Master)
+ * Mentoria ISAAC — Estilo Único Ativo: 'gold' (Refúgio Ouro & Obsidiana)
+ *
+ * Para reativar a escolha entre os 4 estilos posteriormente, basta alterar
+ * `MULTI_THEME_ENABLED` para `true`.
  */
 
-export const THEMES = [
+export const MULTI_THEME_ENABLED = false;
+export const LOCKED_ACTIVE_THEME_ID = 'gold';
+
+export const ALL_THEMES = [
   {
     id: 'indigo',
     name: 'Brisa Índigo & Oceano',
@@ -17,7 +23,7 @@ export const THEMES = [
     card: '#0d172e',
     colors: ['#0284c7', '#38bdf8', '#060d1b'],
     previewIcon: '🌊',
-    badge: 'Padrão Oficial',
+    badge: 'Clássico Oceano',
   },
   {
     id: 'emerald',
@@ -47,7 +53,7 @@ export const THEMES = [
     card: '#121622',
     colors: ['#d4af37', '#e5c358', '#090a0f'],
     previewIcon: '🕯️',
-    badge: 'Luxo Nobre',
+    badge: 'Estilo Oficial Ativo',
   },
   {
     id: 'terracotta',
@@ -66,39 +72,55 @@ export const THEMES = [
   },
 ];
 
+export const THEMES = MULTI_THEME_ENABLED
+  ? ALL_THEMES
+  : ALL_THEMES.filter((t) => t.id === LOCKED_ACTIVE_THEME_ID);
+
+const ALL_THEME_IDS = ALL_THEMES.map((t) => t.id);
 const VALID_THEME_IDS = THEMES.map((t) => t.id);
 
 /**
  * Aplica as classes do tema no elemento HTML raiz
  */
 export function applyAppTheme(themeId) {
-  if (typeof document === 'undefined') return;
+  if (typeof document === 'undefined') return LOCKED_ACTIVE_THEME_ID;
   const root = document.documentElement;
 
-  // Remove classes anteriores
-  VALID_THEME_IDS.forEach((id) => {
+  // Remove classes anteriores de todos os temas catalogados
+  ALL_THEME_IDS.forEach((id) => {
     root.classList.remove(`theme-${id}`);
   });
 
-  const targetTheme = VALID_THEME_IDS.includes(themeId) ? themeId : 'indigo';
+  const targetTheme = !MULTI_THEME_ENABLED
+    ? LOCKED_ACTIVE_THEME_ID
+    : VALID_THEME_IDS.includes(themeId)
+      ? themeId
+      : LOCKED_ACTIVE_THEME_ID;
+
+  root.classList.add('dark');
   root.classList.add(`theme-${targetTheme}`);
   return targetTheme;
 }
 
 /**
- * Obtém o tema atual salvo localmente (Padrão: 'indigo' - Brisa Índigo & Oceano)
+ * Obtém o tema atual salvo localmente (Padrão Oficial: 'gold' - Refúgio Ouro & Obsidiana)
  */
 export function getCurrentTheme() {
-  if (typeof window === 'undefined') return 'indigo';
+  if (!MULTI_THEME_ENABLED) return LOCKED_ACTIVE_THEME_ID;
+  if (typeof window === 'undefined') return LOCKED_ACTIVE_THEME_ID;
   const saved = localStorage.getItem('isaac_app_theme') || localStorage.getItem('izaque_app_theme');
-  return VALID_THEME_IDS.includes(saved) ? saved : 'indigo';
+  return VALID_THEME_IDS.includes(saved) ? saved : LOCKED_ACTIVE_THEME_ID;
 }
 
 /**
  * Salva e aplica o tema no dispositivo do usuário
  */
 export function saveAppTheme(themeId) {
-  const targetTheme = VALID_THEME_IDS.includes(themeId) ? themeId : 'indigo';
+  const targetTheme = !MULTI_THEME_ENABLED
+    ? LOCKED_ACTIVE_THEME_ID
+    : VALID_THEME_IDS.includes(themeId)
+      ? themeId
+      : LOCKED_ACTIVE_THEME_ID;
   applyAppTheme(targetTheme);
   try {
     localStorage.setItem('isaac_app_theme', targetTheme);

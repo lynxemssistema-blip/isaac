@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-BR" class="dark theme-gold">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -9,8 +9,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#f0f5fa" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#060d1b" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#090a0f" />
     <!-- SEO_HEAD_START -->
     <title>Mentoria ISAAC — Clareza Emocional, Escuta Profunda &amp; Transformação 24h</title>
     <meta name="description" content="Desate os nós da sua mente e reencontre paz e direção. Espaço 100% sigiloso de mentoria reflexiva por texto e voz, memória contínua e clareza emocional idealizado por Edson Manoel." />
@@ -55,15 +54,20 @@
     <script>
       (function() {
         try {
-          var t = localStorage.getItem('isaac_app_theme') || localStorage.getItem('izaque_app_theme') || 'indigo';
-          document.documentElement.classList.add('theme-' + t);
+          var root = document.documentElement;
+          ['indigo', 'emerald', 'terracotta'].forEach(function(id) {
+            root.classList.remove('theme-' + id);
+          });
+          root.classList.add('dark', 'theme-gold');
+          localStorage.setItem('isaac_app_theme', 'gold');
+          localStorage.setItem('izaque_app_theme', 'gold');
         } catch (e) {}
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-BuZX7dqJ.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/icons-BmIxDaGa.js">
-    <link rel="modulepreload" crossorigin href="/assets/animations-Dmuwg4CU.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-DB_Rdpcb.js">
+    <script type="module" crossorigin src="/assets/index-xVZFzedi.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/icons-KYdREN2J.js">
+    <link rel="modulepreload" crossorigin href="/assets/animations-v8C0DhfI.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-B7xUfTRJ.js">
     <link rel="modulepreload" crossorigin href="/assets/supabase-C5o0XR4z.js">
     <link rel="stylesheet" crossorigin href="/assets/index-BLfTMdZC.css">
   </head>
