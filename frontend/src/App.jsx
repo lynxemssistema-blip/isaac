@@ -313,6 +313,9 @@ export default function App() {
     } else if (activeTab === 'admin') {
       document.title = 'Painel Administrativo — Plataforma ISAAC';
     }
+    if (typeof window !== 'undefined') {
+      window.scrollTo(0, 0);
+    }
   }, [
     activeTab,
     guideName,

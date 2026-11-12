@@ -725,7 +725,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6 overflow-x-hidden">
+    <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6 [overflow-x:clip]">
       {/* HEADER PRINCIPAL */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-6 rounded-3xl bg-stone-50 dark:bg-slate-900 border border-stone-200 dark:border-slate-800 shadow-xs">
         <div>

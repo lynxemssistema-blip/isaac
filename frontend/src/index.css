@@ -11,8 +11,7 @@
   }
 
   html {
-    height: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
   }
@@ -20,16 +19,13 @@
   body {
     margin: 0;
     padding: 0;
-    overflow-x: hidden;
-    min-height: 100%;
+    overflow-x: clip;
     min-height: 100vh;
     min-height: 100dvh;
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    /* Previne salto elástico indesejado do iOS que quebra layout de chat */
-    overscroll-behavior-y: none;
     -webkit-overflow-scrolling: touch;
   }
 

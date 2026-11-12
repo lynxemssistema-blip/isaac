@@ -55,7 +55,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
   }, []);
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-slate-900 text-stone-800 dark:text-stone-100 overflow-x-hidden transition-colors duration-300 font-sans selection:bg-teal-700/20 selection:text-teal-900 dark:selection:text-teal-200">
+    <div className="min-h-screen bg-stone-50 dark:bg-slate-900 text-stone-800 dark:text-stone-100 [overflow-x:clip] transition-colors duration-300 font-sans selection:bg-teal-700/20 selection:text-teal-900 dark:selection:text-teal-200">
       {/* GLOW DECORATIVO SUAVE & ORGÂNICO (Sem tons neon/cibernéticos) */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[640px] overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-[-15%] left-1/4 w-[550px] h-[450px] bg-teal-600/10 dark:bg-teal-500/10 blur-[130px] rounded-full" />
