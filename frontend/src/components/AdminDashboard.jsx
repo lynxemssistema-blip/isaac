@@ -51,6 +51,7 @@ import {
   updateAgent,
   deleteAgent,
   updateUserStatus,
+  updateUserWhatsappAccess,
   fetchAdminFeedbacks,
   fetchAdminCreator,
   updateAdminCreator,
@@ -89,10 +90,12 @@ export default function AdminDashboard({ currentUser }) {
 
   // Filtros e busca
   const [userSearch, setUserSearch] = useState('');
-  const [userSourceFilter, setUserSourceFilter] = useState('all'); // 'all' | 'app' | 'inscricao'
+  const [userSourceFilter, setUserSourceFilter] = useState('all'); // 'all' | 'app' | 'whatsapp_active' | 'inscricao'
   const [copiedInscricaoLink, setCopiedInscricaoLink] = useState(false);
   const [editingInscription, setEditingInscription] = useState(null);
   const [savingInscription, setSavingInscription] = useState(false);
+  const [whatsappAccessModalUser, setWhatsappAccessModalUser] = useState(null);
+  const [savingWhatsappAccess, setSavingWhatsappAccess] = useState(false);
   const [memoryFilter, setMemoryFilter] = useState('all');
   const [feedbackMsg, setFeedbackMsg] = useState('');
 
@@ -392,12 +395,123 @@ export default function AdminDashboard({ currentUser }) {
     }
   };
 
+  const getUserWhatsappAccessMeta = (u) => {
+    if (u?.is_inscription) {
+      return {
+        hasAccess: false,
+        source: 'inscription',
+        label: 'Apenas Ficha',
+        sublabel: 'Sem conta no App',
+      };
+    }
+
+    const prefs = u?.preferences && typeof u.preferences === 'object' ? u.preferences : {};
+    const adminOverride = prefs.whatsapp_admin_override || null;
+    const isSuperMaster =
+      u?.role === 'master' ||
+      String(u?.email || '').trim().toLowerCase() === 'edsonmanoel2012@gmail.com';
+    const notExpired = !u?.plan_expires_at || new Date(u.plan_expires_at).getTime() > Date.now();
+    const hasWhatsappPlan =
+      adminOverride !== 'revoked' &&
+      u?.plan_id === 'whatsapp_monthly' &&
+      u?.plan_status === 'active' &&
+      notExpired;
+
+    if (isSuperMaster && adminOverride !== 'revoked') {
+      return {
+        hasAccess: true,
+        source: 'master',
+        label: 'Vitalício SuperAdmin',
+        sublabel: 'Acesso permanente',
+      };
+    }
+
+    if (hasWhatsappPlan && adminOverride === 'granted') {
+      return {
+        hasAccess: true,
+        source: 'manual',
+        label: 'Liberado pelo Admin',
+        sublabel: u.plan_expires_at ? `Até ${formatBrazilDate(u.plan_expires_at)}` : 'Vitalício (Sem vencimento)',
+      };
+    }
+
+    if (hasWhatsappPlan) {
+      return {
+        hasAccess: true,
+        source: 'asaas',
+        label: 'Ativo via Asaas',
+        sublabel: u.plan_expires_at ? `Vence ${formatBrazilDate(u.plan_expires_at)}` : 'Assinatura ativa',
+      };
+    }
+
+    if (adminOverride === 'revoked') {
+      return {
+        hasAccess: false,
+        source: 'revoked',
+        label: 'Revogado pelo Admin',
+        sublabel: 'Plano Gratuito (Sem WhatsApp)',
+      };
+    }
+
+    return {
+      hasAccess: false,
+      source: 'free',
+      label: 'Sem Acesso WhatsApp',
+      sublabel: 'Plano Gratuito (App Web)',
+    };
+  };
+
+  const handleOpenWhatsappAccessModal = (u) => {
+    const meta = getUserWhatsappAccessMeta(u);
+    setWhatsappAccessModalUser({
+      id: u.id,
+      fullName: u.full_name || u.email || 'Usuário',
+      email: u.email || '',
+      phone: u.phone ? formatPhoneMask(u.phone) : '',
+      hasAccess: meta.hasAccess,
+      source: meta.source,
+      label: meta.label,
+      sublabel: meta.sublabel,
+      durationMode: u.plan_expires_at && meta.source === 'manual' ? '30d' : 'lifetime',
+    });
+  };
+
+  const handleSaveWhatsappAccess = async (enabled) => {
+    if (!whatsappAccessModalUser) return;
+    setSavingWhatsappAccess(true);
+    try {
+      const resp = await updateUserWhatsappAccess({
+        userId: whatsappAccessModalUser.id,
+        enabled,
+        durationMode: whatsappAccessModalUser.durationMode || 'lifetime',
+        phone: whatsappAccessModalUser.phone,
+      });
+      setWhatsappAccessModalUser(null);
+      setFeedbackMsg(
+        resp?.message ||
+          (enabled
+            ? 'Acesso à função do WhatsApp liberado com sucesso!'
+            : 'Acesso à função do WhatsApp removido (usuário retornou ao Plano Gratuito).')
+      );
+      setTimeout(() => setFeedbackMsg(''), 4000);
+      loadAllData();
+    } catch (err) {
+      alert('Erro ao atualizar acesso ao WhatsApp: ' + err.message);
+    } finally {
+      setSavingWhatsappAccess(false);
+    }
+  };
+
   const appUsersTotal = users.filter((u) => !u.is_inscription).length;
   const inscriptionsTotal = users.filter((u) => u.is_inscription).length;
+  const whatsappEnabledTotal = users.filter((u) => !u.is_inscription && getUserWhatsappAccessMeta(u).hasAccess).length;
 
   const filteredUsers = users.filter((u) => {
     if (userSourceFilter === 'app' && u.is_inscription) return false;
     if (userSourceFilter === 'inscricao' && !u.is_inscription) return false;
+    if (userSourceFilter === 'whatsapp_active' && (u.is_inscription || !getUserWhatsappAccessMeta(u).hasAccess)) {
+      return false;
+    }
     if (!userSearch.trim()) return true;
     const q = userSearch.toLowerCase();
     return (
@@ -811,6 +925,18 @@ export default function AdminDashboard({ currentUser }) {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setUserSourceFilter('whatsapp_active')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1 ${
+                    userSourceFilter === 'whatsapp_active'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100/80'
+                  }`}
+                >
+                  <Phone className="w-3 h-3" />
+                  <span>WhatsApp Liberado ({whatsappEnabledTotal})</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setUserSourceFilter('inscricao')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
                     userSourceFilter === 'inscricao'
@@ -829,6 +955,7 @@ export default function AdminDashboard({ currentUser }) {
                   <tr>
                     <th className="p-4">Cliente / Contato</th>
                     <th className="p-4">Papel / Origem</th>
+                    <th className="p-4">Função WhatsApp</th>
                     <th className="p-4">Status</th>
                     <th className="p-4">Data de Cadastro</th>
                     <th className="p-4 text-right">Ações</th>
@@ -838,6 +965,7 @@ export default function AdminDashboard({ currentUser }) {
                   {filteredUsers.map((u) => {
                     const isActive = u.is_active !== false;
                     const isInscription = Boolean(u.is_inscription);
+                    const waMeta = getUserWhatsappAccessMeta(u);
 
                     return (
                       <tr key={`${isInscription ? 'insc' : 'app'}_${u.id}`} className="hover:bg-stone-50/70 dark:hover:bg-slate-750 transition">
@@ -890,6 +1018,52 @@ export default function AdminDashboard({ currentUser }) {
                               <option value="admin">admin</option>
                               <option value="master">master</option>
                             </select>
+                          )}
+                        </td>
+
+                        {/* AUTORIZAÇÃO DA FUNÇÃO DO WHATSAPP (COMO SE FOSSE ASAAS) */}
+                        <td className="p-4">
+                          {isInscription ? (
+                            <span className="text-[11px] text-stone-400 italic">Ficha sem login</span>
+                          ) : (
+                            <div className="space-y-1.5">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                    waMeta.hasAccess
+                                      ? waMeta.source === 'manual'
+                                        ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/30'
+                                        : waMeta.source === 'master'
+                                        ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30'
+                                        : 'bg-teal-500/15 text-teal-800 dark:text-teal-300 border-teal-500/30'
+                                      : 'bg-stone-100 dark:bg-slate-900 text-stone-600 dark:text-stone-400 border-stone-200 dark:border-slate-700'
+                                  }`}
+                                >
+                                  <Phone className="w-3 h-3" />
+                                  <span>{waMeta.label}</span>
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-stone-400 dark:text-stone-500 flex flex-wrap items-center gap-1.5">
+                                <span>{waMeta.sublabel}</span>
+                                {waMeta.hasAccess && !u.phone && (
+                                  <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                                    • ⚠️ Cadastre o celular
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenWhatsappAccessModal(u)}
+                                className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer ${
+                                  waMeta.hasAccess
+                                    ? 'bg-stone-100 dark:bg-slate-700 hover:bg-stone-200 dark:hover:bg-slate-600 text-stone-700 dark:text-stone-200 border border-stone-200 dark:border-slate-600'
+                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                                }`}
+                              >
+                                <Phone className="w-3 h-3" />
+                                <span>{waMeta.hasAccess ? 'Gerenciar / Revogar' : 'Liberar WhatsApp'}</span>
+                              </button>
+                            </div>
                           )}
                         </td>
 
@@ -1804,6 +1978,146 @@ export default function AdminDashboard({ currentUser }) {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL PARA AUTORIZAR OU REVOGAR FUNÇÃO DO WHATSAPP (COMO SE FOSSE ASAAS) */}
+        {whatsappAccessModalUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-700 rounded-3xl shadow-2xl p-6 space-y-4">
+              <div className="flex items-start justify-between border-b border-stone-100 dark:border-slate-800 pb-3 gap-3">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold uppercase tracking-wider mb-1">
+                    <Phone className="w-3 h-3" />
+                    <span>Autorização Manual do Super Admin</span>
+                  </div>
+                  <h3 className="font-serif font-bold text-base text-stone-900 dark:text-stone-50">
+                    Função ISAAC no WhatsApp (Igual Asaas)
+                  </h3>
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+                    Defina se <strong>{whatsappAccessModalUser.fullName}</strong> terá ou não acesso completo em texto e voz pelo WhatsApp, sem gerar cobrança no Asaas.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setWhatsappAccessModalUser(null)}
+                  className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-stone-50 dark:bg-slate-800/70 border border-stone-200/80 dark:border-slate-700 text-xs space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-stone-500 dark:text-stone-400">Situação Atual:</span>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                      whatsappAccessModalUser.hasAccess
+                        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-stone-200 dark:bg-slate-700 text-stone-700 dark:text-stone-300'
+                    }`}
+                  >
+                    {whatsappAccessModalUser.label}
+                  </span>
+                </div>
+                {whatsappAccessModalUser.email && (
+                  <div className="text-[11px] text-stone-500 dark:text-stone-400 truncate">
+                    Conta: {whatsappAccessModalUser.email}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+                    Número de Celular / WhatsApp vinculado à conta
+                  </label>
+                  <input
+                    type="tel"
+                    value={whatsappAccessModalUser.phone}
+                    onChange={(e) =>
+                      setWhatsappAccessModalUser((prev) => ({
+                        ...prev,
+                        phone: formatPhoneMask(e.target.value),
+                      }))
+                    }
+                    placeholder="(31) 99999-9999"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-slate-800 border border-stone-300 dark:border-slate-700 text-xs text-stone-900 dark:text-stone-100 outline-none focus:border-emerald-600"
+                  />
+                  <p className="text-[10px] text-stone-400 mt-1">
+                    O ISAAC reconhece o usuário automaticamente no WhatsApp por este número.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+                    Prazo da Liberação no WhatsApp
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setWhatsappAccessModalUser((prev) => ({ ...prev, durationMode: 'lifetime' }))
+                      }
+                      className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                        whatsappAccessModalUser.durationMode === 'lifetime'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-900 dark:text-emerald-200'
+                          : 'bg-stone-50 dark:bg-slate-800 border-stone-200 dark:border-slate-700 text-stone-600 dark:text-stone-300'
+                      }`}
+                    >
+                      <div className="text-xs font-bold">Vitalício</div>
+                      <div className="text-[10px] opacity-80">Sem data de vencimento</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setWhatsappAccessModalUser((prev) => ({ ...prev, durationMode: '30d' }))
+                      }
+                      className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                        whatsappAccessModalUser.durationMode === '30d'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-900 dark:text-emerald-200'
+                          : 'bg-stone-50 dark:bg-slate-800 border-stone-200 dark:border-slate-700 text-stone-600 dark:text-stone-300'
+                      }`}
+                    >
+                      <div className="text-xs font-bold">Por 30 Dias</div>
+                      <div className="text-[10px] opacity-80">Igual ciclo mensal Asaas</div>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-2 space-y-2">
+                  <button
+                    type="button"
+                    disabled={savingWhatsappAccess}
+                    onClick={() => handleSaveWhatsappAccess(true)}
+                    className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition disabled:opacity-50 cursor-pointer"
+                  >
+                    {savingWhatsappAccess ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4" />
+                    )}
+                    <span>
+                      {whatsappAccessModalUser.hasAccess
+                        ? 'Salvar / Renovar Liberação do WhatsApp'
+                        : 'Autorizar Acesso ao WhatsApp Agora'}
+                    </span>
+                  </button>
+
+                  {whatsappAccessModalUser.hasAccess && (
+                    <button
+                      type="button"
+                      disabled={savingWhatsappAccess}
+                      onClick={() => handleSaveWhatsappAccess(false)}
+                      className="w-full py-2.5 px-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
+                    >
+                      <UserX className="w-4 h-4" />
+                      <span>Revogar Acesso ao WhatsApp (Voltar ao Plano Gratuito)</span>
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}

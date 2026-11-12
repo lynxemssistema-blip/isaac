@@ -36,6 +36,9 @@ export function normalizeGeminiVoiceId(rawVoice) {
 export function unlockHtmlAudioElement(audioEl) {
   if (!audioEl) return;
   try {
+    audioEl.playsInline = true;
+    audioEl.setAttribute?.('playsinline', '');
+    audioEl.setAttribute?.('webkit-playsinline', '');
     if (!audioEl.__isaacUnlocked) {
       audioEl.src = SILENT_WAV_DATA_URI;
       const p = audioEl.play();

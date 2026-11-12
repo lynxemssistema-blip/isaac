@@ -21,7 +21,7 @@ const router = Router();
 // ROTAS DO USUÁRIO / MENTORADO (PROTEGIDAS COM JWT)
 // ==========================================
 
-// Mentoria guiada conversacional interativa (Chat com IA)
+// Reflexão guiada conversacional interativa (Chat com IA)
 router.post('/creative-troubles/chat-step', requireAuth, aiResourceLimiter, handleChatStep);
 
 // Cruzamento metodológico e raio-x de múltiplos incômodos

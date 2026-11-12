@@ -119,7 +119,7 @@ export default function AgentKnowledgeManager({ agent, onUpdated }) {
     try {
       const isPdf = selectedFile?.name?.endsWith('.pdf') || mimeType === 'application/pdf';
 
-      setUploadStep(isPdf ? 'Lendo e extraindo conteúdo do livro...' : 'Memorizando na mentoria...');
+      setUploadStep(isPdf ? 'Lendo e extraindo conteúdo do livro...' : 'Memorizando na plataforma...');
 
       await uploadAgentDocument(agent.id, {
         title: title.trim(),
@@ -313,7 +313,7 @@ export default function AgentKnowledgeManager({ agent, onUpdated }) {
           {isUploading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>{uploadStep || 'Memorizando na mentoria...'}</span>
+              <span>{uploadStep || 'Memorizando na plataforma...'}</span>
             </>
           ) : (
             <>

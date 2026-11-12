@@ -155,7 +155,7 @@ export default function AdminPdfCampaigns({ currentUser }) {
     setSubtitle('');
     setEmailSubject('📄 Olá, {{nome}}! Aqui está o seu material: {{titulo}}');
     setEmailBody(
-      'Olá, {{nome}}!\n\nSeja muito bem-vindo(a) ao ISAAC.\n\nConforme combinado, anexamos neste e-mail o seu arquivo PDF "{{titulo}}" para você ler e consultar quando desejar.\n\nAproveite também para entrar no aplicativo e iniciar suas conversas de clareza e mentoria!'
+      'Olá, {{nome}}!\n\nSeja muito bem-vindo(a) à Plataforma ISAAC.\n\nConforme combinado, anexamos neste e-mail o seu arquivo PDF "{{titulo}}" para você ler e consultar quando desejar.\n\nAproveite também para entrar na plataforma e iniciar suas conversas de clareza e evolução!'
     );
     setTargetGroupId('');
     setIsDefault(campaigns.length === 0);

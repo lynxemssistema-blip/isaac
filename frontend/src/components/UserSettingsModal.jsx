@@ -416,7 +416,7 @@ export default function UserSettingsModal({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-serif font-medium tracking-tight">
-                Preferências da Mentoria
+                Preferências da Plataforma
               </h2>
               <p className="text-[11px] sm:text-xs text-stone-500 dark:text-stone-400 flex items-center gap-1.5">
                 <Globe className="w-3 h-3 text-teal-600 dark:text-teal-400 inline" />
@@ -427,6 +427,7 @@ export default function UserSettingsModal({
 
           <button
             type="button"
+            aria-label="Fechar preferências"
             onClick={() => {
               humanVoiceService.stop();
               if (audioPreviewRef.current) audioPreviewRef.current.pause();
@@ -443,9 +444,9 @@ export default function UserSettingsModal({
           {/* 1. NOME PERSONALIZADO DO MENTOR */}
           <div className="space-y-3">
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-teal-800 dark:text-teal-400 block">
+              <label htmlFor="settings-guide-name" className="text-xs font-semibold uppercase tracking-wider text-teal-800 dark:text-teal-400 block">
                 1. Nome do seu Mentor
-              </span>
+              </label>
               <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
                 Como você gostaria de chamar a inteligência acolhedora que guia suas reflexões
               </p>
@@ -453,6 +454,8 @@ export default function UserSettingsModal({
 
             <div className="relative">
               <input
+                id="settings-guide-name"
+                name="guideName"
                 type="text"
                 value={guideName}
                 onChange={(e) => setGuideName(e.target.value)}
@@ -568,12 +571,12 @@ export default function UserSettingsModal({
           </div>
           )}
 
-          {/* 3. SOM AMBIENTE & FREQUÊNCIA DE CURA */}
+          {/* SOM AMBIENTE & FREQUÊNCIA DE CURA */}
           <div className="space-y-4 pt-4 border-t border-stone-200/80 dark:border-slate-800">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-xs font-semibold uppercase tracking-wider text-teal-800 dark:text-teal-400 block">
-                  3. Som Ambiente Terapêutico
+                  {MULTI_THEME_ENABLED ? '3.' : '2.'} Som Ambiente Terapêutico
                 </span>
                 <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
                   Frequências restauradoras para acalmar a mente durante a conversa
@@ -582,6 +585,9 @@ export default function UserSettingsModal({
 
               <button
                 type="button"
+                role="switch"
+                aria-checked={isAmbientEnabled}
+                aria-label="Ativar ou desativar som ambiente terapêutico"
                 onClick={() => handleToggleAmbient(!isAmbientEnabled)}
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                   isAmbientEnabled ? 'bg-teal-700' : 'bg-stone-300 dark:bg-slate-700'
@@ -659,11 +665,11 @@ export default function UserSettingsModal({
             )}
           </div>
 
-          {/* 4. MODO IMERSIVO (VOZ AUTOMÁTICA) */}
+          {/* MODO IMERSIVO (VOZ AUTOMÁTICA) */}
           <div className="flex items-center justify-between pt-4 border-t border-stone-200/80 dark:border-slate-800">
             <div>
               <span className="text-xs font-semibold uppercase tracking-wider text-teal-800 dark:text-teal-400 block">
-                4. Modo Imersivo (Ouvir Sempre)
+                {MULTI_THEME_ENABLED ? '4.' : '3.'} Modo Imersivo (Ouvir Sempre)
               </span>
               <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
                 Toca a voz do mentor automaticamente quando uma nova reflexão é recebida
@@ -672,6 +678,9 @@ export default function UserSettingsModal({
 
             <button
               type="button"
+              role="switch"
+              aria-checked={immersiveVoice}
+              aria-label="Ativar ou desativar modo imersivo de voz"
               onClick={() => handleToggleImmersive(!immersiveVoice)}
               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                 immersiveVoice ? 'bg-teal-700' : 'bg-stone-300 dark:bg-slate-700'
@@ -685,12 +694,12 @@ export default function UserSettingsModal({
             </button>
           </div>
 
-          {/* 5. MOTOR DE VOZ DO MENTOR: PADRÃO MESTRE EDSON MANOEL */}
+          {/* MOTOR DE VOZ DO MENTOR */}
           <div className="space-y-4 pt-4 border-t border-stone-200/80 dark:border-slate-800">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div>
                 <span className="text-xs font-semibold uppercase tracking-wider text-teal-800 dark:text-teal-400 flex items-center gap-2 flex-wrap">
-                  <span>5. Voz do Mentor</span>
+                  <span>{MULTI_THEME_ENABLED ? '5.' : '4.'} Voz do Mentor</span>
                   {isEdsonOrMaster && (
                     <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30">
                       Parâmetro Mestre (Todos os Usuários)
@@ -700,7 +709,7 @@ export default function UserSettingsModal({
                 <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
                   {isEdsonOrMaster
                     ? 'O tipo de voz e parâmetros salvos aqui são aplicados para todos os usuários do app'
-                    : 'Voz neural oficial configurada pela curadoria da Mentoria Isaac'}
+                    : 'Voz neural oficial configurada pela curadoria da Plataforma Isaac'}
                 </p>
               </div>
 

@@ -78,7 +78,7 @@ export default function AdminSystemSettings({ currentUser }) {
   // Estado dos parâmetros avançados do sistema
   const [settings, setSettings] = useState({
     id: 'global',
-    // Visibilidade na Sessão de Mentoria
+    // Visibilidade na Sessão da Plataforma
     show_theme_selector: false,
     show_settings_button: true,
     show_ambient_sound_button: true,
@@ -499,7 +499,7 @@ export default function AdminSystemSettings({ currentUser }) {
               title: 'VPS LynxHub (Local)',
               badge: 'Custo R$ 0,00 / Token',
               icon: Server,
-              desc: 'Chat, streaming, mentoria, memórias e resumos direto na sua VPS KVM 8, mantendo RAG dos livros e voz neural intactos.',
+              desc: 'Chat, streaming, reflexões na plataforma, memórias e resumos direto na sua VPS KVM 8, mantendo RAG dos livros e voz neural intactos.',
               activeRing: 'border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/30',
             },
           ].map((opt) => {
@@ -721,7 +721,7 @@ export default function AdminSystemSettings({ currentUser }) {
                 </div>
                 <div>
                   <h4 className="text-xs font-semibold text-stone-800 dark:text-stone-100 flex items-center gap-2">
-                    Apresentação do Idealizador (Edson Manoel)
+                    Apresentação do Idealizador (Thiago Prata)
                     <span className={`text-[10px] font-normal px-2 py-0.2 rounded-full ${
                       settings.show_landing_creator
                         ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60'
@@ -785,7 +785,7 @@ export default function AdminSystemSettings({ currentUser }) {
               </label>
             </div>
 
-            {/* 1.3 PROPOSTA DA MENTORIA & 3 PILARES */}
+            {/* 1.3 PROPOSTA DA PLATAFORMA & 3 PILARES */}
             <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-900/60 border border-stone-200/80 dark:border-slate-700 flex items-center justify-between gap-4">
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mt-0.5">
@@ -793,7 +793,7 @@ export default function AdminSystemSettings({ currentUser }) {
                 </div>
                 <div>
                   <h4 className="text-xs font-semibold text-stone-800 dark:text-stone-100 flex items-center gap-2">
-                    Proposta da Mentoria (Quem é Isaac & 3 Pilares)
+                    Proposta da Plataforma (Quem é Isaac &amp; 3 Pilares)
                     <span className={`text-[10px] font-normal px-2 py-0.2 rounded-full ${
                       settings.show_landing_features
                         ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60'

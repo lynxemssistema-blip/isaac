@@ -1,4 +1,4 @@
-import{r as yc}from"./icons-CKjBnwir.js";var hi={exports:{}},ve={},yi={exports:{}},gi={};/**
+import{r as yc}from"./icons-DAelm4hx.js";var hi={exports:{}},ve={},yi={exports:{}},gi={};/**
  * @license React
  * scheduler.production.min.js
  *

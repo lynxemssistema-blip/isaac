@@ -33,6 +33,11 @@ import {
   X,
   BookOpen,
   ExternalLink,
+  Smartphone,
+  Sun,
+  Moon,
+  Wifi,
+  Battery,
 } from 'lucide-react';
 import {
   fetchAdminWhatsappOutreachOverview,
@@ -50,9 +55,102 @@ import { fetchPublicEbooksStore } from '../services/ebookStoreApi';
 import { formatContactPhoneBadge } from '../utils/phoneUtils';
 import { formatBrazilTime, formatBrazilDateTime } from '../utils/dateTimeBrazil';
 
+const OFFICIAL_INVITE_IMAGE_OPTIONS = [
+  {
+    id: 'og-cover',
+    shortTitle: 'Capa Ouro & Obsidiana',
+    subtitle: 'Imagem original da Plataforma',
+    previewSrc: '/og-isaac-cover.jpg',
+    url: 'https://isaac.lynxems.com.br/og-isaac-cover.jpg',
+  },
+  {
+    id: 'isaac-black',
+    shortTitle: 'ISAAC Fundo Preto & Pilares',
+    subtitle: 'Inovação • Sustentabilidade • Amor • Atitude • Competências',
+    previewSrc: '/invite-isaac-black.jpg',
+    url: 'https://isaac.lynxems.com.br/invite-isaac-black.jpg',
+  },
+  {
+    id: 'isaac-white',
+    shortTitle: 'ISAAC Fundo Branco & Pilares',
+    subtitle: 'Inovação • Sustentabilidade • Amor • Atitude • Competências',
+    previewSrc: '/invite-isaac-white.jpg',
+    url: 'https://isaac.lynxems.com.br/invite-isaac-white.jpg',
+  },
+  {
+    id: 'isaac-mint',
+    shortTitle: 'ISAAC Fundo Verde Menta',
+    subtitle: 'Estrela minimalista fundo menta',
+    previewSrc: '/invite-isaac-mint.jpg',
+    url: 'https://isaac.lynxems.com.br/invite-isaac-mint.jpg',
+  },
+];
+
+function resolveInviteImagePreviewSrc(rawUrl) {
+  const clean = String(rawUrl || '').split('#')[0].trim();
+  const matched = OFFICIAL_INVITE_IMAGE_OPTIONS.find(
+    (opt) => clean === opt.url || clean.endsWith(opt.previewSrc)
+  );
+  if (matched) return matched.previewSrc;
+  return clean || '/og-isaac-cover.jpg';
+}
+
+function formatWhatsAppInlineTokens(lineText, isDarkTheme) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const segments = String(lineText || '').split(urlRegex);
+  const linkCls = isDarkTheme ? 'text-[#53bdeb] underline break-all' : 'text-[#027eb5] underline break-all';
+
+  const renderStyledSpan = (chunk, baseKey) => {
+    const tokenRegex = /(\*[^*\n]+\*|_[^_\n]+_|~[^~\n]+~)/g;
+    const parts = chunk.split(tokenRegex);
+    return parts.map((part, idx) => {
+      const k = `${baseKey}-${idx}`;
+      if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+        return (
+          <strong key={k} className="font-bold">
+            {part.slice(1, -1)}
+          </strong>
+        );
+      }
+      if (part.startsWith('_') && part.endsWith('_') && part.length > 2) {
+        return (
+          <em key={k} className="italic opacity-95">
+            {part.slice(1, -1)}
+          </em>
+        );
+      }
+      if (part.startsWith('~') && part.endsWith('~') && part.length > 2) {
+        return (
+          <del key={k} className="line-through opacity-80">
+            {part.slice(1, -1)}
+          </del>
+        );
+      }
+      return <React.Fragment key={k}>{part}</React.Fragment>;
+    });
+  };
+
+  return segments.map((seg, i) => {
+    if (/^https?:\/\/[^\s]+$/.test(seg)) {
+      return (
+        <a
+          key={`url-${i}`}
+          href={seg}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={linkCls}
+        >
+          {seg}
+        </a>
+      );
+    }
+    return <React.Fragment key={`txt-${i}`}>{renderStyledSpan(seg, `seg-${i}`)}</React.Fragment>;
+  });
+}
+
 const FALLBACK_DEFAULT_UNREGISTERED_TEMPLATE = `{saudacao}, {nome}! Tudo bem com você?
 
-Quero te apresentar uma ferramenta maravilhosa de clareza mental e desenvolvimento pessoal: a *Mentoria ISAAC*.
+Quero te apresentar uma ferramenta maravilhosa de clareza mental e desenvolvimento pessoal: a *Plataforma ISAAC*.
 
 O ISAAC é um mentor confidencial, disponível 24h em texto e voz, criado para ouvir sem julgamentos, ajudar a desatar bloqueios emocionais e trazer direção para as suas decisões.
 
@@ -61,7 +159,7 @@ https://isaac.lynxems.com.br/
 
 _(Se não desejar receber convites por aqui, basta responder "parar".)_`;
 
-const FALLBACK_DEFAULT_REGISTERED_TEMPLATE = `{saudacao}, {nome}! Que alegria ter você na *Mentoria ISAAC*. {contexto}
+const FALLBACK_DEFAULT_REGISTERED_TEMPLATE = `{saudacao}, {nome}! Que alegria ter você na *Plataforma ISAAC*. {contexto}
 
 Agora sua conta está integrada ao nosso canal e queremos lembrar como funcionam os nossos *2 planos* para você aproveitar cada recurso da melhor forma:
 
@@ -77,14 +175,14 @@ Agora sua conta está integrada ao nosso canal e queremos lembrar como funcionam
 • Reconhecimento automático pelo seu telefone e sincronização imediata no mesmo chat do App
 • Assinatura mensal segura via Asaas (PIX, Cartão ou Boleto)
 
-👉 Acesse sua mentoria ou veja os detalhes dos planos aqui:
+👉 Acesse a plataforma ou veja os detalhes dos planos aqui:
 https://isaac.lynxems.com.br/#planos
 
 _(Se preferir não receber comunicados no WhatsApp, basta responder "parar".)_`;
 
 const FALLBACK_DEFAULT_INTL_UNREGISTERED_TEMPLATE = `{saudacao}, {nome}! How are you doing?
 
-I would love to introduce you to a wonderful tool for mental clarity and personal growth: *ISAAC Mentoring*.
+I would love to introduce you to a wonderful tool for mental clarity and personal growth: the *ISAAC Platform*.
 
 ISAAC is a confidential mentor available 24/7 by text and voice, created to listen without judgement, help untangle emotional blocks, and bring clear direction to your decisions.
 
@@ -93,7 +191,7 @@ https://isaac.lynxems.com.br/
 
 _(If you would rather not receive invitations here, simply reply "stop".)_`;
 
-const FALLBACK_DEFAULT_INTL_REGISTERED_TEMPLATE = `{saudacao}, {nome}! It is a pleasure to have you with us at *ISAAC Mentoring*. {contexto}
+const FALLBACK_DEFAULT_INTL_REGISTERED_TEMPLATE = `{saudacao}, {nome}! It is a pleasure to have you with us on the *ISAAC Platform*. {contexto}
 
 Your account is now connected to our channel, and we would like to share a quick reminder of how our *2 plans* work so you can make the most of every feature:
 
@@ -109,7 +207,7 @@ Your account is now connected to our channel, and we would like to share a quick
 • Automatic recognition by your phone number and instant sync with your App chat
 • Simple and secure monthly subscription
 
-👉 Access your mentoring space or view plan details here:
+👉 Access the platform or view plan details here:
 https://isaac.lynxems.com.br/#planos
 
 _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`;
@@ -218,7 +316,7 @@ export default function AdminEvolutionContacts({ currentUser }) {
   const [savingContactNameId, setSavingContactNameId] = useState(null);
 
   // Form de Agendamento / Campanha Anti-Ban
-  const [campTitle, setCampTitle] = useState('Campanha Controlada Mentoria ISAAC');
+  const [campTitle, setCampTitle] = useState('Campanha Controlada Plataforma ISAAC');
   const [audienceType, setAudienceType] = useState('mixed');
   const [scheduleMode, setScheduleMode] = useState('now'); // 'now' | 'later'
   const [scheduledAtInput, setScheduledAtInput] = useState('');
@@ -248,6 +346,12 @@ export default function AdminEvolutionContacts({ currentUser }) {
   const [savingTemplates, setSavingTemplates] = useState(false);
   const [templatesSavedFlash, setTemplatesSavedFlash] = useState(false);
   const [showLivePreview, setShowLivePreview] = useState(false);
+  const [showPhoneVisualizerModal, setShowPhoneVisualizerModal] = useState(false);
+  const [visualizerFlowKey, setVisualizerFlowKey] = useState('pt_unregistered'); // 'pt_unregistered' | 'pt_registered' | 'en_unregistered' | 'en_registered'
+  const [visualizerSampleName, setVisualizerSampleName] = useState('Thiago Prata');
+  const [visualizerHasValidName, setVisualizerHasValidName] = useState(true);
+  const [visualizerDarkTheme, setVisualizerDarkTheme] = useState(true);
+  const [visualizerRecipientPhone, setVisualizerRecipientPhone] = useState('+55 (31) 99557-4906');
   const templatesHydratedRef = useRef(false);
 
   const unregisteredTextareaRef = useRef(null);
@@ -294,14 +398,14 @@ export default function AdminEvolutionContacts({ currentUser }) {
           dedicatedUrl: storeUrl,
           twoStepPtMsg: `{saudacao}, {nome}! {Tudo bem com você?|Como você está?|Espero que esteja tudo em paz por aí.}
 
-{Passando com carinho para compartilhar uma novidade muito especial|Queria dividir em primeira mão um projeto editorial muito bonito}: o mentor *Thiago Prata* (criador da Mentoria *ISAAC®*) acaba de lançar a *Biblioteca Oficial de eBooks ISAAC® Essential*, com *8 leituras práticas em edição Bilíngue (Português + Inglês Britânico no mesmo PDF)* e dedicatória nominal personalizada.
+{Passando com carinho para compartilhar uma novidade muito especial|Queria dividir em primeira mão um projeto editorial muito bonito}: o mentor *Thiago Prata* (criador da Plataforma *ISAAC®*) acaba de lançar a *Biblioteca Oficial de eBooks ISAAC® Essential*, com *8 leituras práticas em edição Bilíngue (Português + Inglês Britânico no mesmo PDF)* e dedicatória nominal personalizada.
 
 {Posso te enviar o acesso da página por aqui para você ver as capas com calma?|Posso te mandar o link da biblioteca aqui no WhatsApp para você conhecer os temas?} Basta me responder um *"sim"* ou 👍!
 
 _(Se preferir não receber convites por aqui, basta responder "parar".)_`,
           twoStepEnMsg: `{saudacao}, {nome}! {How are you doing?|Hope all is well with you.|Wishing you a peaceful week.}
 
-{I wanted to share a special new project with you|Passing by briefly to share wonderful news}: mentor *Thiago Prata* (Creator of *ISAAC® Mentoring*) has just published the *Official ISAAC® Essential Bilingual Library* — featuring *8 practical volumes in Portuguese and British English within the same PDF*, complete with a personalised dedication in your name.
+{I wanted to share a special new project with you|Passing by briefly to share wonderful news}: mentor *Thiago Prata* (Creator of the *ISAAC® Platform*) has just published the *Official ISAAC® Essential Bilingual Library* — featuring *8 practical volumes in Portuguese and British English within the same PDF*, complete with a personalised dedication in your name.
 
 {May I share the library link here so you can browse the covers at your own pace?|Would you like me to send the page link right here?} Simply reply *"yes"* or 👍!
 
@@ -336,7 +440,7 @@ _(If you prefer not to receive updates here, simply reply "stop".)_`,
 _(Se preferir não receber novidades por aqui, responda "parar".)_`,
           twoStepEnMsg: `{saudacao}, {nome}! {How are you doing?|Hope you are having a lovely week.|Hope all is well with you.}
 
-{I wanted to share a special release with you|Sharing wonderful news from ISAAC® Mentoring}: mentor *Thiago Prata* has brought together all *8 volumes of the ISAAC® Essential Series into one Master Bilingual PDF (Portuguese + British English)*, illustrated and featuring a personal dedication in your name.
+{I wanted to share a special release with you|Sharing wonderful news from the ISAAC® Platform}: mentor *Thiago Prata* has brought together all *8 volumes of the ISAAC® Essential Series into one Master Bilingual PDF (Portuguese + British English)*, illustrated and featuring a personal dedication in your name.
 
 {May I send you the official page link here so you can take a look?|Would you like me to share the collection page right here?} Simply reply *"yes"* or 👍!
 
@@ -841,6 +945,59 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
     intlUnregisteredTemplate !== savedBaseline.intlUnregisteredTemplate ||
     intlRegisteredTemplate !== savedBaseline.intlRegisteredTemplate;
 
+  const handleSelectOfficialInviteImage = async (optionUrl, autoSave = false) => {
+    setUnregisteredImageUrl(optionUrl);
+    setSelectedEbookPresetSlug('');
+    if (!autoSave) return;
+
+    try {
+      setSavingTemplates(true);
+      setErrorMsg('');
+      const updated = await saveAdminWhatsappOutreachTemplatesApi({
+        unregisteredImageUrl: optionUrl,
+        unregisteredTemplate: unregisteredTemplate.trim(),
+        registeredTemplate: registeredTemplate.trim(),
+        intlUnregisteredTemplate: intlUnregisteredTemplate.trim(),
+        intlRegisteredTemplate: intlRegisteredTemplate.trim(),
+      });
+      const nextImg = updated.unregisteredImageUrl || optionUrl;
+      setUnregisteredImageUrl(nextImg);
+      setSavedBaseline((prev) => ({
+        ...prev,
+        unregisteredImageUrl: nextImg,
+      }));
+      const opt = OFFICIAL_INVITE_IMAGE_OPTIONS.find((item) => item.url === optionUrl);
+      showToast(`Imagem oficial de convite selecionada e salva: "${opt?.shortTitle || 'Capa ISAAC'}"!`);
+    } catch (err) {
+      setErrorMsg(err.message || 'Falha ao salvar a imagem de convite selecionada.');
+    } finally {
+      setSavingTemplates(false);
+    }
+  };
+
+  const handleOpenPhoneVisualizerForContact = (contact = null) => {
+    if (contact) {
+      const info = formatContactPhoneBadge(contact.phone_digits);
+      const isIntl = Boolean(contact.is_international ?? info.isInternational);
+      const hasValid = Boolean(contact.has_valid_name);
+      const candidateName =
+        contact.first_name_clean ||
+        contact.display_name ||
+        contact.app_full_name ||
+        contact.push_name ||
+        'Thiago Prata';
+      setVisualizerSampleName(hasValid ? candidateName : 'Sem nome válido');
+      setVisualizerHasValidName(hasValid);
+      setVisualizerRecipientPhone(contact.formatted_phone || info.formatted || `+${contact.phone_digits}`);
+      if (contact.is_registered_user) {
+        setVisualizerFlowKey(isIntl ? 'en_registered' : 'pt_registered');
+      } else {
+        setVisualizerFlowKey(isIntl ? 'en_unregistered' : 'pt_unregistered');
+      }
+    }
+    setShowPhoneVisualizerModal(true);
+  };
+
   const handleSaveTemplates = async () => {
     try {
       setSavingTemplates(true);
@@ -1297,6 +1454,16 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
 
         {/* AÇÕES RÁPIDAS NO CONTATO */}
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => handleOpenPhoneVisualizerForContact(c)}
+            className="px-2.5 py-1.5 rounded-xl bg-stone-100 dark:bg-slate-800 hover:bg-teal-50 dark:hover:bg-slate-700 border border-stone-200 dark:border-slate-700 text-stone-700 dark:text-stone-200 text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer"
+            title="Visualizar exatamente como a mensagem + imagem vai aparecer no celular deste contato"
+          >
+            <Smartphone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Ver no Celular</span>
+          </button>
+
           {c.is_allowed_by_safety_lock ? (
             <>
               {/* 1. OPÇÃO DE ENVIAR A PÁGINA DOS EBOOKS (ANTES DO CONVITE!) */}
@@ -1367,6 +1534,396 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
               <Lock className="w-3 h-3" /> Protegido pela Trava ({overview.safety?.allowedPhonesRaw})
             </span>
           )}
+        </div>
+      </div>
+    );
+  };
+
+  // Simulador Realista de Tela do WhatsApp no Celular do Destinatário
+  const renderSmartphoneWhatsAppVisualizer = ({ inModal = false } = {}) => {
+    const isIntlSim = visualizerFlowKey.startsWith('en_');
+    const isInviteWithImage =
+      visualizerFlowKey === 'pt_unregistered' ||
+      visualizerFlowKey === 'en_unregistered' ||
+      String(unregisteredImageUrl || '').includes('/ebooks/covers/');
+
+    const rawActiveTemplate =
+      visualizerFlowKey === 'pt_unregistered'
+        ? unregisteredTemplate
+        : visualizerFlowKey === 'pt_registered'
+        ? registeredTemplate
+        : visualizerFlowKey === 'en_unregistered'
+        ? intlUnregisteredTemplate
+        : intlRegisteredTemplate;
+
+    const sampleContextText = isIntlSim
+      ? 'Your conversations remain safely stored in complete confidence whenever you wish to continue.'
+      : 'Suas conversas seguem guardadas com todo sigilo esperando por você.';
+
+    const finalPreviewMessage = renderLivePreviewText(rawActiveTemplate, {
+      sampleName: visualizerHasValidName ? visualizerSampleName : '',
+      sampleContext:
+        visualizerFlowKey === 'pt_registered' || visualizerFlowKey === 'en_registered'
+          ? sampleContextText
+          : '',
+      isIntl: isIntlSim,
+    });
+
+    const previewImgSrc = resolveInviteImagePreviewSrc(unregisteredImageUrl);
+    const nowTimeStr = formatBrazilTime(new Date(), { hour: '2-digit', minute: '2-digit' }) || '14:32';
+    const lines = finalPreviewMessage.split('\n');
+
+    return (
+      <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-stone-100 via-white to-emerald-50/40 dark:from-slate-900 dark:via-slate-900/95 dark:to-emerald-950/20 border border-emerald-300/70 dark:border-emerald-800/60 shadow-sm space-y-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-stone-200/80 dark:border-slate-800 pb-3.5">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider">
+                <Smartphone className="w-3 h-3" />
+                <span>Simulador Realista WhatsApp</span>
+              </span>
+              <h4 className="text-sm sm:text-base font-serif font-bold text-stone-900 dark:text-white">
+                Como a mensagem aparece no celular de quem vai receber
+              </h4>
+            </div>
+            <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+              Escolha abaixo qual das <strong>4 imagens de convite</strong> enviar junto com o texto e veja em tempo real o balão do WhatsApp formatado exatamente como chega no aparelho do usuário.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setVisualizerDarkTheme((prev) => !prev)}
+              className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-stone-200 dark:border-slate-700 text-xs font-semibold text-stone-700 dark:text-stone-200 flex items-center gap-1.5 cursor-pointer hover:border-emerald-500 transition"
+            >
+              {visualizerDarkTheme ? (
+                <>
+                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Ver WhatsApp Claro</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Ver WhatsApp Escuro</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+          {/* COLUNA ESQUERDA: ESCOLHA DAS 3 IMAGENS DE CONVITE + CONTROLES DE SIMULAÇÃO */}
+          <div className="xl:col-span-7 space-y-4">
+            {/* SELETOR VISUAL DAS 3 IMAGENS OFICIAIS DE CONVITE */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-stone-800 dark:text-stone-100 flex items-center gap-1.5">
+                  <ImageIcon className="w-4 h-4 text-amber-600" />
+                  <span>1. Selecione qual imagem enviar junto com a mensagem de convite:</span>
+                </span>
+                {inModal && hasUnsavedTemplateChanges && (
+                  <button
+                    type="button"
+                    disabled={savingTemplates}
+                    onClick={handleSaveTemplates}
+                    className="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  >
+                    {savingTemplates ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                    <span>Salvar Escolha</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {OFFICIAL_INVITE_IMAGE_OPTIONS.map((opt) => {
+                  const cleanCurrent = String(unregisteredImageUrl || '').split('#')[0].trim();
+                  const isSelectedImg =
+                    cleanCurrent === opt.url || cleanCurrent.endsWith(opt.previewSrc);
+
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => handleSelectOfficialInviteImage(opt.url, inModal)}
+                      className={`group text-left rounded-2xl border-2 overflow-hidden transition flex flex-col cursor-pointer ${
+                        isSelectedImg
+                          ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/35 shadow-md ring-2 ring-emerald-500/25'
+                          : 'border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 hover:border-amber-400'
+                      }`}
+                    >
+                      <div className="relative aspect-square w-full bg-stone-900 overflow-hidden">
+                        <img
+                          src={opt.previewSrc}
+                          alt={opt.shortTitle}
+                          className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+                        />
+                        {isSelectedImg && (
+                          <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold shadow flex items-center gap-1">
+                            <Check className="w-3 h-3" /> Selecionada
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-2.5 space-y-0.5">
+                        <div className="text-[11px] font-bold text-stone-900 dark:text-white leading-tight">
+                          {opt.shortTitle}
+                        </div>
+                        <div className="text-[10px] text-stone-500 dark:text-stone-400 line-clamp-2 leading-snug">
+                          {opt.subtitle}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SELETOR DO MODELO E DADOS DO DESTINATÁRIO DE TESTE */}
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-stone-200 dark:border-slate-700 space-y-3">
+              <div>
+                <span className="block text-xs font-bold text-stone-800 dark:text-stone-100 mb-1.5">
+                  2. Escolha qual tipo de mensagem visualizar na tela do celular:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {[
+                    {
+                      id: 'pt_unregistered',
+                      label: '🇧🇷 Convite Novos Usuários (Imagem + Texto)',
+                    },
+                    {
+                      id: 'pt_registered',
+                      label: '🇧🇷 Já Cadastrados (Planos Grátis & Pago)',
+                    },
+                    {
+                      id: 'en_unregistered',
+                      label: '🇬🇧 New Users Invite + Image (EN-GB)',
+                    },
+                    {
+                      id: 'en_registered',
+                      label: '🇬🇧 Registered Members Plans (EN-GB)',
+                    },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setVisualizerFlowKey(item.id)}
+                      className={`px-3 py-2 rounded-xl text-left text-[11px] font-semibold border transition cursor-pointer ${
+                        visualizerFlowKey === item.id
+                          ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
+                          : 'bg-stone-50 dark:bg-slate-900 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-slate-700 hover:bg-stone-100'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-[11px] font-semibold text-stone-600 dark:text-stone-300 mb-1">
+                    Nome do destinatário para simular <code className="font-mono">{'{nome}'}</code>:
+                  </label>
+                  <input
+                    type="text"
+                    disabled={!visualizerHasValidName}
+                    value={visualizerSampleName}
+                    onChange={(e) => setVisualizerSampleName(e.target.value)}
+                    placeholder="Ex: Thiago Prata"
+                    className="w-full px-3 py-2 rounded-xl bg-stone-50 dark:bg-slate-900 border border-stone-200 dark:border-slate-700 text-xs text-stone-900 dark:text-white disabled:opacity-50 outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-stone-600 dark:text-stone-300 mb-1">
+                    Teste de saudação inteligente:
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVisualizerHasValidName(true);
+                        if (!visualizerSampleName || visualizerSampleName === 'Sem nome válido') {
+                          setVisualizerSampleName('Thiago Prata');
+                        }
+                      }}
+                      className={`py-2 px-2.5 rounded-xl text-[11px] font-semibold border cursor-pointer ${
+                        visualizerHasValidName
+                          ? 'bg-emerald-600 text-white border-emerald-600'
+                          : 'bg-stone-50 dark:bg-slate-900 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-slate-700'
+                      }`}
+                    >
+                      Com 1º Nome
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVisualizerHasValidName(false)}
+                      className={`py-2 px-2.5 rounded-xl text-[11px] font-semibold border cursor-pointer ${
+                        !visualizerHasValidName
+                          ? 'bg-amber-600 text-white border-amber-600'
+                          : 'bg-stone-50 dark:bg-slate-900 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-slate-700'
+                      }`}
+                    >
+                      Sem Nome Válido
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-stone-500 dark:text-stone-400">
+                Simulando entrega para <strong>{visualizerRecipientPhone}</strong> • Qualquer edição feita nas caixas de texto atualiza a tela do celular ao lado instantaneamente.
+              </p>
+            </div>
+          </div>
+
+          {/* COLUNA DIREITA: APARELHO CELULAR COM TELA REAL DO WHATSAPP */}
+          <div className="xl:col-span-5 flex justify-center">
+            <div className="w-full max-w-[350px] rounded-[40px] p-2.5 bg-slate-950 shadow-2xl border-[3px] border-slate-800 ring-1 ring-black/40">
+              {/* TELA INTERNA DO SMARTPHONE */}
+              <div
+                className={`rounded-[31px] overflow-hidden flex flex-col border ${
+                  visualizerDarkTheme
+                    ? 'bg-[#0b141a] border-slate-800 text-[#e9edef]'
+                    : 'bg-[#efeae2] border-stone-300 text-[#111b21]'
+                }`}
+              >
+                {/* BARRA DE STATUS DO CELULAR */}
+                <div
+                  className={`px-5 pt-2 pb-1 flex items-center justify-between text-[11px] font-semibold ${
+                    visualizerDarkTheme ? 'bg-[#202c33] text-stone-200' : 'bg-[#075e54] text-white'
+                  }`}
+                >
+                  <span>{nowTimeStr}</span>
+                  <div className="w-16 h-3.5 rounded-full bg-black/80" />
+                  <div className="flex items-center gap-1">
+                    <Wifi className="w-3 h-3" />
+                    <Battery className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+
+                {/* CABEÇALHO DO WHATSAPP */}
+                <div
+                  className={`px-3.5 py-2.5 flex items-center justify-between shadow-xs ${
+                    visualizerDarkTheme ? 'bg-[#202c33] text-[#e9edef]' : 'bg-[#075e54] text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-sm opacity-90">←</span>
+                    <img
+                      src="/invite-isaac-black.jpg"
+                      alt="ISAAC"
+                      className="w-9 h-9 rounded-full object-cover border border-white/25 shrink-0 bg-black"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold truncate flex items-center gap-1">
+                        <span>ISAAC • Plataforma</span>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      </div>
+                      <div className="text-[10px] opacity-80 truncate">online</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs opacity-85 pr-1">
+                    <span>📹</span>
+                    <span>📞</span>
+                    <span>⋮</span>
+                  </div>
+                </div>
+
+                {/* ÁREA DE CONVERSA DO WHATSAPP */}
+                <div
+                  className="p-3 space-y-2.5 max-h-[450px] min-h-[360px] overflow-y-auto"
+                  style={{
+                    backgroundImage: visualizerDarkTheme
+                      ? 'radial-gradient(rgba(255,255,255,0.035) 1px, transparent 0)'
+                      : 'radial-gradient(rgba(0,0,0,0.045) 1px, transparent 0)',
+                    backgroundSize: '18px 18px',
+                  }}
+                >
+                  {/* AVISO DE CRIPTOGRAFIA */}
+                  <div className="flex justify-center">
+                    <span
+                      className={`px-2.5 py-1 rounded-lg text-[9.5px] text-center leading-tight max-w-[92%] shadow-2xs ${
+                        visualizerDarkTheme
+                          ? 'bg-[#182229] text-[#ffd279]/90'
+                          : 'bg-[#fff5c4] text-[#54656f]'
+                      }`}
+                    >
+                      🔒 As mensagens são protegidas com a criptografia de ponta a ponta.
+                    </span>
+                  </div>
+
+                  {/* BALÃO DE MENSAGEM RECEBIDA PELO USUÁRIO */}
+                  <div className="flex justify-start">
+                    <div
+                      className={`relative max-w-[92%] rounded-2xl rounded-tl-xs p-1.5 shadow-sm ${
+                        visualizerDarkTheme
+                          ? 'bg-[#202c33] text-[#e9edef]'
+                          : 'bg-white text-[#111b21]'
+                      }`}
+                    >
+                      {/* IMAGEM DE CONVITE NO TOPO DO BALÃO (QUANDO FOR CONVITE C/ IMAGEM) */}
+                      {isInviteWithImage && (
+                        <div className="rounded-xl overflow-hidden mb-1.5 bg-black/20">
+                          <img
+                            src={previewImgSrc}
+                            alt="Imagem do convite no WhatsApp"
+                            className="w-full max-h-60 object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src = '/og-isaac-cover.jpg';
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* TEXTO FORMATADO COM NEGRITO / ITÁLICO / LINKS REAIS DO WHATSAPP */}
+                      <div className="px-1.5 pt-0.5 pb-1 text-[12px] leading-[1.42] break-words">
+                        {lines.map((line, idx) => (
+                          <React.Fragment key={idx}>
+                            {line === '' ? (
+                              <div className="h-2.5" />
+                            ) : (
+                              <div>{formatWhatsAppInlineTokens(line, visualizerDarkTheme)}</div>
+                            )}
+                          </React.Fragment>
+                        ))}
+
+                        <div className="flex items-center justify-end gap-1 mt-1 select-none">
+                          <span
+                            className={`text-[9.5px] ${
+                              visualizerDarkTheme ? 'text-[#8696a0]' : 'text-[#667781]'
+                            }`}
+                          >
+                            {nowTimeStr}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BARRA INFERIOR DE DIGITAÇÃO DO WHATSAPP */}
+                <div
+                  className={`px-2.5 py-2 flex items-center gap-2 ${
+                    visualizerDarkTheme ? 'bg-[#1f2c34]' : 'bg-[#f0f2f5]'
+                  }`}
+                >
+                  <div
+                    className={`flex-1 px-3 py-1.5 rounded-full text-[11px] flex items-center justify-between ${
+                      visualizerDarkTheme
+                        ? 'bg-[#2a3942] text-[#8696a0]'
+                        : 'bg-white text-[#667781]'
+                    }`}
+                  >
+                    <span>😊 Mensagem</span>
+                    <span>📎 📷</span>
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-[#00a884] text-white flex items-center justify-center text-xs shrink-0 shadow-xs">
+                    🎤
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1453,7 +2010,7 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
         <div className="space-y-0.5">
           <div className="text-xs font-bold text-stone-900 dark:text-white flex items-center gap-1.5">
             <BookOpen className="w-4 h-4 text-amber-600" />
-            <span>Divulgar Página Dedicada de eBook — Autor: Thiago Prata (Mentoria ISAAC®)</span>
+            <span>Divulgar Página Dedicada de eBook — Autor: Thiago Prata (Plataforma ISAAC®)</span>
           </div>
           <p className="text-[11px] text-stone-600 dark:text-stone-300">
             Selecione abaixo qualquer eBook avulso (<strong>R$ 19,90</strong>) ou a Coleção Completa 30% OFF (<strong>R$ 111,44</strong>) para carregar automaticamente a <strong>capa de venda oficial</strong> e o <strong>link direto da página dedicada</strong> nos 4 modelos (PT-BR e EN-GB), enviando para contatos da Evolution e/ou usuários do App.
@@ -1480,6 +2037,9 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
         </select>
       </div>
 
+      {/* VISUALIZADOR REALISTA DE CELULAR WHATSAPP + SELETOR DAS 3 IMAGENS DE CONVITE */}
+      {renderSmartphoneWhatsAppVisualizer({ inModal: false })}
+
       {/* SELETOR DE IDIOMA DOS TEMPLATES + IMAGEM COMPARTILHADA DO CONVITE */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3 rounded-2xl bg-stone-100/80 dark:bg-slate-900/70 border border-stone-200 dark:border-slate-800">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -1505,16 +2065,16 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
 
         <div className="flex items-center gap-2.5 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-slate-700 md:w-96">
           <img
-            src={unregisteredImageUrl}
+            src={resolveInviteImagePreviewSrc(unregisteredImageUrl)}
             alt="Capa ISAAC"
-            className="w-12 h-8 object-cover rounded-md border border-stone-200 shrink-0"
+            className="w-10 h-10 object-cover rounded-md border border-stone-200 shrink-0"
             onError={(e) => {
-              e.currentTarget.src = 'https://isaac.lynxems.com.br/og-isaac-cover.jpg';
+              e.currentTarget.src = '/og-isaac-cover.jpg';
             }}
           />
           <div className="flex-1 min-w-0">
             <span className="block text-[9px] uppercase font-bold text-stone-400">
-              Imagem Oficial de Convite (BR &amp; Intl)
+              URL da Imagem Selecionada (BR &amp; Intl)
             </span>
             <input
               type="url"
@@ -2501,6 +3061,66 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
             </div>
           </div>
 
+          {/* BARRA RÁPIDA DE ESCOLHA DA IMAGEM DE CONVITE (4 OPÇÕES) + BOTÃO VISUALIZADOR DO CELULAR */}
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50/75 dark:bg-amber-950/20 border border-amber-200/90 dark:border-amber-800/50 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <div className="text-xs font-bold text-amber-950 dark:text-amber-200 flex flex-wrap items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span>Imagem Padrão do Convite para Novos Usuários (Escolha entre as 4 opções):</span>
+              </div>
+              <p className="text-[11px] text-stone-600 dark:text-stone-300">
+                Clique em uma das 4 artes abaixo para definir qual imagem acompanha o botão laranja <strong>&ldquo;Convite c/ Imagem&rdquo;</strong> e as campanhas de convite:
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {OFFICIAL_INVITE_IMAGE_OPTIONS.map((opt) => {
+                const cleanCurrent = String(unregisteredImageUrl || '').split('#')[0].trim();
+                const isSelectedImg =
+                  cleanCurrent === opt.url || cleanCurrent.endsWith(opt.previewSrc);
+
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    disabled={savingTemplates}
+                    onClick={() => handleSelectOfficialInviteImage(opt.url, true)}
+                    className={`px-2.5 py-1.5 rounded-xl border text-left flex items-center gap-2 transition cursor-pointer ${
+                      isSelectedImg
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                        : 'bg-white dark:bg-slate-800 text-stone-700 dark:text-stone-200 border-stone-300 dark:border-slate-700 hover:border-amber-500'
+                    }`}
+                  >
+                    <img
+                      src={opt.previewSrc}
+                      alt={opt.shortTitle}
+                      className="w-8 h-8 rounded-lg object-cover border border-black/10 shrink-0 bg-black"
+                    />
+                    <div className="pr-1">
+                      <div className="text-[11px] font-bold leading-tight">{opt.shortTitle}</div>
+                      <div
+                        className={`text-[9.5px] ${
+                          isSelectedImg ? 'text-emerald-100' : 'text-stone-400'
+                        }`}
+                      >
+                        {isSelectedImg ? '✓ Ativa nos convites' : 'Clique p/ usar'}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() => handleOpenPhoneVisualizerForContact(null)}
+                className="px-3.5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <Smartphone className="w-4 h-4" />
+                <span>Visualizar no Celular</span>
+              </button>
+            </div>
+          </div>
+
           {/* BARRA DE SELEÇÃO EM MASSA ("SELECIONAR TODOS" / "DESMARCAR TODOS") */}
           <div className="p-3.5 rounded-2xl bg-stone-100/90 dark:bg-slate-900/80 border border-stone-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2.5">
@@ -2997,6 +3617,37 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DO SIMULADOR REALISTA DE WHATSAPP NO CELULAR */}
+      {showPhoneVisualizerModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-fadeIn">
+          <div className="w-full max-w-5xl rounded-3xl bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700/80 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+            <div className="px-5 py-3.5 bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 text-white flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <Smartphone className="w-5 h-5 text-emerald-400" />
+                <div>
+                  <h3 className="text-sm sm:text-base font-serif font-bold">
+                    Visualizador do Celular — Prévia Exata no WhatsApp do Destinatário
+                  </h3>
+                  <p className="text-[11px] text-emerald-200/90">
+                    Alterne entre as 4 imagens de convite e os modelos de mensagem para conferir exatamente como chega no celular.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPhoneVisualizerModal(false)}
+                className="p-1.5 rounded-xl hover:bg-white/10 text-slate-200 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 sm:p-5 overflow-y-auto">
+              {renderSmartphoneWhatsAppVisualizer({ inModal: true })}
+            </div>
           </div>
         </div>
       )}

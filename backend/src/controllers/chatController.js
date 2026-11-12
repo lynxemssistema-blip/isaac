@@ -299,7 +299,7 @@ export function maybeSummarizeSessionAsync(sessionId, userId) {
         .map((m) => `${m.role === 'assistant' ? 'ISAAC' : 'USUÁRIO'}: ${String(m.content || '').slice(0, 350)}`)
         .join('\n');
 
-      const sumPrompt = `Resuma de forma objetiva e densa (máximo 5 frases curtas, em português) os principais fatos, dilemas emocionais, acordos e compromissos desta sessão de mentoria para manter contexto contínuo.\n${
+      const sumPrompt = `Resuma de forma objetiva e densa (máximo 5 frases curtas, em português) os principais fatos, dilemas emocionais, acordos e compromissos desta sessão na plataforma para manter contexto contínuo.\n${
         sess?.summary ? `RESUMO ANTERIOR:\n${sess.summary}\n\n` : ''
       }NOVOS TRECHOS:\n${transcript}`;
 

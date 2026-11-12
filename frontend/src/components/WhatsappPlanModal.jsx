@@ -59,14 +59,21 @@ export default function WhatsappPlanModal({
   const [successMsg, setSuccessMsg] = useState('');
   const [showAdminPaymentForm, setShowAdminPaymentForm] = useState(false);
 
+  const adminWhatsappOverride = profile?.preferences?.whatsapp_admin_override || null;
+
   const isMaster =
-    profile?.role === 'master' ||
-    String(user?.email || profile?.email || '').trim().toLowerCase() === 'edsonmanoel2012@gmail.com';
+    adminWhatsappOverride !== 'revoked' &&
+    (profile?.role === 'master' ||
+      String(user?.email || profile?.email || '').trim().toLowerCase() === 'edsonmanoel2012@gmail.com');
 
   const isMonthlySubValid =
+    adminWhatsappOverride !== 'revoked' &&
     profile?.plan_id === 'whatsapp_monthly' &&
     profile?.plan_status === 'active' &&
     (!profile?.plan_expires_at || new Date(profile.plan_expires_at).getTime() > Date.now());
+
+  const isManualAdminGrant = !isMaster && isMonthlySubValid && adminWhatsappOverride === 'granted';
+  const hasAsaasSubscription = Boolean(profile?.asaas_subscription_id);
 
   const isPaidActive = Boolean(user) && (isMaster || isMonthlySubValid);
 
@@ -394,8 +401,9 @@ export default function WhatsappPlanModal({
 
         <button
           type="button"
+          aria-label="Fechar planos"
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 rounded-full hover:bg-stone-200/50 dark:hover:bg-slate-800 transition cursor-pointer"
+          className="absolute top-5 right-5 p-2 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 rounded-full hover:bg-stone-200/50 dark:hover:bg-slate-800 transition cursor-pointer min-w-[38px] min-h-[38px] flex items-center justify-center"
         >
           <X className="w-5 h-5" />
         </button>
@@ -404,7 +412,7 @@ export default function WhatsappPlanModal({
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300 text-xs font-serif mb-2">
             <MessageCircle className="w-3.5 h-3.5" />
-            <span>Planos da Mentoria ISAAC • O que está incluso</span>
+            <span>Planos da Plataforma ISAAC • O que está incluso</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-serif font-medium tracking-tight text-stone-900 dark:text-stone-50">
             Plano Gratuito vs Plano Pago (ISAAC no WhatsApp)
@@ -493,7 +501,11 @@ export default function WhatsappPlanModal({
                 </span>
                 {isPaidActive ? (
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-600 text-white">
-                    {isMaster ? 'Vitalício SuperAdmin' : 'Assinatura Ativa'}
+                    {isMaster
+                      ? 'Vitalício SuperAdmin'
+                      : isManualAdminGrant
+                      ? 'Liberado pela Plataforma'
+                      : 'Assinatura Ativa'}
                   </span>
                 ) : (
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-600/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30">
@@ -545,13 +557,21 @@ export default function WhatsappPlanModal({
               <div className="text-sm font-serif font-medium text-emerald-900 dark:text-emerald-200">
                 {isMaster
                   ? 'Plano Completo Liberado (SuperAdmin — Sem necessidade de assinar)'
+                  : isManualAdminGrant
+                  ? 'Seu acesso ao ISAAC pelo WhatsApp (Texto e Áudio) foi liberado pela Administração!'
                   : 'Seu Plano Mensal do ISAAC pelo WhatsApp (Texto e Áudio) está ativo!'}
               </div>
-              {formattedMonthlyDueDate && (
+              {formattedMonthlyDueDate ? (
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-800 dark:text-emerald-300 font-medium">
-                  <span>Próximo vencimento mensal: {formattedMonthlyDueDate}</span>
+                  <span>
+                    {isManualAdminGrant ? `Acesso válido até: ${formattedMonthlyDueDate}` : `Próximo vencimento mensal: ${formattedMonthlyDueDate}`}
+                  </span>
                 </div>
-              )}
+              ) : isManualAdminGrant ? (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-800 dark:text-emerald-300 font-medium">
+                  <span>Acesso vitalício liberado sem vencimento</span>
+                </div>
+              ) : null}
               <p className="text-xs text-stone-600 dark:text-stone-300 max-w-md mx-auto">
                 Seu número <strong>{profile?.phone || 'de celular'}</strong> já está habilitado para falar com o Agente Orquestrador ISAAC:
               </p>
@@ -588,7 +608,7 @@ export default function WhatsappPlanModal({
                       ? 'Ocultar gerador PIX/Cartão de clientes'
                       : 'Visualizar tela de pagamento que os assinantes veem'}
                   </button>
-                ) : (
+                ) : hasAsaasSubscription ? (
                   <button
                     type="button"
                     onClick={handleCancelSubscription}
@@ -597,7 +617,7 @@ export default function WhatsappPlanModal({
                   >
                     {cancelling ? 'Cancelando...' : 'Cancelar renovação mensal'}
                   </button>
-                )}
+                ) : null}
               </div>
             </div>
 

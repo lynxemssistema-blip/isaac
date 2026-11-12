@@ -35,7 +35,7 @@ export const EBOOK_COLLECTION_META = {
     trilogyTicketRange: 'Monte seu carrinho livremente na página principal do App',
     fullPassTicketRange: 'R$ 111,44 com 30% OFF (de R$ 159,20) — Arquivo Único em PDF com todos os 8 eBooks Bilíngues',
     upsellBridge:
-      'Cada eBook atua como porta de entrada acessível que entrega clareza imediata e prepara o leitor para a Mentoria ISAAC® com Thiago Prata.',
+      'Cada eBook atua como porta de entrada acessível que entrega clareza imediata e prepara o leitor para a Plataforma ISAAC® com Thiago Prata.',
   },
 };
 
@@ -346,7 +346,7 @@ export const SUPERADMIN_EBOOKS = [
         frameworkItems: [
           '1. Oferta Incondicional (Conexão): Conteúdos abertos, encontros gratuitos, pílulas de clareza que ajudam de verdade.',
           '2. Oferta Semi-Condicional (Engajamento): Diagnósticos, desafios práticos ou projetos-piloto para quem cumpre tarefas combinadas.',
-          '3. Oferta Condicional (Sustentação): Produtos, mentorias, assinaturas e serviços pagos com entrega estruturada.',
+          '3. Oferta Condicional (Sustentação): Produtos, plataformas, consultorias, assinaturas e serviços pagos com entrega estruturada.',
         ],
         practicalExercise:
           'Escreva hoje 1 entrega concreta para cada nível do seu negócio: o que é aberto a todos, o que premia os comprometidos e o que compõe sua oferta paga principal.',

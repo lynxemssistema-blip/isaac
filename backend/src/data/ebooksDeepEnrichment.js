@@ -169,7 +169,7 @@ export const CHAPTER_DEEP_ENRICHMENT = {
         'Ao mesmo tempo, a metáfora do Elástico do Desenvolvimento lembra que nenhuma prosperidade dura se for construída como ilha blindada. Empresas conscientes remuneram com justiça, educam clientes e fortalecem parceiros locais — criando o ecossistema CISCO onde o crescimento individual eleva o nível de segurança e dignidade de todos ao redor.',
       ],
       casePt:
-        'Aplicação Real: Ao substituir a crença "cobrar caro afasta as pessoas" pela visão de troca justa em 3 níveis de acesso, um mentor passa a manter conteúdos gratuitos abertos para a comunidade enquanto cobra o valor justo na mentoria individual.',
+        'Aplicação Real: Ao substituir a crença "cobrar caro afasta as pessoas" pela visão de troca justa em 3 níveis de acesso, um mentor passa a manter conteúdos gratuitos abertos para a comunidade enquanto cobra o valor justo no acompanhamento individual.',
       deepEn: [
         'Whenever an ethical professional feels ashamed to charge fairly, economic influence is surrendered to those with fewer scruples. Viewing money as clean technology for peaceful human exchange frees the mind from guilt: every pound or real earned honestly is simply proof that you solved a genuine problem for another human being.',
         'Simultaneously, the Rubber Band of Development reminds us that isolated prosperity built inside a fortress remains fragile. Conscious enterprises remunerate fairly, educate buyers, and strengthen local partners — cultivating CISCO communities where individual success raises collective dignity and stability.',
@@ -196,13 +196,13 @@ export const CHAPTER_DEEP_ENRICHMENT = {
   'vol-02': {
     1: {
       deepPt: [
-        'Na mentoria de executivos e fundadores, Thiago Prata observou que grande parte do sofrimento decisório vem de tratar hipóteses emocionais como fatos consumados. Quando alguém diz "meu nicho não paga bem" sem nunca ter testado uma oferta estruturada de alto valor, está operando na camada da Crença, não da Comprovação.',
+        'No acompanhamento de executivos e fundadores, Thiago Prata observou que grande parte do sofrimento decisório vem de tratar hipóteses emocionais como fatos consumados. Quando alguém diz "meu nicho não paga bem" sem nunca ter testado uma oferta estruturada de alto valor, está operando na camada da Crença, não da Comprovação.',
         'Subir conscientemente os três degraus — da Crença para o Conceito testável, e do Conceito para a Comprovação empírica — transforma a subjetividade em aliada estratégica. Você respeita sua sensibilidade para levantar boas hipóteses, mas exige evidências reais antes de apostar seu patrimônio ou encerrar um projeto.',
       ],
       casePt:
         'Aplicação Real: Um sócio acredita que a equipe está "desmotivada" (Crença). Ele estrutura critérios claros de entregas e escuta individual (Conceito) e descobre na prática que 80% dos atrasos vinham de briefings confusos, não de má vontade (Comprovação).',
       deepEn: [
-        'Across years of mentoring founders and executives, Thiago Prata noticed that immense decision anxiety arises from treating untested emotional assumptions as established facts. Saying "clients in my sector never pay well" without ever testing a structured high-value offer means operating inside Belief rather than Proof.',
+        'Across years of guiding founders and executives, Thiago Prata noticed that immense decision anxiety arises from treating untested emotional assumptions as established facts. Saying "clients in my sector never pay well" without ever testing a structured high-value offer means operating inside Belief rather than Proof.',
         'Climbing deliberately across the three layers — from Belief to testable Concept, and from Concept to empirical Proof — turns subjectivity into a strategic ally. You honour your sensitivity to formulate sharp hypotheses, yet require real-world evidence before wagering capital or abandoning a venture.',
       ],
       caseEn:
@@ -269,17 +269,17 @@ export const CHAPTER_DEEP_ENRICHMENT = {
     },
     2: {
       deepPt: [
-        'Observe como a natureza jamais cobra frutos de uma árvore antes de oferecer sombra, oxigênio e flores. A Oferta Incondicional cumpre esse papel no seu ecossistema: um conteúdo esclarecedor, uma ferramenta aberta (como o Plano Gratuito da Mentoria ISAAC) que gera gratidão genuína e autoridade imediata sem pedir cartão de crédito na porta.',
+        'Observe como a natureza jamais cobra frutos de uma árvore antes de oferecer sombra, oxigênio e flores. A Oferta Incondicional cumpre esse papel no seu ecossistema: um conteúdo esclarecedor, uma ferramenta aberta (como o Plano Gratuito da Plataforma ISAAC) que gera gratidão genuína e autoridade imediata sem pedir cartão de crédito na porta.',
         'A Oferta Semi-Condicional separa curiosos passivos de realizadores comprometidos ("entregue o exercício X concluído e ganhe acesso à aula avançada Y"). A partir daí, a Oferta Condicional paga deixa de ser uma venda fria e passa a ser o próximo passo natural para quem já confia na sua condução.',
       ],
       casePt:
         'Aplicação Real: Esta própria coleção de eBooks e o ecossistema ISAAC® exemplificam a espiral: acesso gratuito no App Web (Incondicional), trilhas práticas de compromisso (Semi-Condicional) e eBooks/Plano WhatsApp/Consultoria (Condicional).',
       deepEn: [
-        'Notice how nature never demands fruit before offering shade and blossom. Your Unconditional Offer plays that exact role: genuinely illuminating insights or open tools (such as ISAAC® Mentoring’s Free Web Plan) that build trust and authority without gating the entrance.',
+        'Notice how nature never demands fruit before offering shade and blossom. Your Unconditional Offer plays that exact role: genuinely illuminating insights or open tools (such as the ISAAC® Platform Free Web Plan) that build trust and authority without gating the entrance.',
         'Your Semi-Conditional Offer then distinguishes passive browsers from committed doers ("complete diagnostic step X to unlock session Y"), making your paid Conditional Offer feel like the natural next step rather than a cold pitch.',
       ],
       caseEn:
-        'Real-World Application: The ISAAC® ecosystem itself embodies this spiral: free Web App mentoring (Unconditional), guided commitment challenges (Semi-Conditional), and bilingual eBooks / WhatsApp Plan / Advisory (Conditional).',
+        'Real-World Application: The ISAAC® ecosystem itself embodies this spiral: free Web App reflection platform (Unconditional), guided commitment challenges (Semi-Conditional), and bilingual eBooks / WhatsApp Plan / Advisory (Conditional).',
     },
     3: {
       deepPt: [
@@ -342,13 +342,13 @@ export const CHAPTER_DEEP_ENRICHMENT = {
     },
     3: {
       deepPt: [
-        'Repare na sabedoria dos Comparáveis Indiretos: muitas vezes o cliente não compara seu livro ou mentoria com outro livro — ele compara inconscientemente com o valor de uma pizza no fim de semana, uma mensalidade de streaming ou o prejuízo de continuar errando sozinho. Quando um eBook prático e bilíngue custa menos que um lanche rápido e entrega ferramentas para os próximos dez anos, a decisão de compra torna-se óbvia.',
+        'Repare na sabedoria dos Comparáveis Indiretos: muitas vezes o cliente não compara seu livro ou plataforma com outro livro — ele compara inconscientemente com o valor de uma pizza no fim de semana, uma mensalidade de streaming ou o prejuízo de continuar errando sozinho. Quando um eBook prático e bilíngue custa menos que um lanche rápido e entrega ferramentas para os próximos dez anos, a decisão de compra torna-se óbvia.',
         'Ajuste sempre os três mostradores juntos: conheça seu piso tangível de custo, entenda os comparáveis na cabeça do comprador e eleve a perspectiva intangível da transformação.',
       ],
       casePt:
         'Aplicação Real: Ao posicionar um guia prático a R$ 19,90 mostrando o impacto imediato em decisões que valem milhares de reais, a taxa de conversão da página de venda salta drasticamente.',
       deepEn: [
-        'Notice the power of Indirect Comparables: buyers rarely compare your book or mentoring solely against another book — subconsciously they weigh it against a weekend takeaway, a streaming subscription, or the cost of remaining stuck. When a practical bilingual handbook costs less than lunch yet equips decisions for the next decade, buying becomes effortless.',
+        'Notice the power of Indirect Comparables: buyers rarely compare your book or platform solely against another book — subconsciously they weigh it against a weekend takeaway, a streaming subscription, or the cost of remaining stuck. When a practical bilingual handbook costs less than lunch yet equips decisions for the next decade, buying becomes effortless.',
         'Calibrate all three dials together: know your tangible cost floor, understand the buyer’s mental benchmarks, and elevate the intangible perspective of value.',
       ],
       caseEn:
@@ -505,13 +505,13 @@ export const CHAPTER_DEEP_ENRICHMENT = {
     },
     3: {
       deepPt: [
-        'Na plataforma Mentoria ISAAC, o Laboratório do Incômodo Criativo nasceu exatamente desta descoberta de Thiago Prata: nossos incômodos não são inimigos a esconder debaixo do tapete, mas radares preciosíssimos apontando onde há uma crença desalinhada dentro de nós ou uma oportunidade inédita de melhoria no mundo.',
+        'Na Plataforma ISAAC, o Laboratório do Incômodo Criativo nasceu exatamente desta descoberta de Thiago Prata: nossos incômodos não são inimigos a esconder debaixo do tapete, mas radares preciosíssimos apontando onde há uma crença desalinhada dentro de nós ou uma oportunidade inédita de melhoria no mundo.',
         'Praticar as 6 colunas da Caderneta ISAAC treina sua mente a separar o Fato puro da interpretação dramática, revelando a emoção-raiz e convertendo energia reativa em Ação Renovadora.',
       ],
       casePt:
         'Aplicação Real: Ao registrar uma irritação recorrente com atrasos de clientes nas 6 colunas da Caderneta ISAAC, um profissional percebe que ele próprio nunca havia estabelecido regra clara de tolerância no contrato — e resolve o problema na raiz.',
       deepEn: [
-        'Inside the ISAAC® Mentoring platform, the Creative Trouble Lab grew directly from Thiago Prata’s insight: recurring irritations are never enemies to sweep under the rug, but precision instruments pointing either to an unexamined inner belief or an untapped opportunity for innovation.',
+        'Inside the ISAAC® Platform, the Creative Trouble Lab grew directly from Thiago Prata’s insight: recurring irritations are never enemies to sweep under the rug, but precision instruments pointing either to an unexamined inner belief or an untapped opportunity for innovation.',
         'Practising the 6-column ISAAC Notebook trains your mind to separate raw Fact from dramatic storytelling, uncovering the root emotion and channelling reactive energy into Renewing Action.',
       ],
       caseEn:

@@ -276,7 +276,7 @@ export async function createOrGetWhatsappSubscriptionCheckout({ userId, cpfCnpj,
 export async function syncUserWhatsappPlanStatus(userId) {
   const { data: profile } = await supabaseAdmin
     .from('izaque_profiles')
-    .select('id, full_name, email, role, phone, plan_id, plan_status, plan_expires_at, asaas_subscription_id, whatsapp_opt_out')
+    .select('id, full_name, email, role, phone, plan_id, plan_status, plan_expires_at, asaas_subscription_id, whatsapp_opt_out, preferences')
     .eq('id', userId)
     .maybeSingle();
 
@@ -289,9 +289,22 @@ export async function syncUserWhatsappPlanStatus(userId) {
     return {
       isActive: true,
       isSuperAdmin: true,
+      accessSource: 'superadmin',
       billingCycle: 'lifetime',
       planId: WHATSAPP_PLAN_ID,
       planStatus: 'active',
+      expiresAt: null,
+    };
+  }
+
+  const adminOverride = profile.preferences?.whatsapp_admin_override || null;
+  if (adminOverride === 'revoked') {
+    return {
+      isActive: false,
+      revokedByAdmin: true,
+      accessSource: 'revoked_admin',
+      planId: 'free',
+      planStatus: 'free',
       expiresAt: null,
     };
   }
@@ -302,7 +315,9 @@ export async function syncUserWhatsappPlanStatus(userId) {
   if (profile.plan_id === WHATSAPP_PLAN_ID && profile.plan_status === 'active' && notExpiredYet) {
     return {
       isActive: true,
-      billingCycle: 'monthly',
+      isManualAdminGrant: adminOverride === 'granted',
+      accessSource: adminOverride === 'granted' ? 'manual_admin' : 'asaas',
+      billingCycle: profile.plan_expires_at ? 'monthly' : 'lifetime',
       planId: WHATSAPP_PLAN_ID,
       planStatus: 'active',
       expiresAt: profile.plan_expires_at,
@@ -438,7 +453,7 @@ export async function processAsaasWebhook(headers = {}, body = {}) {
   const asaasPaymentId = body?.payment?.id || null;
 
   const selectCols =
-    'id, full_name, email, role, phone, whatsapp_jid, whatsapp_opt_out, plan_id, plan_status, plan_expires_at';
+    'id, full_name, email, role, phone, whatsapp_jid, whatsapp_opt_out, plan_id, plan_status, plan_expires_at, preferences';
   let targetProfile = null;
 
   if (extRef.startsWith('isaac:')) {
@@ -502,6 +517,13 @@ export async function processAsaasWebhook(headers = {}, body = {}) {
     const wasAlreadyActive =
       targetProfile.plan_id === WHATSAPP_PLAN_ID && targetProfile.plan_status === 'active';
     const expiresAt = computeMonthlyExpirationIso(targetProfile.plan_expires_at);
+    const nextPrefs = {
+      ...(targetProfile.preferences && typeof targetProfile.preferences === 'object'
+        ? targetProfile.preferences
+        : {}),
+      whatsapp_admin_override: null,
+      whatsapp_access_source: 'asaas',
+    };
 
     await supabaseAdmin
       .from('izaque_profiles')
@@ -510,6 +532,7 @@ export async function processAsaasWebhook(headers = {}, body = {}) {
         plan_status: 'active',
         plan_activated_at: new Date().toISOString(),
         plan_expires_at: expiresAt,
+        preferences: nextPrefs,
         updated_at: new Date().toISOString(),
       })
       .eq('id', targetProfile.id);
@@ -547,6 +570,11 @@ export async function processAsaasWebhook(headers = {}, body = {}) {
   }
 
   if (overdueOrCancelEvents.includes(event)) {
+    // Se o SuperAdmin liberou o WhatsApp manualmente para este usuário, eventos antigos do Asaas não derrubam o acesso manual
+    if (targetProfile.preferences?.whatsapp_admin_override === 'granted') {
+      return { ignored: true, reason: 'manual_admin_grant_preserved', userId: targetProfile.id, event };
+    }
+
     const stillHasPaidDays =
       targetProfile.plan_expires_at && new Date(targetProfile.plan_expires_at).getTime() > Date.now();
 
@@ -629,7 +657,7 @@ export async function getAdminAsaasOverview() {
       .limit(100),
     supabaseAdmin
       .from('izaque_profiles')
-      .select('id, full_name, email, role, phone, plan_id, plan_status, plan_activated_at, plan_expires_at, asaas_customer_id, asaas_subscription_id')
+      .select('id, full_name, email, role, phone, plan_id, plan_status, plan_activated_at, plan_expires_at, asaas_customer_id, asaas_subscription_id, preferences')
       .or('role.eq.master,plan_id.eq.whatsapp_monthly')
       .order('updated_at', { ascending: false }),
   ]);

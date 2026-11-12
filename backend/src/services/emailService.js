@@ -52,7 +52,7 @@ export function getEmailTransporter() {
  */
 export async function sendTestEmail(toEmail) {
   const transporter = getEmailTransporter();
-  const fromAddress = `"ISAAC - Suporte & Mentoria" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
+  const fromAddress = `"ISAAC - Suporte & Plataforma" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
 
   const mailOptions = {
     from: fromAddress,
@@ -62,7 +62,7 @@ export async function sendTestEmail(toEmail) {
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #faf9f6; padding: 32px; border-radius: 24px; border: 1px solid #e7e5e4; color: #292524;">
         <div style="text-align: center; margin-bottom: 24px;">
           <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 600;">ISAAC</h1>
-          <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Espaço de Clareza & Mentoria de Vida</p>
+          <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Plataforma de Clareza &amp; Evolução Pessoal</p>
         </div>
 
         <div style="background-color: #ffffff; padding: 28px; border-radius: 20px; border: 1px solid #f5f5f4; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
@@ -82,7 +82,7 @@ export async function sendTestEmail(toEmail) {
         </div>
 
         <div style="text-align: center; margin-top: 24px; font-size: 11px; color: #a8a29e;">
-          © ${new Date().getFullYear()} ISAAC Mentoria. Todos os direitos reservados.
+          © ${new Date().getFullYear()} Plataforma ISAAC. Todos os direitos reservados.
         </div>
       </div>
     `,
@@ -98,7 +98,7 @@ export async function sendTestEmail(toEmail) {
  */
 export async function sendPasswordResetEmail({ toEmail, name, resetLink }) {
   const transporter = getEmailTransporter();
-  const fromAddress = `"ISAAC - Suporte & Mentoria" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
+  const fromAddress = `"ISAAC - Suporte & Plataforma" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
 
   const displayName = name ? name.split(' ')[0] : 'Viajante';
 
@@ -110,7 +110,7 @@ export async function sendPasswordResetEmail({ toEmail, name, resetLink }) {
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #faf9f6; padding: 32px; border-radius: 24px; border: 1px solid #e7e5e4; color: #292524;">
         <div style="text-align: center; margin-bottom: 24px;">
           <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 600;">ISAAC</h1>
-          <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Espaço de Clareza & Mentoria de Vida</p>
+          <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Plataforma de Clareza &amp; Evolução Pessoal</p>
         </div>
 
         <div style="background-color: #ffffff; padding: 32px; border-radius: 20px; border: 1px solid #f5f5f4; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
@@ -168,7 +168,7 @@ export async function sendSubscriptionOrderNotification({ toEmail, userName, pla
         <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #faf9f6; padding: 32px; border-radius: 24px; border: 1px solid #e7e5e4; color: #292524;">
           <div style="text-align: center; margin-bottom: 24px;">
             <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 600;">ISAAC</h1>
-            <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Espaço de Clareza & Mentoria de Vida</p>
+            <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Plataforma de Clareza &amp; Evolução Pessoal</p>
           </div>
 
           <div style="background-color: #ffffff; padding: 32px; border-radius: 20px; border: 1px solid #f5f5f4; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
@@ -228,7 +228,7 @@ export async function sendSubscriptionOrderNotification({ toEmail, userName, pla
 export async function sendSubscriptionApprovedNotification({ toEmail, userName, planName }) {
   try {
     const transporter = getEmailTransporter();
-    const fromAddress = `"ISAAC - Suporte & Mentoria" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
+    const fromAddress = `"ISAAC - Suporte & Plataforma" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
 
     await transporter.sendMail({
       from: fromAddress,
@@ -238,7 +238,7 @@ export async function sendSubscriptionApprovedNotification({ toEmail, userName, 
         <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #faf9f6; padding: 32px; border-radius: 24px; border: 1px solid #e7e5e4; color: #292524;">
           <div style="text-align: center; margin-bottom: 24px;">
             <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 600;">ISAAC</h1>
-            <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Espaço de Clareza & Mentoria de Vida</p>
+            <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Plataforma de Clareza &amp; Evolução Pessoal</p>
           </div>
 
           <div style="background-color: #ffffff; padding: 32px; border-radius: 20px; border: 1px solid #f5f5f4; box-shadow: 0 4px 12px rgba(0,0,0,0.03); text-align: center;">
@@ -255,7 +255,7 @@ export async function sendSubscriptionApprovedNotification({ toEmail, userName, 
 
             <div style="margin: 32px 0;">
               <a href="https://isaac.lynxems.com.br" style="background-color: #0f766e; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 16px; font-weight: 600; font-size: 14px; display: inline-block;">
-                Acessar a Mentoria ISAAC
+                Acessar a Plataforma ISAAC
               </a>
             </div>
           </div>
@@ -359,7 +359,7 @@ export async function generateBroadcastEmailDraft({ topic, targetAudience = 'all
 
   const chosenTopic = (topic && topic.trim().length > 0) ? topic.trim() : defaultTopic;
 
-  const prompt = `Você é o redator sênior de comunicação e acolhimento humano da Mentoria ISAAC e da Equipe Lynx EMS.
+  const prompt = `Você é o redator sênior de comunicação e acolhimento humano da Plataforma ISAAC e da Equipe Lynx EMS.
 Sua missão é escrever um e-mail oficial de novidades para os usuários cadastrados no aplicativo ISAAC.
 
 DIRETRIZES ESSENCIAIS DE COMUNICAÇÃO:
@@ -367,7 +367,7 @@ DIRETRIZES ESSENCIAIS DE COMUNICAÇÃO:
 2. EXTREMAMENTE EDUCADO E POLIDO: Trate o usuário com reverência, elegância, respeito e gentileza.
 3. HUMANIZADO AO MÁXIMO: O tom NÃO pode parecer marketing frio, spam de vendas ou anúncio superficial. Deve parecer uma carta de acolhimento escrita com carinho e presença viva.
 4. PERSONALIZAÇÃO: Use a tag {{nome}} no início para saudação individual (ex: "Olá, {{nome}}...").
-5. ASSINATURA OBRIGATÓRIA: O texto deve concluir homenageando a jornada do usuário e preparando a assinatura da "Equipe Lynx EMS & Mentoria ISAAC".
+5. ASSINATURA OBRIGATÓRIA: O texto deve concluir homenageando a jornada do usuário e preparando a assinatura da "Equipe Lynx EMS & Plataforma ISAAC".
 
 NOVIDADES A COMUNICAR:
 ${chosenTopic}
@@ -433,7 +433,7 @@ export function renderBroadcastEmailHtml({ contentHtml, userName, appUrl = 'http
         <div style="margin-top: 36px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
           <p style="margin: 0; font-size: 14px; font-weight: 600; color: #0f766e;">Com respeito, admiração e carinho pela sua caminhada,</p>
           <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 700; color: #0f172a;">Equipe Lynx EMS</p>
-          <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Tecnologia com Alma & Mentoria ISAAC</p>
+          <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Tecnologia com Alma &amp; Plataforma ISAAC</p>
           <p style="margin: 6px 0 0 0; font-size: 12px;">
             <a href="mailto:suporte@lynxems.com.br" style="color: #0f766e; text-decoration: none; font-weight: 500;">suporte@lynxems.com.br</a>
           </p>
@@ -790,7 +790,7 @@ export async function sendCampaignPdfEmail({
   appUrl,
 }) {
   const transporter = getEmailTransporter();
-  const fromAddress = `"ISAAC - Clareza & Mentoria" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
+  const fromAddress = `"ISAAC - Clareza & Plataforma" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
 
   const firstName = recipientName ? recipientName.trim().split(/\s+/)[0] : 'Viajante';
   const safeAppUrl = appUrl || process.env.FRONTEND_URL || 'https://isaac.lynxems.com.br';
@@ -805,7 +805,7 @@ export async function sendCampaignPdfEmail({
     emailSubject || `📄 Seu material chegou: ${campaignTitle || 'Guia Exclusivo ISAAC'}`
   );
 
-  const defaultBody = `Olá, ${firstName}!\n\nQue alegria receber você no ecossistema ISAAC.\n\nConforme prometido, anexamos neste e-mail o seu material "${campaignTitle || 'Guia Exclusivo'}" em formato PDF para você ler e guardar com tranquilidade.\n\nAproveite também para acessar sua área de mentoria e iniciar suas conversas de clareza quando desejar.`;
+  const defaultBody = `Olá, ${firstName}!\n\nQue alegria receber você no ecossistema da Plataforma ISAAC.\n\nConforme prometido, anexamos neste e-mail o seu material "${campaignTitle || 'Guia Exclusivo'}" em formato PDF para você ler e guardar com tranquilidade.\n\nAproveite também para acessar a plataforma e iniciar suas conversas de clareza quando desejar.`;
 
   const rawBody = emailBody && emailBody.trim() ? interpolate(emailBody.trim()) : defaultBody;
   const formattedBodyHtml = rawBody
@@ -891,7 +891,7 @@ export async function sendEbookPurchaseDeliveryEmail({
 }) {
   const transporter = getEmailTransporter();
   const safeBaseUrl = (appUrl || process.env.APP_URL || 'https://isaac.lynxems.com.br').replace(/\/$/, '');
-  const fromAddress = `"Thiago Prata — Mentoria ISAAC®" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
+  const fromAddress = `"Thiago Prata — Plataforma ISAAC®" <${process.env.SMTP_USER || 'suporte@lynxems.com.br'}>`;
   const cleanFullName = String(buyerName || 'Leitor(a)').trim();
   const firstName = cleanFullName.split(/\s+/)[0] || 'Leitor(a)';
   const portalUrl = `${safeBaseUrl}/meus-ebooks/${encodeURIComponent(downloadToken)}`;
@@ -944,7 +944,7 @@ export async function sendEbookPurchaseDeliveryEmail({
           <div style="display: inline-block; padding: 5px 14px; border-radius: 999px; background-color: #fef3c7; color: #92400e; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px;">
             Coleção Oficial ISAAC® Essential • Edição Bilíngue (PT-BR &amp; EN-GB)
           </div>
-          <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 700; letter-spacing: -0.5px;">Mentoria ISAAC®</h1>
+          <h1 style="color: #0f766e; font-size: 26px; margin: 0; font-weight: 700; letter-spacing: -0.5px;">Plataforma ISAAC®</h1>
           <p style="color: #78716c; font-size: 13px; margin-top: 4px;">Autor: <strong>Thiago Prata</strong> — Mentor &amp; Idealizador do App ISAAC®</p>
         </div>
 

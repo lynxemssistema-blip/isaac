@@ -31,13 +31,39 @@ const DEFAULT_EVO_INSTANCE = 'isaac';
 const DEFAULT_EVO_JID = '553175235531@s.whatsapp.net';
 const DEFAULT_APP_URL = 'https://isaac.lynxems.com.br';
 const DEFAULT_ISAAC_IMAGE_URL = 'https://isaac.lynxems.com.br/og-isaac-cover.jpg';
+export const OFFICIAL_INVITE_IMAGES = [
+  {
+    id: 'og-cover',
+    label: 'Capa Oficial Refúgio Ouro & Obsidiana (Atual)',
+    fileName: 'og-isaac-cover.jpg',
+    url: 'https://isaac.lynxems.com.br/og-isaac-cover.jpg',
+  },
+  {
+    id: 'isaac-black',
+    label: 'Logo ISAAC Fundo Preto & Pilares (Nova)',
+    fileName: 'invite-isaac-black.jpg',
+    url: 'https://isaac.lynxems.com.br/invite-isaac-black.jpg',
+  },
+  {
+    id: 'isaac-white',
+    label: 'Logo ISAAC Fundo Branco & Pilares (Nova)',
+    fileName: 'invite-isaac-white.jpg',
+    url: 'https://isaac.lynxems.com.br/invite-isaac-white.jpg',
+  },
+  {
+    id: 'isaac-mint',
+    label: 'Logo ISAAC Fundo Verde Menta (Nova)',
+    fileName: 'invite-isaac-mint.jpg',
+    url: 'https://isaac.lynxems.com.br/invite-isaac-mint.jpg',
+  },
+];
 const OFFICIAL_ASAAS_MONTHLY_URL = 'https://www.asaas.com/000/c/ak85n2ouw2z6j6xv';
 const STRICT_DEFAULT_SAFE_PHONE = '31995574906';
 const TIMEZONE = 'America/Sao_Paulo';
 
 export const DEFAULT_UNREGISTERED_TEMPLATE = `{saudacao}, {nome}! Tudo bem com você?
 
-Quero te apresentar uma ferramenta maravilhosa de clareza mental e desenvolvimento pessoal: a *Mentoria ISAAC*.
+Quero te apresentar uma ferramenta maravilhosa de clareza mental e desenvolvimento pessoal: a *Plataforma ISAAC*.
 
 O ISAAC é um mentor confidencial, disponível 24h em texto e voz, criado para ouvir sem julgamentos, ajudar a desatar bloqueios emocionais e trazer direção para as suas decisões.
 
@@ -46,7 +72,7 @@ https://isaac.lynxems.com.br/
 
 _(Se não desejar receber convites por aqui, basta responder "parar".)_`;
 
-export const DEFAULT_REGISTERED_TEMPLATE = `{saudacao}, {nome}! Que alegria ter você na *Mentoria ISAAC*. {contexto}
+export const DEFAULT_REGISTERED_TEMPLATE = `{saudacao}, {nome}! Que alegria ter você na *Plataforma ISAAC*. {contexto}
 
 Agora sua conta está integrada ao nosso canal e queremos lembrar como funcionam os nossos *2 planos* para você aproveitar cada recurso da melhor forma:
 
@@ -62,14 +88,14 @@ Agora sua conta está integrada ao nosso canal e queremos lembrar como funcionam
 • Reconhecimento automático pelo seu telefone e sincronização imediata no mesmo chat do App
 • Assinatura mensal segura via Asaas (PIX, Cartão ou Boleto)
 
-👉 Acesse sua mentoria ou veja os detalhes dos planos aqui:
+👉 Acesse a plataforma ou veja os detalhes dos planos aqui:
 https://isaac.lynxems.com.br/#planos
 
 _(Se preferir não receber comunicados no WhatsApp, basta responder "parar".)_`;
 
 export const DEFAULT_INTL_UNREGISTERED_TEMPLATE = `{saudacao}, {nome}! How are you doing?
 
-I would love to introduce you to a wonderful tool for mental clarity and personal growth: *ISAAC Mentoring*.
+I would love to introduce you to a wonderful tool for mental clarity and personal growth: the *ISAAC Platform*.
 
 ISAAC is a confidential mentor available 24/7 by text and voice, created to listen without judgement, help untangle emotional blocks, and bring clear direction to your decisions.
 
@@ -78,7 +104,7 @@ https://isaac.lynxems.com.br/
 
 _(If you would rather not receive invitations here, simply reply "stop".)_`;
 
-export const DEFAULT_INTL_REGISTERED_TEMPLATE = `{saudacao}, {nome}! It is a pleasure to have you with us at *ISAAC Mentoring*. {contexto}
+export const DEFAULT_INTL_REGISTERED_TEMPLATE = `{saudacao}, {nome}! It is a pleasure to have you with us on the *ISAAC Platform*. {contexto}
 
 Your account is now connected to our channel, and we would like to share a quick reminder of how our *2 plans* work so you can make the most of every feature:
 
@@ -94,7 +120,7 @@ Your account is now connected to our channel, and we would like to share a quick
 • Automatic recognition by your phone number and instant sync with your App chat
 • Simple and secure monthly subscription
 
-👉 Access your mentoring space or view plan details here:
+👉 Access the platform or view plan details here:
 https://isaac.lynxems.com.br/#planos
 
 _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`;
@@ -395,17 +421,21 @@ function loadLocalCoverImageBase64(mediaUrl = '') {
     }
   }
 
-  const isDefaultCover =
-    !cleanUrl ||
-    cleanUrl === DEFAULT_ISAAC_IMAGE_URL ||
-    cleanUrl.endsWith('/og-isaac-cover.jpg');
+  const inviteImgMatch = cleanUrl.match(
+    /\/(og-isaac-cover\.jpg|invite-isaac-black\.jpg|invite-isaac-white\.jpg|invite-isaac-mint\.jpg)$/i
+  );
+  const targetInviteFile = !cleanUrl
+    ? 'og-isaac-cover.jpg'
+    : inviteImgMatch
+    ? inviteImgMatch[1]
+    : null;
 
-  if (isDefaultCover) {
+  if (targetInviteFile) {
     const candidates = [
-      path.resolve(__dirname, '../../../frontend/public/og-isaac-cover.jpg'),
-      path.resolve(__dirname, '../../../frontend/dist/og-isaac-cover.jpg'),
-      path.resolve(process.cwd(), 'frontend/public/og-isaac-cover.jpg'),
-      path.resolve(process.cwd(), 'frontend/dist/og-isaac-cover.jpg'),
+      path.resolve(__dirname, `../../../frontend/public/${targetInviteFile}`),
+      path.resolve(__dirname, `../../../frontend/dist/${targetInviteFile}`),
+      path.resolve(process.cwd(), `frontend/public/${targetInviteFile}`),
+      path.resolve(process.cwd(), `frontend/dist/${targetInviteFile}`),
     ];
     for (const filePath of candidates) {
       if (fs.existsSync(filePath)) {
@@ -817,6 +847,17 @@ export async function updateOutreachSafetyConfig({
   return getOutreachSafetyConfig();
 }
 
+function normalizeOutreachPlatformTerms(rawText) {
+  if (!rawText) return '';
+  return String(rawText)
+    .replace(/Mentoria\s+ISAAC/g, 'Plataforma ISAAC')
+    .replace(/mentoria\s+ISAAC/g, 'plataforma ISAAC')
+    .replace(/MENTORIA\s+ISAAC/g, 'PLATAFORMA ISAAC')
+    .replace(/Acesse\s+sua\s+mentoria/gi, 'Acesse a plataforma')
+    .replace(/ISAAC®?\s+Mentoring/g, (m) => (m.includes('®') ? 'ISAAC® Platform' : 'ISAAC Platform'))
+    .replace(/Access\s+your\s+mentoring\s+space/gi, 'Access the platform');
+}
+
 export async function getSavedOutreachTemplates() {
   try {
     const { data } = await supabaseAdmin
@@ -828,10 +869,10 @@ export async function getSavedOutreachTemplates() {
       .maybeSingle();
 
     const savedImageUrl = String(data?.whatsapp_outreach_image_url || '').trim();
-    const savedUnregistered = String(data?.whatsapp_outreach_unregistered_template || '').trim();
-    const savedRegistered = String(data?.whatsapp_outreach_registered_template || '').trim();
-    const savedIntlUnregistered = String(data?.whatsapp_outreach_intl_unregistered_template || '').trim();
-    const savedIntlRegistered = String(data?.whatsapp_outreach_intl_registered_template || '').trim();
+    const savedUnregistered = normalizeOutreachPlatformTerms(data?.whatsapp_outreach_unregistered_template).trim();
+    const savedRegistered = normalizeOutreachPlatformTerms(data?.whatsapp_outreach_registered_template).trim();
+    const savedIntlUnregistered = normalizeOutreachPlatformTerms(data?.whatsapp_outreach_intl_unregistered_template).trim();
+    const savedIntlRegistered = normalizeOutreachPlatformTerms(data?.whatsapp_outreach_intl_registered_template).trim();
 
     return {
       unregisteredImageUrl: savedImageUrl || DEFAULT_ISAAC_IMAGE_URL,
@@ -848,6 +889,7 @@ export async function getSavedOutreachTemplates() {
       hasCustomIntlUnregistered: Boolean(savedIntlUnregistered),
       hasCustomIntlRegistered: Boolean(savedIntlRegistered),
       defaultImageUrl: DEFAULT_ISAAC_IMAGE_URL,
+      inviteImageOptions: OFFICIAL_INVITE_IMAGES,
       defaultUnregisteredTemplate: DEFAULT_UNREGISTERED_TEMPLATE,
       defaultRegisteredTemplate: DEFAULT_REGISTERED_TEMPLATE,
       defaultIntlUnregisteredTemplate: DEFAULT_INTL_UNREGISTERED_TEMPLATE,
@@ -869,6 +911,7 @@ export async function getSavedOutreachTemplates() {
       hasCustomIntlUnregistered: false,
       hasCustomIntlRegistered: false,
       defaultImageUrl: DEFAULT_ISAAC_IMAGE_URL,
+      inviteImageOptions: OFFICIAL_INVITE_IMAGES,
       defaultUnregisteredTemplate: DEFAULT_UNREGISTERED_TEMPLATE,
       defaultRegisteredTemplate: DEFAULT_REGISTERED_TEMPLATE,
       defaultIntlUnregisteredTemplate: DEFAULT_INTL_UNREGISTERED_TEMPLATE,
@@ -1285,9 +1328,9 @@ export function buildUnregisteredInviteMessage(contact, customTemplate = '', { f
       : `${greeting}! How are you doing?`;
 
     const intlVariations = [
-      `${intlHello}\n\nI would love to introduce you to a wonderful tool for mental clarity and personal growth: *ISAAC Mentoring*.\n\nISAAC is a confidential mentor available 24/7 by text and voice, created to listen without judgement, help untangle emotional blocks, and bring clear direction to your decisions.\n\nFull access via the Web App is *100% free of charge*. Come and experience your personalised space for reflection right now:\nhttps://isaac.lynxems.com.br/\n\n_(If you would rather not receive invitations here, simply reply "stop".)_`,
-      `${intlHello}\n\nJust dropping a quick note to share a truly meaningful experience with you: meet *ISAAC*, a confidential mentoring space designed for deep listening, emotional clarity, and thoughtful decision-making.\n\nYou can reflect at your own pace by text or voice with complete privacy, 100% free of charge on the Web App:\nhttps://isaac.lynxems.com.br/\n\n_(Should you prefer not to receive messages here, simply reply "stop" at any time.)_`,
-      `${intlHello}\n\nHave you heard of *ISAAC Mentoring*? It is a calm, confidential space built for anyone wishing to quiet the mind, overcome hesitation, and make clearer choices with purpose.\n\nExperience your personalised mentoring session free of charge today:\nhttps://isaac.lynxems.com.br/\n\n_(To opt out of future invitations, simply reply "stop".)_`,
+      `${intlHello}\n\nI would love to introduce you to a wonderful tool for mental clarity and personal growth: *ISAAC Platform*.\n\nISAAC is a confidential mentor available 24/7 by text and voice, created to listen without judgement, help untangle emotional blocks, and bring clear direction to your decisions.\n\nFull access via the Web App is *100% free of charge*. Come and experience your personalised space for reflection right now:\nhttps://isaac.lynxems.com.br/\n\n_(If you would rather not receive invitations here, simply reply "stop".)_`,
+      `${intlHello}\n\nJust dropping a quick note to share a truly meaningful experience with you: meet *ISAAC*, a confidential platform designed for deep listening, emotional clarity, and thoughtful decision-making.\n\nYou can reflect at your own pace by text or voice with complete privacy, 100% free of charge on the Web App:\nhttps://isaac.lynxems.com.br/\n\n_(Should you prefer not to receive messages here, simply reply "stop" at any time.)_`,
+      `${intlHello}\n\nHave you heard of *ISAAC Platform*? It is a calm, confidential space built for anyone wishing to quiet the mind, overcome hesitation, and make clearer choices with purpose.\n\nExperience your personalised reflection session free of charge today:\nhttps://isaac.lynxems.com.br/\n\n_(To opt out of future invitations, simply reply "stop".)_`,
     ];
 
     const idx = Math.abs(
@@ -1300,9 +1343,9 @@ export function buildUnregisteredInviteMessage(contact, customTemplate = '', { f
   const hello = firstName ? `${greeting}, ${firstName}! Tudo bem com você?` : `${greeting}! Tudo bem com você?`;
 
   const variations = [
-    `${hello}\n\nQuero te apresentar uma ferramenta maravilhosa de clareza mental e desenvolvimento pessoal: a *Mentoria ISAAC*.\n\nO ISAAC é um mentor confidencial, disponível 24h em texto e voz, criado para ouvir sem julgamentos, ajudar a desatar bloqueios emocionais e trazer direção para as suas decisões.\n\nO acesso completo pelo App Web é *100% gratuito*. Venha conhecer e experimentar agora:\nhttps://isaac.lynxems.com.br/\n\n_(Se não desejar receber convites por aqui, basta responder "parar".)_`,
-    `${hello}\n\nPassando para compartilhar com você uma experiência transformadora: conheça o *ISAAC*, uma ferramenta maravilhosa de escuta profunda, clareza emocional e mentoria pessoal.\n\nLá você pode conversar escrevendo ou gravando áudios com total sigilo, no seu próprio ritmo, e começar gratuitamente agora mesmo pelo App:\nhttps://isaac.lynxems.com.br/\n\n_(Caso prefira não receber mensagens, responda "parar" a qualquer momento.)_`,
-    `${hello}\n\nVocê já conhece a *Mentoria ISAAC*? É uma ferramenta maravilhosa criada para quem busca desacelerar a mente, vencer a hesitação e tomar decisões com serenidade e propósito.\n\nExperimente gratuitamente hoje mesmo o seu espaço confidencial de reflexão:\nhttps://isaac.lynxems.com.br/\n\n_(Para não receber novas mensagens, basta responder "parar".)_`,
+    `${hello}\n\nQuero te apresentar uma ferramenta maravilhosa de clareza mental e desenvolvimento pessoal: a *Plataforma ISAAC*.\n\nO ISAAC é um mentor confidencial, disponível 24h em texto e voz, criado para ouvir sem julgamentos, ajudar a desatar bloqueios emocionais e trazer direção para as suas decisões.\n\nO acesso completo pelo App Web é *100% gratuito*. Venha conhecer e experimentar agora:\nhttps://isaac.lynxems.com.br/\n\n_(Se não desejar receber convites por aqui, basta responder "parar".)_`,
+    `${hello}\n\nPassando para compartilhar com você uma experiência transformadora: conheça a *Plataforma ISAAC*, uma ferramenta maravilhosa de escuta profunda, clareza emocional e evolução pessoal.\n\nLá você pode conversar escrevendo ou gravando áudios com total sigilo, no seu próprio ritmo, e começar gratuitamente agora mesmo pelo App:\nhttps://isaac.lynxems.com.br/\n\n_(Caso prefira não receber mensagens, responda "parar" a qualquer momento.)_`,
+    `${hello}\n\nVocê já conhece a *Plataforma ISAAC*? É uma ferramenta maravilhosa criada para quem busca desacelerar a mente, vencer a hesitação e tomar decisões com serenidade e propósito.\n\nExperimente gratuitamente hoje mesmo o seu espaço confidencial de reflexão:\nhttps://isaac.lynxems.com.br/\n\n_(Para não receber novas mensagens, basta responder "parar".)_`,
   ];
 
   const idx = Math.abs(
@@ -1360,10 +1403,10 @@ export async function buildRegisteredPlansMessage(contact, customTemplate = '', 
   }
 
   const opening = firstName
-    ? `${greeting}, ${firstName}! Que alegria ter você na *Mentoria ISAAC*.`
-    : `${greeting}! Que alegria ter você na *Mentoria ISAAC*.`;
+    ? `${greeting}, ${firstName}! Que alegria ter você na *Plataforma ISAAC*.`
+    : `${greeting}! Que alegria ter você na *Plataforma ISAAC*.`;
 
-  return `${opening}${recentTopicHint}\n\nAgora sua conta está integrada ao nosso canal e queremos lembrar como funcionam os nossos *2 planos* para você aproveitar cada recurso da melhor forma:\n\n✅ *Plano Gratuito (R$ 0,00 — Sempre Livre):*\n• Acesso 100% liberado no App Web em texto e voz\n• Agente Orquestrador ISAAC + todos os Mentores Especialistas\n• Memória evolutiva contínua e Laboratório do Incômodo Criativo\n• Sem cartão de crédito e sem vínculo financeiro\n\n💬 *Plano Pago — ISAAC no WhatsApp (R$ 14,99 / vencimento mensal):*\n• Tudo do Plano Gratuito liberado no App\n• Conversa direta aqui pelo *WhatsApp em Texto e Áudio* com o Agente Orquestrador ISAAC\n• Reconhecimento automático pelo seu telefone e sincronização imediata no mesmo chat do App\n• Assinatura mensal segura via Asaas (PIX, Cartão ou Boleto)\n\n👉 Acesse sua mentoria ou veja os detalhes dos planos aqui:\nhttps://isaac.lynxems.com.br/#planos\n\n_(Se preferir não receber comunicados no WhatsApp, basta responder "parar".)_`;
+  return `${opening}${recentTopicHint}\n\nAgora sua conta está integrada ao nosso canal e queremos lembrar como funcionam os nossos *2 planos* para você aproveitar cada recurso da melhor forma:\n\n✅ *Plano Gratuito (R$ 0,00 — Sempre Livre):*\n• Acesso 100% liberado no App Web em texto e voz\n• Agente Orquestrador ISAAC + todos os Mentores Especialistas\n• Memória evolutiva contínua e Laboratório do Incômodo Criativo\n• Sem cartão de crédito e sem vínculo financeiro\n\n💬 *Plano Pago — ISAAC no WhatsApp (R$ 14,99 / vencimento mensal):*\n• Tudo do Plano Gratuito liberado no App\n• Conversa direta aqui pelo *WhatsApp em Texto e Áudio* com o Agente Orquestrador ISAAC\n• Reconhecimento automático pelo seu telefone e sincronização imediata no mesmo chat do App\n• Assinatura mensal segura via Asaas (PIX, Cartão ou Boleto)\n\n👉 Acesse a plataforma ou veja os detalhes dos planos aqui:\nhttps://isaac.lynxems.com.br/#planos\n\n_(Se preferir não receber comunicados no WhatsApp, basta responder "parar".)_`;
 }
 
 function deterministicRangeFromSeed(minVal, maxVal, seed = '') {
@@ -1951,7 +1994,7 @@ export async function createOrScheduleOutreachCampaign({
   const { data: campaign, error: campErr } = await supabaseAdmin
     .from('izaque_whatsapp_outreach_campaigns')
     .insert({
-      title: String(title || 'Disparo Programado Mentoria ISAAC').trim(),
+      title: String(title || 'Disparo Programado Plataforma ISAAC').trim(),
       audience_type: audienceType,
       status: 'scheduled',
       scheduled_at: schedDate.toISOString(),

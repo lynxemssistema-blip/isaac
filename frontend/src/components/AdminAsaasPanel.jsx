@@ -13,8 +13,14 @@ import {
   Sparkles,
   Users,
   Link2,
+  Phone,
+  UserX,
 } from 'lucide-react';
-import { fetchAdminAsaasOverview, updateAdminAsaasPlanApi } from '../services/adminApi';
+import {
+  fetchAdminAsaasOverview,
+  updateAdminAsaasPlanApi,
+  updateUserWhatsappAccess,
+} from '../services/adminApi';
 
 export default function AdminAsaasPanel({ currentUser }) {
   const isSuperAdmin =
@@ -40,9 +46,10 @@ export default function AdminAsaasPanel({ currentUser }) {
 
       const paidPlan = (data?.plans || []).find((p) => p.id === 'whatsapp_monthly');
       if (paidPlan) {
+        const numericPrice = Number(paidPlan.price ?? 14.99);
         setPlanForm({
           name: paidPlan.name || 'ISAAC no WhatsApp (Texto e Áudio)',
-          price: String(paidPlan.price ?? '14.99'),
+          price: Number.isFinite(numericPrice) ? numericPrice.toFixed(2) : '14.99',
           description: paidPlan.description || '',
         });
       }
@@ -80,6 +87,33 @@ export default function AdminAsaasPanel({ currentUser }) {
     navigator.clipboard.writeText(url);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 3000);
+  };
+
+  const handleRevokeWhatsappAccess = async (subUser) => {
+    if (
+      !window.confirm(
+        `Remover o acesso à função do WhatsApp de "${subUser.full_name || subUser.email}"? A conta voltará ao Plano Gratuito do App Web.`
+      )
+    ) {
+      return;
+    }
+    setFeedback(null);
+    try {
+      await updateUserWhatsappAccess({
+        userId: subUser.id,
+        enabled: false,
+      });
+      setFeedback({
+        type: 'success',
+        text: `Acesso ao WhatsApp removido para ${subUser.full_name || subUser.email}.`,
+      });
+      await loadOverview();
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        text: err.message || 'Erro ao revogar autorização do WhatsApp.',
+      });
+    }
   };
 
   if (loading && !overview) {
@@ -355,6 +389,100 @@ export default function AdminAsaasPanel({ currentUser }) {
             </button>
           )}
         </form>
+      </div>
+
+      {/* 2.5 CONTAS COM FUNÇÃO WHATSAPP LIBERADA HOJE (ASAAS + LIBERAÇÃO MANUAL DO ADMIN) */}
+      <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800 border border-emerald-200/80 dark:border-emerald-800/50 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Phone className="w-4 h-4 text-emerald-600" />
+            <h4 className="text-sm font-serif font-semibold text-stone-900 dark:text-stone-100">
+              Usuários Autorizados na Função WhatsApp Hoje ({subscribers.length})
+            </h4>
+          </div>
+          <span className="text-[11px] text-stone-500 dark:text-stone-400">
+            Para liberar novos usuários manualmente sem cobrança Asaas, use a aba <strong>Usuários &amp; Acessos</strong>
+          </span>
+        </div>
+
+        {subscribers.length === 0 ? (
+          <div className="p-6 rounded-2xl bg-stone-50 dark:bg-slate-900/50 border border-dashed border-stone-200 dark:border-slate-700 text-center text-xs text-stone-500 dark:text-stone-400">
+            Nenhum usuário com função WhatsApp ativa no momento.
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-stone-200/80 dark:border-slate-700">
+            <table className="w-full text-left text-xs text-stone-700 dark:text-stone-300">
+              <thead className="bg-stone-100/80 dark:bg-slate-900 uppercase text-[10px] text-stone-500 font-semibold border-b border-stone-200 dark:border-slate-700">
+                <tr>
+                  <th className="p-3.5">Usuário</th>
+                  <th className="p-3.5">WhatsApp</th>
+                  <th className="p-3.5">Origem da Autorização</th>
+                  <th className="p-3.5">Validade</th>
+                  <th className="p-3.5 text-right">Controle</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-200/60 dark:divide-slate-700/60">
+                {subscribers.map((sub) => {
+                  const prefs = sub.preferences && typeof sub.preferences === 'object' ? sub.preferences : {};
+                  const isMasterSub =
+                    sub.role === 'master' ||
+                    String(sub.email || '').trim().toLowerCase() === 'edsonmanoel2012@gmail.com';
+                  const isManualGrant = prefs.whatsapp_admin_override === 'granted';
+
+                  return (
+                    <tr key={sub.id} className="hover:bg-stone-50/70 dark:hover:bg-slate-800/60">
+                      <td className="p-3.5">
+                        <div className="font-medium text-stone-900 dark:text-stone-100">
+                          {sub.full_name || 'Sem nome'}
+                        </div>
+                        <div className="text-[11px] text-stone-400">{sub.email}</div>
+                      </td>
+                      <td className="p-3.5 font-mono text-[11px]">
+                        {sub.phone || <span className="text-amber-600 font-sans">⚠️ Sem celular</span>}
+                      </td>
+                      <td className="p-3.5">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            isMasterSub
+                              ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300'
+                              : isManualGrant
+                              ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                              : 'bg-teal-500/15 text-teal-700 dark:text-teal-300'
+                          }`}
+                        >
+                          {isMasterSub
+                            ? 'SuperAdmin Vitalício'
+                            : isManualGrant
+                            ? 'Liberado Manualmente (Admin)'
+                            : 'Assinatura Paga (Asaas)'}
+                        </span>
+                      </td>
+                      <td className="p-3.5 text-[11px] text-stone-500">
+                        {sub.plan_expires_at
+                          ? new Date(sub.plan_expires_at).toLocaleDateString('pt-BR')
+                          : 'Vitalício / Sem vencimento'}
+                      </td>
+                      <td className="p-3.5 text-right">
+                        {isSuperAdmin && !isMasterSub ? (
+                          <button
+                            type="button"
+                            onClick={() => handleRevokeWhatsappAccess(sub)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-700 dark:text-rose-300 font-semibold text-[11px] border border-rose-200 dark:border-rose-800 transition cursor-pointer"
+                          >
+                            <UserX className="w-3 h-3" />
+                            <span>Revogar WhatsApp</span>
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-stone-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* 3. ASSINANTES COM ACESSO WHATSAPP ATIVO + HISTÓRICO DE COBRANÇAS ASAAS */}

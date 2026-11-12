@@ -436,7 +436,7 @@ export async function craftPersonalizedFollowUp({
     .join('\n');
 
   const prompt = `
-Você é o Agente de Cuidado e Continuidade da plataforma Mentoria ISAAC (${cfg.appUrl}).
+Você é o Agente de Cuidado e Continuidade da Plataforma ISAAC (${cfg.appUrl}).
 Sua personalidade é EXTREMAMENTE educada, serena, respeitosa, discreta, calorosa e humana.
 
 OBJETIVO DA ANÁLISE:
@@ -1330,7 +1330,7 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
       const appUrl = getEvoConfig().appUrl;
       await sendWhatsAppTextSafe({
         jidOrNumber: remoteJid,
-        text: `Olá! Aqui é o *ISAAC*.\n\nAinda não localizei este número vinculado ao seu cadastro. Você pode criar sua conta gratuita e usar toda a mentoria livremente em ${appUrl}\n\nSe já possui conta, basta cadastrar este número em *Meu Perfil* lá no aplicativo!`,
+        text: `Olá! Aqui é o *ISAAC*.\n\nAinda não localizei este número vinculado ao seu cadastro. Você pode criar sua conta gratuita e usar toda a plataforma livremente em ${appUrl}\n\nSe já possui conta, basta cadastrar este número em *Meu Perfil* lá no aplicativo!`,
       }).catch(() => {});
     }
     return { eventType, matchedUserId: null, remoteJid, action: 'unregistered_phone_notice' };
@@ -1351,14 +1351,17 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
 
   // 3. Verifica Plano:
   // - SuperAdmin (edsonmanoel2012@gmail.com / role master): Plano Completo vitalício sem necessidade de assinar
-  // - Assinante Pago (whatsapp_monthly): ativo dentro do ciclo de vencimento mensal
+  // - Assinante Pago (whatsapp_monthly) OU Liberado Manualmente pelo SuperAdmin: ativo dentro do ciclo (ou vitalício sem vencimento)
   // - Plano Gratuito (R$ 0,00): acesso 100% livre no App Web, sem conversa pelo WhatsApp
   const superAdminEmail = (process.env.SUPERADMIN_EMAIL || 'edsonmanoel2012@gmail.com').trim().toLowerCase();
   const isSuperAdmin =
     matchedProfile.role === 'master' ||
     String(matchedProfile.email || '').trim().toLowerCase() === superAdminEmail;
 
+  const adminWhatsappOverride = matchedProfile.preferences?.whatsapp_admin_override || null;
+
   const isMonthlySubscriptionValid =
+    adminWhatsappOverride !== 'revoked' &&
     matchedProfile.plan_id === 'whatsapp_monthly' &&
     matchedProfile.plan_status === 'active' &&
     (!matchedProfile.plan_expires_at || new Date(matchedProfile.plan_expires_at).getTime() > Date.now());
@@ -1373,7 +1376,7 @@ export async function processEvolutionWebhookPayload(eventParam, body = {}) {
       const appUrl = getEvoConfig().appUrl;
       const wasPreviouslySubscriber = matchedProfile.plan_id === 'whatsapp_monthly';
       const noticeText = wasPreviouslySubscriber
-        ? `Olá, ${firstName}! Seu ciclo mensal do *Plano ISAAC no WhatsApp* chegou ao vencimento.\n\nSeu acesso à mentoria pelo aplicativo continua *100% gratuito e liberado* em ${appUrl}\n\nCaso deseje renovar a conversa comigo por texto e áudio aqui no WhatsApp (R$ 14,99/mês), basta regularizar a assinatura mensal lá no aplicativo!`
+        ? `Olá, ${firstName}! Seu ciclo mensal do *Plano ISAAC no WhatsApp* chegou ao vencimento.\n\nSeu acesso à plataforma pelo aplicativo continua *100% gratuito e liberado* em ${appUrl}\n\nCaso deseje renovar a conversa comigo por texto e áudio aqui no WhatsApp (R$ 14,99/mês), basta regularizar a assinatura mensal lá no aplicativo!`
         : `Olá, ${firstName}! Que bom receber sua mensagem.\n\nNo seu *Plano Gratuito*, você tem tudo 100% liberado para conversar comigo à vontade diretamente pelo aplicativo em ${appUrl}\n\nPara conversar comigo também aqui pelo WhatsApp (por *texto e áudio*, integrado à mesma conversa do app), basta ativar o *Plano Mensal ISAAC no WhatsApp (R$ 14,99/mês)* dentro do aplicativo!`;
 
       await sendWhatsAppTextSafe({

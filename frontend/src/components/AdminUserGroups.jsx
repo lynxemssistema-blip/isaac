@@ -56,7 +56,7 @@ const CALL_BACK_TEMPLATES = [
   {
     id: 'evolucao',
     label: 'Chamar Usuário de Volta (Evolução)',
-    title: 'Sentimos sua falta na Mentoria ISAAC',
+    title: 'Sentimos sua falta na Plataforma ISAAC',
     content:
       'Olá, {nome}! Tudo bem com você?\n\nPassando com carinho para lembrar que o seu espaço confidencial de clareza e evolução pessoal com o ISAAC está esperando por você.\n\nSempre que quiser organizar os pensamentos, destravar decisões ou retomar sua caminhada, entre aqui:\nhttps://isaac.lynxems.com.br/',
   },
@@ -72,7 +72,7 @@ const CALL_BACK_TEMPLATES = [
     label: 'Convite Leve & Acolhedor',
     title: 'Um momento de pausa e escuta para você',
     content:
-      'Oi, {nome}! Espero que esteja bem.\n\nReserve um instante hoje para respirar fundo e cuidar da sua mente. O ISAAC está disponível agora em texto e voz para caminhar ao seu lado no que estiver pesando ou pedindo direção.\n\nAcesse sua mentoria aqui:\nhttps://isaac.lynxems.com.br/',
+      'Oi, {nome}! Espero que esteja bem.\n\nReserve um instante hoje para respirar fundo e cuidar da sua mente. O ISAAC está disponível agora em texto e voz para caminhar ao seu lado no que estiver pesando ou pedindo direção.\n\nAcesse a plataforma aqui:\nhttps://isaac.lynxems.com.br/',
   },
 ];
 
@@ -527,7 +527,7 @@ export default function AdminUserGroups({ allUsers = [], currentUser }) {
                 Nenhum grupo criado ainda
               </h3>
               <p className="text-sm text-stone-500 dark:text-stone-400 max-w-md mx-auto mb-4">
-                Crie grupos para segmentar sua base de usuários e direcionar conteúdos e mentorias em áudio.
+                Crie grupos para segmentar sua base de usuários e direcionar conteúdos e áudios na plataforma.
               </p>
               <button
                 onClick={handleOpenCreateGroup}
@@ -805,7 +805,7 @@ export default function AdminUserGroups({ allUsers = [], currentUser }) {
               <input
                 type="text"
                 required
-                placeholder="Ex: Sentimos sua falta na Mentoria ISAAC"
+                placeholder="Ex: Sentimos sua falta na Plataforma ISAAC"
                 value={broadcastTitle}
                 onChange={(e) => setBroadcastTitle(e.target.value)}
                 className="w-full px-4 py-2.5 bg-stone-50 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-stone-900 dark:text-white"

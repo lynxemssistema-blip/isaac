@@ -38,13 +38,13 @@ export default function TopicLandingPage({
         setTopic(data.topic || null);
         setRelated(data.related || []);
         if (data.topic?.title) {
-          document.title = `${data.topic.title} | Mentoria ISAAC`;
+          document.title = `${data.topic.title} | Plataforma ISAAC`;
         }
       })
       .catch(() => {
         if (!cancelled) {
           setNotFound(true);
-          document.title = 'Tema não encontrado — Mentoria ISAAC';
+          document.title = 'Tema não encontrado — Plataforma ISAAC';
         }
       })
       .finally(() => {
@@ -95,7 +95,7 @@ export default function TopicLandingPage({
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white text-sm font-medium transition"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Voltar para a Mentoria ISAAC</span>
+            <span>Voltar para a Plataforma ISAAC</span>
           </a>
         </div>
       </div>
@@ -113,7 +113,7 @@ export default function TopicLandingPage({
             className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-stone-600 dark:text-stone-300 hover:text-teal-700 dark:hover:text-teal-400 transition"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Mentoria ISAAC</span>
+            <span>Plataforma ISAAC</span>
           </a>
 
           <button
@@ -121,7 +121,7 @@ export default function TopicLandingPage({
             className="px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white text-xs font-medium shadow-sm transition inline-flex items-center gap-1.5"
           >
             <Feather className="w-3.5 h-3.5" />
-            <span>{user ? 'Abrir Minha Mentoria' : 'Conversar com Isaac'}</span>
+            <span>{user ? 'Abrir Plataforma' : 'Conversar com Isaac'}</span>
           </button>
         </div>
       </header>
@@ -210,7 +210,7 @@ export default function TopicLandingPage({
             </section>
           )}
 
-          {/* Perguntas Socráticas da Mentoria ISAAC */}
+          {/* Perguntas Socráticas da Plataforma ISAAC */}
           {topic.reflectionQuestions?.length > 0 && (
             <section className="space-y-5">
               <div className="space-y-1.5">
@@ -250,7 +250,7 @@ export default function TopicLandingPage({
               Deseja aprofundar este tema no seu próprio ritmo?
             </h2>
             <p className="text-xs sm:text-sm font-serif text-stone-600 dark:text-stone-300 max-w-lg mx-auto leading-relaxed">
-              Abra seu espaço reservado na Mentoria ISAAC e desabafe sem máscaras, com memória contínua da sua evolução.
+              Abra seu espaço reservado na Plataforma ISAAC e desabafe sem máscaras, com memória contínua da sua evolução.
             </p>
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
@@ -304,7 +304,7 @@ export default function TopicLandingPage({
         {related.length > 0 && (
           <section className="pt-8 border-t border-stone-200 dark:border-slate-800 space-y-5">
             <h2 className="text-lg sm:text-xl font-serif font-medium text-stone-900 dark:text-stone-100">
-              Outras Trilhas de Clareza da Mentoria ISAAC
+              Outras Trilhas de Clareza da Plataforma ISAAC
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {related.map((item) => (
@@ -331,7 +331,7 @@ export default function TopicLandingPage({
       </main>
 
       <footer className="py-8 px-4 border-t border-stone-200/80 dark:border-slate-800 text-center text-xs text-stone-400 dark:text-stone-500 font-serif">
-        <p>Mentoria ISAAC • Espaço Confidencial de Clareza, Escuta Atenta e Desenvolvimento Pessoal</p>
+        <p>Plataforma ISAAC • Espaço Confidencial de Clareza, Escuta Atenta e Desenvolvimento Pessoal</p>
       </footer>
     </div>
   );

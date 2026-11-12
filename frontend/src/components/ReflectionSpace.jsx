@@ -267,7 +267,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
     user?.email === 'edsonmanoel2012@gmail.com';
   const canShowTheme = MULTI_THEME_ENABLED && (isSuperAdmin || (systemSettings ? systemSettings.show_theme_selector !== false : true));
   const canShowSettings = isSuperAdmin || (systemSettings ? systemSettings.show_settings_button !== false : true);
-  const canShowAmbient = isSuperAdmin || (systemSettings ? systemSettings.show_ambient_sound_button !== false : true);
+  const canShowAmbient = systemSettings ? systemSettings.show_ambient_sound_button !== false : true;
 
   const [guideName, setGuideName] = useState(() => {
     const raw = localStorage.getItem('isaac_guide_name') || localStorage.getItem('izaque_guide_name') || 'Isaac';
@@ -328,6 +328,8 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerIntervalRef = useRef(null);
+  const recordingStartTimeRef = useRef(0);
+  const isRecordingCancelledRef = useRef(false);
   const endRef = useRef(null);
   const chatScrollRef = useRef(null);
   const isUserNearBottomRef = useRef(true);
@@ -903,7 +905,11 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
   // Saudação contextual
   const getGreeting = () => {
     const hour = new Date().getHours();
-    const name = user?.name || user?.email?.split('@')[0] || 'Viajante';
+    const rawFullName = String(
+      user?.full_name || user?.name || user?.user_metadata?.full_name || ''
+    ).trim();
+    const firstName = rawFullName ? rawFullName.split(/\s+/)[0] : '';
+    const name = firstName || user?.email?.split('@')[0] || 'Viajante';
 
     if (hour >= 5 && hour < 12) {
       return {
@@ -1052,11 +1058,25 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
     return res;
   };
 
-  const triggerBrowserBlobDownload = (blob, fileName) => {
+  const triggerBrowserBlobDownload = async (blob, fileName) => {
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+    const isIosInAppWebView = /(iPhone|iPad|iPod).*(FBAN|FBAV|Instagram|WhatsApp|Line|MicroMessenger)/i.test(ua);
+    if (isIosInAppWebView && typeof navigator !== 'undefined' && navigator.canShare) {
+      try {
+        const shareFile = new File([blob], fileName, { type: blob.type || 'audio/mpeg' });
+        if (navigator.canShare({ files: [shareFile] })) {
+          await navigator.share({ files: [shareFile], title: fileName });
+          return;
+        }
+      } catch (shareErr) {
+        if (shareErr?.name === 'AbortError') return;
+      }
+    }
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = fileName;
+    link.rel = 'noopener';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1069,7 +1089,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
     try {
       const { blob, ext } = await getOrCreateDownloadableAudio(messageId, text);
       const stamp = formatBrazilTime().replace(':', 'h');
-      triggerBrowserBlobDownload(blob, `isaac-reflexao-${stamp}.${ext}`);
+      await triggerBrowserBlobDownload(blob, `isaac-reflexao-${stamp}.${ext}`);
     } catch (err) {
       console.error('❌ Erro ao baixar áudio da reflexão:', err);
       alert(err?.message || 'Não foi possível gerar o arquivo de áudio agora. Tente novamente em instantes.');
@@ -1091,10 +1111,10 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
       if (navigator.canShare && navigator.canShare({ files: [audioFile] })) {
         await navigator.share({
           files: [audioFile],
-          title: 'Reflexão — Mentoria ISAAC',
+          title: 'Reflexão — Plataforma ISAAC',
         });
       } else {
-        triggerBrowserBlobDownload(blob, fileName);
+        await triggerBrowserBlobDownload(blob, fileName);
       }
     } catch (err) {
       if (err?.name !== 'AbortError') {
@@ -1120,7 +1140,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
         const mime = String(blob.type || '').toLowerCase();
         const ext = mime.includes('mp4') || mime.includes('m4a') ? 'm4a' : mime.includes('mpeg') ? 'mp3' : 'webm';
         const stamp = (item.created_at ? formatBrazilTime(item.created_at) : formatBrazilTime()).replace(':', 'h');
-        triggerBrowserBlobDownload(blob, `meu-audio-isaac-${stamp}.${ext}`);
+        await triggerBrowserBlobDownload(blob, `meu-audio-isaac-${stamp}.${ext}`);
         return;
       } catch {}
     }
@@ -1338,7 +1358,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
         {
           id: (Date.now() + 1).toString(),
           role: 'guide',
-          content: 'Houve uma breve pausa na conexão da mentoria. Mas estou aqui ouvindo você. Gostaria de reenviar?',
+          content: 'Houve uma breve pausa na conexão da plataforma. Mas estou aqui ouvindo você. Gostaria de reenviar?',
           timestamp: formatBrazilTime(),
         },
       ]);
@@ -1351,37 +1371,38 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
 
   const startAudioRecording = async () => {
     try {
-      if (!navigator?.mediaDevices?.getUserMedia) {
-        alert('O microfone no celular requer conexão segura (HTTPS ou localhost). Se estiver testando na rede local, ative HTTPS ou acesse via localhost.');
+      if (!navigator?.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+        alert('A gravação direta de áudio requer um navegador moderno com conexão segura (HTTPS).');
         return;
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
+      isRecordingCancelledRef.current = false;
 
-      // Detecção inteligente de MIME types compatíveis (Crucial para iPhone / Safari)
-      let selectedMime = 'audio/webm';
-      let recorderOptions = {};
+      // Detecção inteligente de MIME types compatíveis (Crucial para iPhone / Safari, Samsung Internet, Chrome e Firefox)
+      let selectedMime = '';
+      let recorderOptions = undefined;
 
       if (typeof MediaRecorder.isTypeSupported === 'function') {
-        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-          selectedMime = 'audio/webm;codecs=opus';
-          recorderOptions = { mimeType: selectedMime };
-        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
-          selectedMime = 'audio/webm';
-          recorderOptions = { mimeType: selectedMime };
-        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-          // Padrão nativo do iPhone / Safari no iOS
-          selectedMime = 'audio/mp4';
-          recorderOptions = { mimeType: selectedMime };
-        } else if (MediaRecorder.isTypeSupported('audio/aac')) {
-          selectedMime = 'audio/aac';
-          recorderOptions = { mimeType: selectedMime };
+        const mimeCandidates = [
+          'audio/webm;codecs=opus',
+          'audio/webm',
+          'audio/mp4',
+          'audio/aac',
+          'audio/ogg;codecs=opus',
+        ];
+        for (const candidate of mimeCandidates) {
+          if (MediaRecorder.isTypeSupported(candidate)) {
+            selectedMime = candidate;
+            recorderOptions = { mimeType: candidate };
+            break;
+          }
         }
       }
 
       let recorder;
       try {
-        recorder = new MediaRecorder(stream, recorderOptions);
+        recorder = recorderOptions ? new MediaRecorder(stream, recorderOptions) : new MediaRecorder(stream);
       } catch (e) {
         recorder = new MediaRecorder(stream);
       }
@@ -1390,20 +1411,27 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
       const actualMime = recorder.mimeType || selectedMime || 'audio/webm';
 
       recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+        if (event.data && event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
       };
 
       recorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: actualMime });
         stream.getTracks().forEach((track) => track.stop());
-
-        // Upload binário direto via multipart/form-data (sem sobrecarga de FileReader Base64 gigante)
+        if (isRecordingCancelledRef.current || audioChunksRef.current.length === 0) {
+          audioChunksRef.current = [];
+          return;
+        }
+        const elapsedSeconds = Math.max(
+          1,
+          Math.round((Date.now() - (recordingStartTimeRef.current || Date.now())) / 1000)
+        );
+        const audioBlob = new Blob(audioChunksRef.current, { type: actualMime });
         const localObjectUrl = URL.createObjectURL(audioBlob);
-        await processVoiceReflection(audioBlob, recordingDuration, actualMime, localObjectUrl);
+        await processVoiceReflection(audioBlob, elapsedSeconds, actualMime, localObjectUrl);
       };
 
+      recordingStartTimeRef.current = Date.now();
       recorder.start();
       setIsRecording(true);
       setRecordingDuration(0);
@@ -1418,18 +1446,20 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
 
   const stopAudioRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+      isRecordingCancelledRef.current = false;
       clearInterval(timerIntervalRef.current);
+      setIsRecording(false);
+      mediaRecorderRef.current.stop();
     }
   };
 
   const cancelAudioRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+      isRecordingCancelledRef.current = true;
       clearInterval(timerIntervalRef.current);
+      setIsRecording(false);
       audioChunksRef.current = [];
+      mediaRecorderRef.current.stop();
     }
   };
 
@@ -1815,14 +1845,15 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
       {/* ÁREA PRINCIPAL DO CHAT / MENSAGENS (SE AJUSTA AUTOMATICAMENTE AO RESTANTE DA PÁGINA) */}
       <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden transition-all duration-300">
         {/* HEADER DA SESSÃO */}
-        <header className="px-3 sm:px-6 py-2 sm:py-3.5 pt-safe border-b border-stone-200/80 dark:border-slate-800 bg-stone-50/90 dark:bg-slate-900/90 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between shrink-0 gap-2">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <header className="px-2.5 sm:px-6 py-2 sm:py-3 pt-safe border-b border-stone-200/80 dark:border-slate-800 bg-stone-50/90 dark:bg-slate-900/90 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between shrink-0 gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
             {onBackToHome && (
               <button
                 type="button"
                 onClick={onBackToHome}
                 title="Voltar para o Início"
-                className="p-2 text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 rounded-xl hover:bg-stone-200/50 dark:hover:bg-slate-800 transition min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center shrink-0 active:scale-95 cursor-pointer"
+                aria-label="Voltar para o Início"
+                className="p-2 text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 rounded-xl hover:bg-stone-200/50 dark:hover:bg-slate-800 transition min-w-[38px] min-h-[38px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center shrink-0 active:scale-95 cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
@@ -1837,7 +1868,8 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
                   ? 'Recolher painel de conversas'
                   : 'Minhas Conversas & Sessões de Reflexão'
               }
-              className={`p-2 rounded-xl transition min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center shrink-0 active:scale-95 cursor-pointer relative border ${
+              aria-label="Minhas Conversas"
+              className={`p-2 rounded-xl transition min-w-[38px] min-h-[38px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center shrink-0 active:scale-95 cursor-pointer relative border ${
                 isDocked
                   ? 'bg-teal-700/15 text-teal-800 dark:text-teal-300 border-teal-700/30 dark:border-teal-500/40 shadow-xs'
                   : 'text-stone-600 dark:text-stone-300 hover:text-teal-700 dark:hover:text-teal-400 hover:bg-stone-200/60 dark:hover:bg-slate-800 border-stone-200/80 dark:border-slate-700 shadow-2xs'
@@ -1851,14 +1883,14 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
               )}
             </button>
 
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-teal-700/10 dark:bg-teal-500/15 border border-teal-700/20 dark:border-teal-500/30 flex items-center justify-center text-teal-800 dark:text-teal-400 shrink-0">
-            <Feather className="w-4 h-4 sm:w-5 sm:h-5 stroke-[1.75]" />
+          <div className="hidden sm:flex w-10 h-10 rounded-2xl bg-teal-700/10 dark:bg-teal-500/15 border border-teal-700/20 dark:border-teal-500/30 items-center justify-center text-teal-800 dark:text-teal-400 shrink-0">
+            <Feather className="w-5 h-5 stroke-[1.75]" />
           </div>
 
-          <div className="min-w-0">
-            <h2 className="text-sm sm:text-base font-serif font-medium text-stone-900 dark:text-stone-50 leading-tight truncate flex items-center gap-1.5">
-              <span>Sessão com {guideName}</span>
-              <span className="hidden md:inline text-stone-300 dark:text-stone-600 font-sans">•</span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm sm:text-base font-serif font-medium text-stone-900 dark:text-stone-50 leading-tight flex items-center gap-1.5 min-w-0">
+              <span className="truncate">Sessão com {guideName}</span>
+              <span className="hidden md:inline text-stone-300 dark:text-stone-600 font-sans shrink-0">•</span>
               <span
                 onClick={() => setIsSessionsDrawerOpen(true)}
                 title="Clique para ver ou mudar de conversa"
@@ -1868,14 +1900,14 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
               </span>
             </h2>
             {activeGuidedTopic ? (
-              <p className="text-[10px] sm:text-[11px] text-amber-700 dark:text-amber-300 font-medium flex items-center gap-1.5 mt-0.5 truncate">
+              <p className="text-[10px] sm:text-[11px] text-amber-700 dark:text-amber-300 font-medium flex items-center gap-1.5 mt-0.5 min-w-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                <span>Conversa Direcionada • Mentor conduzindo roteiro do Superadmin</span>
+                <span className="truncate">Conversa Direcionada • Roteiro ativo</span>
               </p>
             ) : (
-              <p className="text-[10px] sm:text-[11px] text-stone-500 dark:text-stone-400 flex items-center gap-1.5 mt-0.5 truncate">
+              <p className="text-[10px] sm:text-[11px] text-stone-500 dark:text-stone-400 flex items-center gap-1.5 mt-0.5 min-w-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-teal-600 dark:bg-teal-400 shrink-0" />
-                <span>Mentoria ativa • Visão contínua da sua jornada</span>
+                <span className="truncate">Plataforma ativa • Visão contínua da sua jornada</span>
               </p>
             )}
           </div>
@@ -2022,7 +2054,8 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
               type="button"
               onClick={() => (onEditGuideName ? onEditGuideName() : setIsSettingsOpen(true))}
               title="Ajustes de voz, nome e som ambiente"
-              className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-white dark:bg-slate-800 hover:bg-stone-100 dark:hover:bg-slate-700 text-stone-600 dark:text-stone-300 text-xs font-medium transition flex items-center gap-1.5 border border-stone-200 dark:border-slate-700 shadow-sm active:scale-95 min-h-[36px] min-w-[36px] justify-center"
+              aria-label="Ajustes da Plataforma"
+              className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-white dark:bg-slate-800 hover:bg-stone-100 dark:hover:bg-slate-700 text-stone-600 dark:text-stone-300 text-xs font-medium transition flex items-center gap-1.5 border border-stone-200 dark:border-slate-700 shadow-sm active:scale-95 min-h-[38px] min-w-[38px] justify-center"
             >
               <Sliders className="w-3.5 h-3.5 text-teal-700 dark:text-teal-400" />
               <span className="hidden sm:inline">Ajustes</span>
@@ -2032,16 +2065,19 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
       </header>
 
       {/* SAUDAÇÃO CONTEXTUAL */}
-      <div className="px-4 sm:px-6 py-2 bg-stone-100/70 dark:bg-slate-800/40 border-b border-stone-200/60 dark:border-slate-800/60 text-xs text-stone-600 dark:text-stone-300 flex items-center gap-2 shrink-0">
+      <div className="px-3 sm:px-6 py-1.5 sm:py-2 bg-stone-100/70 dark:bg-slate-800/40 border-b border-stone-200/60 dark:border-slate-800/60 text-[11px] sm:text-xs text-stone-600 dark:text-stone-300 flex items-center gap-2 shrink-0">
         {greeting.icon}
         <span className="truncate">{greeting.text}</span>
       </div>
 
       {/* ÁREA DE MENSAGENS (VIRTUALIZADA POR JANELA + ANCORAGEM INTELIGENTE ANTI-CLS) */}
-      <main
+      <div
         ref={chatScrollRef}
         onScroll={handleChatScroll}
-        className="flex-1 overflow-y-auto overscroll-contain chat-scroll-container px-3 sm:px-6 py-4 sm:py-6 space-y-4 relative"
+        role="log"
+        aria-live="polite"
+        aria-label="Histórico de mensagens da sessão"
+        className="flex-1 overflow-y-auto overscroll-contain chat-scroll-container px-3 sm:px-6 py-3 sm:py-6 space-y-4 relative"
       >
         {activeGuidedTopic && (
           <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/50 shadow-xs mb-2">
@@ -2257,7 +2293,7 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
         )}
 
         <div ref={endRef} />
-      </main>
+      </div>
 
       {/* FOOTER DE ENTRADA RESPONSIVO */}
       <footer className="p-2 sm:p-3.5 pb-safe border-t border-stone-200/80 dark:border-slate-800 bg-stone-50/95 dark:bg-slate-900/95 backdrop-blur-md shrink-0">
@@ -2377,7 +2413,10 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
         ) : (
           <form onSubmit={handleSendReflection} className="relative flex items-center gap-2">
             <textarea
-              rows={2}
+              id="isaac-chat-input"
+              name="message"
+              aria-label="Mensagem de reflexão para o mentor"
+              rows={isDesktop ? 2 : 1}
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
               onKeyDown={(e) => {
@@ -2388,16 +2427,17 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
               }}
               placeholder="O que está pesando na mente ou coração? Desabafe aqui..."
               disabled={isReflecting}
-              className="w-full resize-none px-3.5 sm:px-5 py-2.5 sm:py-3 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 dark:focus:border-teal-400 focus:ring-1 focus:ring-teal-700 text-base sm:text-sm text-stone-800 dark:text-stone-100 placeholder-stone-400 outline-none leading-relaxed transition pr-22 sm:pr-26 shadow-sm"
+              className="w-full resize-none px-3.5 sm:px-5 py-2.5 sm:py-3 min-h-[46px] max-h-32 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 dark:focus:border-teal-400 focus:ring-1 focus:ring-teal-700 text-base sm:text-sm text-stone-800 dark:text-stone-100 placeholder-stone-400 outline-none leading-relaxed transition pr-24 sm:pr-26 shadow-sm"
             />
 
-            <div className="absolute right-2 sm:right-3 flex items-center gap-1">
+            <div className="absolute right-1.5 sm:right-3 flex items-center gap-1">
               <button
                 type="button"
                 onClick={startAudioRecording}
                 disabled={isReflecting}
                 title="Gravar desabafo em áudio (com transcrição automática)"
-                className="p-2 sm:p-2.5 rounded-full text-stone-500 hover:text-teal-800 dark:hover:text-teal-400 hover:bg-stone-100 dark:hover:bg-slate-700 transition min-w-[38px] min-h-[38px] sm:min-w-[42px] sm:min-h-[42px] flex items-center justify-center active:scale-95"
+                aria-label="Gravar desabafo em áudio"
+                className="p-2 sm:p-2.5 rounded-full text-stone-500 hover:text-teal-800 dark:hover:text-teal-400 hover:bg-stone-100 dark:hover:bg-slate-700 transition min-w-[40px] min-h-[40px] sm:min-w-[42px] sm:min-h-[42px] flex items-center justify-center active:scale-95"
               >
                 <Mic className="w-4 h-4" />
               </button>
@@ -2406,7 +2446,8 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
                 type="submit"
                 disabled={isReflecting || !inputVal.trim()}
                 title="Enviar desabafo"
-                className="p-2 sm:p-2.5 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white shadow-md shadow-teal-700/20 disabled:opacity-40 transition flex items-center justify-center min-w-[38px] min-h-[38px] sm:min-w-[42px] sm:min-h-[42px] active:scale-95"
+                aria-label="Enviar desabafo"
+                className="p-2 sm:p-2.5 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white shadow-md shadow-teal-700/20 disabled:opacity-40 transition flex items-center justify-center min-w-[40px] min-h-[40px] sm:min-w-[42px] sm:min-h-[42px] active:scale-95"
               >
                 <Send className="w-4 h-4" />
               </button>

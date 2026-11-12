@@ -1,6 +1,6 @@
 /**
  * Serviço de Gerenciamento de Temas Visuais & Tipografia
- * Mentoria ISAAC — Estilo Único Ativo: 'gold' (Refúgio Ouro & Obsidiana)
+ * Plataforma ISAAC — Estilo Único Ativo: 'gold' (Refúgio Ouro & Obsidiana)
  *
  * Para reativar a escolha entre os 4 estilos posteriormente, basta alterar
  * `MULTI_THEME_ENABLED` para `true`.

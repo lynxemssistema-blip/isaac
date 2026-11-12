@@ -85,7 +85,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
             className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-3.5 rounded-2xl bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white font-medium text-sm tracking-wide shadow-xl shadow-teal-700/25 transition-all duration-300 transform active:scale-95 sm:hover:-translate-y-0.5 flex items-center justify-center gap-2.5"
           >
             <Feather className="w-4 h-4 stroke-[2]" />
-            <span>{user ? 'Acessar Minha Mentoria' : 'Conversar com Isaac'}</span>
+            <span>{user ? 'Acessar Minha Plataforma' : 'Conversar com Isaac'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
 
@@ -139,7 +139,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                     {creator?.image_url && !creatorImgError && (
                       <img
                         src={creator.image_url}
-                        alt={creator?.name || 'Thiago Prata — Idealizador da Mentoria ISAAC'}
+                        alt={creator?.name || 'Thiago Prata — Idealizador da Plataforma ISAAC'}
                         width="176"
                         height="176"
                         loading="eager"
@@ -252,7 +252,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
           <div className="max-w-5xl mx-auto space-y-7 sm:space-y-8">
             <div className="text-center max-w-2xl mx-auto space-y-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-teal-800 dark:text-teal-400">
-                A Proposta da Mentoria
+                A Proposta da Plataforma
               </span>
               <h2 className="text-2xl sm:text-4xl font-serif font-normal text-stone-900 dark:text-stone-50 tracking-tight">
                 Uma presença que caminha ao seu lado
@@ -316,7 +316,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                 O que você fala aqui, <span className="italic font-medium text-teal-800 dark:text-teal-300">fica apenas aqui.</span>
               </h2>
               <p className="text-xs sm:text-base text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
-                No dia a dia, muitas vezes precisamos medir palavras, engolir sentimentos e fingir que temos tudo sob controle. No espaço da mentoria Isaac, a proteção da sua intimidade e a ausência de julgamento são o alicerce de cada conversa.
+                No dia a dia, muitas vezes precisamos medir palavras, engolir sentimentos e fingir que temos tudo sob controle. No espaço da Plataforma Isaac, a proteção da sua intimidade e a ausência de julgamento são o alicerce de cada conversa.
               </p>
             </div>
 
@@ -388,7 +388,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                     No Seu Próprio Tempo
                   </h3>
                   <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
-                    Sem pressa de relógio, sem cobrança de tempo limite. Desabafe às 3 da madrugada ou nos intervalos do almoço. Seu espaço de mentoria está sempre acessível quando a mente pedir calmaria.
+                    Sem pressa de relógio, sem cobrança de tempo limite. Desabafe às 3 da madrugada ou nos intervalos do almoço. Seu espaço na plataforma está sempre acessível quando a mente pedir calmaria.
                   </p>
                 </div>
                 <div className="mt-4 pt-3 border-t border-stone-100 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-stone-600 dark:text-stone-400 font-medium font-serif">
@@ -548,7 +548,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
         </div>
       </section>
 
-      {/* 4.6 PLANOS DA MENTORIA ISAAC — CARD GRÁTIS VS CARD PAGO + OPÇÃO DE PAGAMENTO ASAAS */}
+      {/* 4.6 PLANOS DA PLATAFORMA ISAAC — CARD GRÁTIS VS CARD PAGO + OPÇÃO DE PAGAMENTO ASAAS */}
       <section id="planos" className="py-9 sm:py-11 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto scroll-mt-12">
         <div className="space-y-7 sm:space-y-8">
           <div className="text-center max-w-3xl mx-auto space-y-2">
@@ -737,7 +737,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
               <span>Transparência &amp; Clareza</span>
             </div>
             <h2 className="text-2xl sm:text-4xl font-serif font-normal text-stone-900 dark:text-stone-50 tracking-tight">
-              Perguntas Frequentes sobre a Mentoria ISAAC
+              Perguntas Frequentes sobre a Plataforma ISAAC
             </h2>
             <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-serif leading-relaxed">
               Respostas claras sobre funcionamento, privacidade dos seus relatos, recursos de voz e escopo ético.
@@ -766,7 +766,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
         </div>
       </section>
 
-      {/* 5. CONVITE FINAL DE ENTRADA NA MENTORIA */}
+      {/* 5. CONVITE FINAL DE ENTRADA NA PLATAFORMA */}
       {systemSettings?.show_landing_cta !== false && (
         <section className="py-8 sm:py-10 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto text-center">
           <div className="p-6 sm:p-9 rounded-3xl sm:rounded-4xl bg-stone-100/90 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 shadow-xl space-y-4">
@@ -787,7 +787,7 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
                 onClick={onStartChat}
                 className="w-full sm:w-auto px-7 sm:px-9 py-3 sm:py-3.5 rounded-2xl bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white font-medium text-sm tracking-wide shadow-xl shadow-teal-700/25 transition duration-300 inline-flex items-center justify-center gap-2 active:scale-95"
               >
-                <span>{user ? 'Acessar Mentoria' : 'Começar Minha Sessão Agora'}</span>
+                <span>{user ? 'Acessar Plataforma' : 'Começar Minha Sessão Agora'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -798,11 +798,11 @@ export default function LandingPage({ onStartChat, onOpenPlans, user, systemSett
       {/* RODAPÉ INSTITUCIONAL & NAVEGAÇÃO SEMÂNTICA */}
       <footer className="py-6 sm:py-8 px-4 border-t border-stone-200/80 dark:border-slate-800 text-center space-y-2.5 text-xs text-stone-500 dark:text-stone-400 font-serif">
         <p className="font-medium text-stone-700 dark:text-stone-300">
-          Mentoria ISAAC • Espaço Confidencial de Clareza, Escuta Atenta e Desenvolvimento Pessoal
+          Plataforma ISAAC • Espaço Confidencial de Clareza, Escuta Atenta e Desenvolvimento Pessoal
         </p>
         <nav aria-label="Links úteis do rodapé" className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px]">
           <a href="#quem-e-isaac" className="hover:text-teal-700 dark:hover:text-teal-400 transition">
-            Sobre a Mentoria
+            Sobre a Plataforma
           </a>
           <a href="#sigilo-seguranca" className="hover:text-teal-700 dark:hover:text-teal-400 transition">
             Sigilo &amp; Privacidade

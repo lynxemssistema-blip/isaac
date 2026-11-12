@@ -129,8 +129,31 @@ const SpeechRecognition = typeof window !== 'undefined'
   ? (window.SpeechRecognition || window.webkitSpeechRecognition)
   : null;
 
+function renderFormattedTroubleText(rawText) {
+  const text = String(rawText || '');
+  if (!text) return null;
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      return (
+        <strong key={idx} className="font-semibold">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+      return (
+        <em key={idx} className="italic">
+          {part.slice(1, -1)}
+        </em>
+      );
+    }
+    return <React.Fragment key={idx}>{part}</React.Fragment>;
+  });
+}
+
 export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
-  // Três visões: 'chat' (Mentoria Guiada por Conversa) | 'wizard' (Painel & Sliders) | 'history' (Meus Registros)
+  // Três visões: 'chat' (Jornada Guiada por Conversa) | 'wizard' (Painel & Sliders) | 'history' (Meus Registros)
   const [activeView, setActiveView] = useState('chat');
   const [currentStep, setCurrentStep] = useState(1);
 
@@ -179,7 +202,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
 
   const toggleListening = (fieldName, onTextReceived) => {
     if (!SpeechRecognition) {
-      alert('O reconhecimento de voz direto não é suportado pelo seu navegador atual. Use o Google Chrome ou Edge.');
+      alert('O ditado contínuo por voz não está disponível neste navegador (ex.: Firefox). Você pode digitar normalmente ou usar o ditado do teclado do celular.');
       return;
     }
 
@@ -257,7 +280,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
   };
 
   // ==========================================
-  // ESTADO DO CHAT GUIADO (MENTORIA INTERATIVA)
+  // ESTADO DO CHAT GUIADO (JORNADA INTERATIVA NA PLATAFORMA)
   // ==========================================
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
@@ -604,13 +627,14 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
   };
 
   // Carregar histórico do usuário
-  const loadHistory = async () => {
-    if (!user) return;
+  const loadHistory = async (withCrossAnalysis = false) => {
+    if (!user?.id) return;
     try {
       setLoadingTroubles(true);
       const data = await fetchUserCreativeTroubles(user.id);
-      setUserTroubles(data);
-      if (data && data.length > 0) {
+      const safeData = Array.isArray(data) ? data : [];
+      setUserTroubles(safeData);
+      if (withCrossAnalysis && safeData.length > 0 && !crossAnalysis) {
         loadCrossAnalysis();
       }
     } catch (err) {
@@ -621,10 +645,16 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
   };
 
   useEffect(() => {
-    if (activeView === 'history') {
-      loadHistory();
+    if (user?.id) {
+      loadHistory(false);
     }
-  }, [activeView, user]);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (activeView === 'history' && user?.id) {
+      loadHistory(true);
+    }
+  }, [activeView, user?.id]);
 
   // Handler de Análise Socrática do Fato
   const handleAnalyzeFact = async () => {
@@ -695,9 +725,9 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-3 sm:px-6 py-6 space-y-6">
+    <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6 overflow-x-hidden">
       {/* HEADER PRINCIPAL */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-stone-50 dark:bg-slate-900 border border-stone-200 dark:border-slate-800 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-6 rounded-3xl bg-stone-50 dark:bg-slate-900 border border-stone-200 dark:border-slate-800 shadow-xs">
         <div>
           <div className="flex items-center gap-2">
             <span className="p-2 rounded-2xl bg-teal-600/10 text-teal-600 dark:text-teal-400">
@@ -725,7 +755,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
             }`}
           >
             <MessageSquare className="w-3.5 h-3.5" />
-            <span>Mentoria Guiada (Chat)</span>
+            <span>Jornada Guiada (Chat)</span>
           </button>
 
           <button
@@ -755,7 +785,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
       </div>
 
       {/* ======================================================== */}
-      {/* VIEW 1: MODO MENTORIA GUIADA POR CHAT (DINÂMICO COM OPÇÕES) */}
+      {/* VIEW 1: MODO JORNADA GUIADA POR CHAT (DINÂMICO COM OPÇÕES) */}
       {/* ======================================================== */}
       {activeView === 'chat' && (
         <div className="rounded-3xl bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 shadow-sm flex flex-col h-[75vh] max-h-[800px] overflow-hidden">
@@ -801,7 +831,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
                   setChatCompleted(false);
                   startChatSession();
                 }}
-                title="Reiniciar Sessão de Mentoria"
+                title="Reiniciar Sessão na Plataforma"
                 className="p-2 rounded-xl text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-200/50 dark:hover:bg-slate-700/50 transition"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -825,7 +855,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
                         : 'bg-teal-700 text-white rounded-tr-xs shadow-xs'
                     }`}
                   >
-                    <div className="whitespace-pre-wrap">{msg.text}</div>
+                    <div className="whitespace-pre-wrap">{renderFormattedTroubleText(msg.text)}</div>
 
                     {/* BOTÃO OUVIR RESPOSTA DO MENTOR POR VOZ */}
                     {isAgent && (
@@ -1010,7 +1040,7 @@ export default function CreativeTroubleLab({ user, profile, onBackToChat }) {
                   Seção 1: Informações Gerais e Fato Concreto
                 </span>
                 <h2 className="text-lg font-bold text-stone-900 dark:text-stone-100 mt-1">
-                  O que está Te incomodando?
+                  O que está te incomodando?
                 </h2>
                 <p className="text-xs text-stone-600 dark:text-slate-400 mt-1 leading-relaxed">
                   Descreva objetivamente a situação que está gerando desconforto, insatisfação ou desejo

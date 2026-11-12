@@ -152,7 +152,7 @@ export default function UserNotificationsPopover({ user }) {
 
             <div
               role="dialog"
-              aria-label="Comunicados da Mentoria"
+              aria-label="Comunicados da Plataforma"
               style={
                 isMobileViewport
                   ? {
@@ -180,7 +180,7 @@ export default function UserNotificationsPopover({ user }) {
                   </div>
                   <div className="min-w-0">
                     <h4 className="text-xs font-serif font-bold text-stone-900 dark:text-white truncate">
-                      Comunicados da Mentoria
+                      Comunicados da Plataforma
                     </h4>
                     <p className="text-[10px] text-stone-400 truncate">
                       Recados e áudios enviados para você
@@ -362,7 +362,8 @@ export default function UserNotificationsPopover({ user }) {
             loadNotifications(true);
           }
         }}
-        title="Caixa de Recados & Comunicados da Mentoria"
+        title="Caixa de Recados & Comunicados da Plataforma"
+        aria-label="Caixa de Recados e Comunicados da Plataforma"
         className="relative p-1.5 sm:p-2 text-stone-500 hover:text-teal-700 dark:hover:text-teal-400 hover:bg-stone-200/60 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
       >
         <Bell className="w-4 h-4" />

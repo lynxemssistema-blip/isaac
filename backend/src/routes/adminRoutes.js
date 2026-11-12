@@ -16,6 +16,7 @@ import {
   updateAdminPlan,
   updateUserStatus,
   updateUserPlan,
+  updateUserWhatsappAccess,
   getAdminSubscriptions,
   approveSubscription,
   getAdminFeedbacks,
@@ -79,6 +80,7 @@ router.get('/admin/users', getAdminUsers);
 router.post('/admin/users/role', updateUserRole);
 router.post('/admin/users/status', updateUserStatus);
 router.post('/admin/users/plan', updateUserPlan);
+router.post('/admin/users/whatsapp-access', updateUserWhatsappAccess);
 router.get('/admin/memories', getAdminMemories);
 router.get('/admin/agents', getAdminAgents);
 router.post('/admin/agents', createAdminAgent);

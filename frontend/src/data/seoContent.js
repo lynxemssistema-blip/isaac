@@ -1,28 +1,28 @@
 export const HOME_FAQS = [
   {
-    question: 'O que é a Mentoria ISAAC e como ela funciona na prática?',
+    question: 'O que é a Plataforma ISAAC e como ela funciona na prática?',
     answer:
-      'A Mentoria ISAAC é um espaço digital confidencial de escuta profunda, clareza emocional e autodesenvolvimento disponível 24 horas por dia. Por texto ou voz, você compartilha dilemas, bloqueios ou decisões difíceis e recebe perguntas reflexivas personalizadas, com memória contínua da sua jornada e zero julgamento.',
+      'A Plataforma ISAAC é um espaço digital confidencial de escuta profunda, clareza emocional e autodesenvolvimento disponível 24 horas por dia. Por texto ou voz, você compartilha dilemas, bloqueios ou decisões difíceis e recebe perguntas reflexivas personalizadas, com memória contínua da sua jornada e zero julgamento.',
   },
   {
     question: 'Qual a diferença entre conversar com o Isaac e usar um chat comum de IA?',
     answer:
-      'Diferente de assistentes genéricos que entregam respostas apressadas e esquecem seu contexto, o Isaac opera com metodologia socrática de mentoria, memória evolutiva individualizada, trilhas de conversas direcionadas, atmosfera sonora em 432Hz e o exclusivo Laboratório do Incômodo Criativo para converter inquietações em ação.',
+      'Diferente de assistentes genéricos que entregam respostas apressadas e esquecem seu contexto, o Isaac opera com metodologia socrática de condução reflexiva, memória evolutiva individualizada, trilhas de conversas direcionadas, atmosfera sonora em 432Hz e o exclusivo Laboratório do Incômodo Criativo para converter inquietações em ação.',
   },
   {
     question: 'Minhas conversas, desabafos e áudios com o Isaac são realmente sigilosos?',
     answer:
-      'Sim. A privacidade é inegociável na Mentoria ISAAC: todas as sessões contam com isolamento individual restrito por usuário, tráfego criptografado via HTTPS/TLS e conformidade com a LGPD. Seus relatos pessoais jamais são vendidos, expostos publicamente ou compartilhados com terceiros.',
+      'Sim. A privacidade é inegociável na Plataforma ISAAC: todas as sessões contam com isolamento individual restrito por usuário, tráfego criptografado via HTTPS/TLS e conformidade com a LGPD. Seus relatos pessoais jamais são vendidos, expostos publicamente ou compartilhados com terceiros.',
   },
   {
-    question: 'O que é o Laboratório do Incômodo Criativo dentro da plataforma ISAAC?',
+    question: 'O que é o Laboratório do Incômodo Criativo dentro da Plataforma ISAAC?',
     answer:
-      'O Laboratório do Incômodo Criativo é uma ferramenta estruturada da Mentoria ISAAC onde você registra dores recorrentes, procrastinações ou tensões profissionais e as transforma passo a passo em clareza de causa-raiz, aprendizado prático e próximos passos concretos.',
+      'O Laboratório do Incômodo Criativo é uma ferramenta estruturada da Plataforma ISAAC onde você registra dores recorrentes, procrastinações ou tensões profissionais e as transforma passo a passo em clareza de causa-raiz, aprendizado prático e próximos passos concretos.',
   },
   {
-    question: 'Quem idealizou a Mentoria ISAAC?',
+    question: 'Quem idealizou a Plataforma ISAAC?',
     answer:
-      'A Mentoria ISAAC foi concebida por Edson Manoel, empreendedor e mentor de clareza dedicado ao potencial humano, com o propósito de oferecer um refúgio silencioso contra o excesso de ruído mental, a autocobrança paralisante e a solidão nas tomadas de decisão.',
+      'A Plataforma ISAAC foi concebida por Thiago Prata, mentor em projetos e negócios apaixonado pelo potencial humano, com o propósito de oferecer um refúgio silencioso contra o excesso de ruído mental, a autocobrança paralisante e a solidão nas tomadas de decisão.',
   },
   {
     question: 'Posso conversar por áudio e personalizar o nome ou a voz do meu mentor?',
@@ -30,9 +30,9 @@ export const HOME_FAQS = [
       'Sim. Você pode enviar desabafos gravando áudios naturais no celular ou computador, ouvir respostas com voz serena, ativar paisagens sonoras calmantes (432Hz, chuva suave, tigelas tibetanas) e até escolher o nome pelo qual prefere chamar seu guia.',
   },
   {
-    question: 'A Mentoria ISAAC substitui psicoterapia clínica ou atendimento médico?',
+    question: 'A Plataforma ISAAC substitui psicoterapia clínica ou atendimento médico?',
     answer:
-      'Não. A Mentoria ISAAC é uma plataforma educativa e reflexiva de desenvolvimento pessoal, organização emocional e clareza em decisões. Ela complementa o autoconhecimento diário, mas não realiza diagnósticos clínicos nem substitui acompanhamento psicológico, psiquiátrico ou serviços médicos de urgência.',
+      'Não. A Plataforma ISAAC é uma plataforma educativa e reflexiva de desenvolvimento pessoal, organização emocional e clareza em decisões. Ela complementa o autoconhecimento diário, mas não realiza diagnósticos clínicos nem substitui acompanhamento psicológico, psiquiátrico ou serviços médicos de urgência.',
   },
 ];
 

@@ -92,7 +92,7 @@ export default function AdminBroadcastEmail({ currentUser }) {
       setSubject('📚 Lançamento Oficial: Coleção Completa 8 eBooks ISAAC® (30% OFF) — por Thiago Prata');
       setCallToActionText('Garantir Coleção Completa (30% OFF • R$ 111,44)');
       setHtmlContent(`<p>Olá, <strong>{{nome}}</strong>! Esperamos que esta carta encontre você com paz e clareza.</p>
-<p>Temos a alegria de apresentar o lançamento da <strong>Coleção Completa ISAAC® Essential (8 Volumes em PDF Único)</strong>, escrita pelo mentor <strong>Thiago Prata</strong> — idealizador e criador da Mentoria e do App ISAAC®.</p>
+<p>Temos a alegria de apresentar o lançamento da <strong>Coleção Completa ISAAC® Essential (8 Volumes em PDF Único)</strong>, escrita pelo mentor <strong>Thiago Prata</strong> — idealizador e criador da Plataforma e do App ISAAC®.</p>
 <div style="text-align:center; margin: 22px 0;">
   <a href="${dedicatedUrl}" style="text-decoration:none;">
     <img src="${coverImg}" alt="Coleção Completa ISAAC Essential" style="max-width: 240px; width: 100%; border-radius: 14px; box-shadow: 0 10px 25px rgba(15,23,42,0.18);" />
@@ -118,10 +118,10 @@ export default function AdminBroadcastEmail({ currentUser }) {
     }
 
     const volNum = String(book.volumeNumber || 1).padStart(2, '0');
-    setSubject(`📘 Novo eBook Vol. ${volNum}: ${book.title} — por Thiago Prata (Mentoria ISAAC®)`);
+    setSubject(`📘 Novo eBook Vol. ${volNum}: ${book.title} — por Thiago Prata (Plataforma ISAAC®)`);
     setCallToActionText(`Acessar Página do Volume ${volNum} (R$ 19,90)`);
     setHtmlContent(`<p>Olá, <strong>{{nome}}</strong>! Tudo bem com você?</p>
-<p>Convidamos você para conhecer o <strong>Volume ${volNum} da Coleção ISAAC® Essential</strong>, assinado pelo mentor <strong>Thiago Prata</strong> — criador da Mentoria e do App ISAAC®:</p>
+<p>Convidamos você para conhecer o <strong>Volume ${volNum} da Coleção ISAAC® Essential</strong>, assinado pelo mentor <strong>Thiago Prata</strong> — criador da Plataforma e do App ISAAC®:</p>
 <div style="text-align:center; margin: 22px 0;">
   <a href="${dedicatedUrl}" style="text-decoration:none;">
     <img src="${coverImg}" alt="${book.title}" style="max-width: 230px; width: 100%; border-radius: 14px; box-shadow: 0 10px 25px rgba(15,23,42,0.18);" />
@@ -656,7 +656,7 @@ export default function AdminBroadcastEmail({ currentUser }) {
                     Equipe Lynx EMS
                   </p>
                   <p className="text-xs text-[#64748b] mt-0.5 mb-0">
-                    Tecnologia com Alma & Mentoria ISAAC
+                    Tecnologia com Alma &amp; Plataforma ISAAC
                   </p>
                   <p className="text-xs text-[#0f766e] mt-1 mb-0 font-medium">
                     suporte@lynxems.com.br

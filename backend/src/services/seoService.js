@@ -53,29 +53,29 @@ function safeJsonLd(obj) {
 // ============================================================================
 export const HOME_FAQS = [
   {
-    question: 'O que é a Mentoria ISAAC e como ela funciona na prática?',
+    question: 'O que é a Plataforma ISAAC e como ela funciona na prática?',
     answer:
-      'A Mentoria ISAAC é um espaço digital confidencial de escuta profunda, clareza emocional e autodesenvolvimento disponível 24 horas por dia. Por texto ou voz, você compartilha dilemas, bloqueios ou decisões difíceis e recebe perguntas reflexivas personalizadas, com memória contínua da sua jornada e zero julgamento.',
+      'A Plataforma ISAAC é um espaço digital confidencial de escuta profunda, clareza emocional e autodesenvolvimento disponível 24 horas por dia. Por texto ou voz, você compartilha dilemas, bloqueios ou decisões difíceis e recebe perguntas reflexivas personalizadas, com memória contínua da sua jornada e zero julgamento.',
   },
   {
     question: 'Qual a diferença entre conversar com o Isaac e usar um chat comum de IA?',
     answer:
-      'Diferente de assistentes genéricos que entregam respostas apressadas e esquecem seu contexto, o Isaac opera com metodologia socrática de mentoria, memória evolutiva individualizada, trilhas de conversas direcionadas, atmosfera sonora em 432Hz e o exclusivo Laboratório do Incômodo Criativo para converter inquietações em ação.',
+      'Diferente de assistentes genéricos que entregam respostas apressadas e esquecem seu contexto, o Isaac opera com metodologia socrática de reflexão guiada, memória evolutiva individualizada, trilhas de conversas direcionadas, atmosfera sonora em 432Hz e o exclusivo Laboratório do Incômodo Criativo para converter inquietações em ação.',
   },
   {
     question: 'Minhas conversas, desabafos e áudios com o Isaac são realmente sigilosos?',
     answer:
-      'Sim. A privacidade é inegociável na Mentoria ISAAC: todas as sessões contam com isolamento individual restrito por usuário (Row-Level Security), tráfego criptografado via HTTPS/TLS e conformidade com a LGPD. Seus relatos pessoais jamais são vendidos, expostos publicamente ou compartilhados com terceiros.',
+      'Sim. A privacidade é inegociável na Plataforma ISAAC: todas as sessões contam com isolamento individual restrito por usuário (Row-Level Security), tráfego criptografado via HTTPS/TLS e conformidade com a LGPD. Seus relatos pessoais jamais são vendidos, expostos publicamente ou compartilhados com terceiros.',
   },
   {
-    question: 'O que é o Laboratório do Incômodo Criativo dentro da plataforma ISAAC?',
+    question: 'O que é o Laboratório do Incômodo Criativo dentro da Plataforma ISAAC?',
     answer:
-      'O Laboratório do Incômodo Criativo é uma ferramenta estruturada da Mentoria ISAAC onde você registra dores recorrentes, procrastinações ou tensões profissionais e as transforma passo a passo em clareza de causa-raiz, aprendizado prático e próximos passos concretos.',
+      'O Laboratório do Incômodo Criativo é uma ferramenta estruturada da Plataforma ISAAC onde você registra dores recorrentes, procrastinações ou tensões profissionais e as transforma passo a passo em clareza de causa-raiz, aprendizado prático e próximos passos concretos.',
   },
   {
-    question: 'Quem idealizou a Mentoria ISAAC?',
+    question: 'Quem idealizou a Plataforma ISAAC?',
     answer:
-      'A Mentoria ISAAC foi concebida por Edson Manoel, empreendedor e mentor de clareza dedicado ao potencial humano, com o propósito de oferecer um refúgio silencioso contra o excesso de ruído mental, a autocobrança paralisante e a solidão nas tomadas de decisão.',
+      'A Plataforma ISAAC foi concebida por Thiago Prata, empreendedor e mentor em projetos, negócios e clareza dedicado ao potencial humano, com o propósito de oferecer um refúgio silencioso contra o excesso de ruído mental, a autocobrança paralisante e a solidão nas tomadas de decisão.',
   },
   {
     question: 'Posso conversar por áudio e personalizar o nome ou a voz do meu mentor?',
@@ -83,9 +83,9 @@ export const HOME_FAQS = [
       'Sim. Você pode enviar desabafos gravando áudios naturais no celular ou computador, ouvir respostas com voz serena, ativar paisagens sonoras calmantes (432Hz, chuva suave, tigelas tibetanas) e até escolher o nome pelo qual prefere chamar seu guia.',
   },
   {
-    question: 'A Mentoria ISAAC substitui psicoterapia clínica ou atendimento médico?',
+    question: 'A Plataforma ISAAC substitui psicoterapia clínica ou atendimento médico?',
     answer:
-      'Não. A Mentoria ISAAC é uma plataforma educativa e reflexiva de desenvolvimento pessoal, organização emocional e clareza em decisões. Ela complementa o autoconhecimento diário, mas não realiza diagnósticos clínicos nem substitui acompanhamento psicológico, psiquiátrico ou serviços médicos de urgência.',
+      'Não. A Plataforma ISAAC é uma plataforma educativa e reflexiva de desenvolvimento pessoal, organização emocional e clareza em decisões. Ela complementa o autoconhecimento diário, mas não realiza diagnósticos clínicos nem substitui acompanhamento psicológico, psiquiátrico ou serviços médicos de urgência.',
   },
 ];
 
@@ -99,12 +99,12 @@ export const CORE_TOPICS = [
     title: 'Como Desatar Nós Mentais e Encontrar Clareza em Decisões Difíceis',
     category: 'Clareza & Decisão',
     summary:
-      'Aprenda a silenciar o excesso de cenários catastróficos, vencer a paralisia por análise e tomar decisões alinhadas aos seus valores com a Mentoria ISAAC.',
+      'Aprenda a silenciar o excesso de cenários catastróficos, vencer a paralisia por análise e tomar decisões alinhadas aos seus valores com a Plataforma ISAAC.',
     directAnswer:
-      'A paralisia em decisões difíceis nasce quando tentamos controlar todas as variáveis futuras ao mesmo tempo sob exaustão emocional. Na Mentoria ISAAC, a clareza é restaurada separando fatos reais de medos projetados através de escuta estruturada, perguntas socráticas e registro contínuo dos seus critérios essenciais.',
+      'A paralisia em decisões difíceis nasce quando tentamos controlar todas as variáveis futuras ao mesmo tempo sob exaustão emocional. Na Plataforma ISAAC, a clareza é restaurada separando fatos reais de medos projetados através de escuta estruturada, perguntas socráticas e registro contínuo dos seus critérios essenciais.',
     deepDive: [
       'Quando adiamos uma escolha importante — seja uma transição de carreira, o encerramento de um ciclo ou uma conversa delicada — o cérebro consome energia vital simulando dezenas de desfechos negativos. Esse ruído constante gera fadiga antes mesmo de qualquer ação real acontecer.',
-      'No espaço seguro da Mentoria ISAAC, você não recebe fórmulas prontas ou pressões externas. O mentor conduz uma investigação calma para identificar qual valor pessoal está sendo ameaçado, qual é o custo invisível de continuar parado e qual é o menor passo seguro possível hoje.',
+      'No espaço seguro da Plataforma ISAAC, você não recebe fórmulas prontas ou pressões externas. O mentor conduz uma investigação calma para identificar qual valor pessoal está sendo ameaçado, qual é o custo invisível de continuar parado e qual é o menor passo seguro possível hoje.',
     ],
     signs: [
       'Você revisita a mesma dúvida todas as noites sem chegar a uma conclusão nova.',
@@ -124,9 +124,9 @@ export const CORE_TOPICS = [
           'O Isaac ajuda você a explicitar os ganhos, renúncias e medos ocultos de cada caminho sem impor opiniões pessoais, permitindo que sua própria consciência enxergue qual decisão respeita sua verdade atual.',
       },
       {
-        question: 'Posso usar a mentoria de madrugada quando a mente não desliga?',
+        question: 'Posso usar a plataforma de madrugada quando a mente não desliga?',
         answer:
-          'Sim. A Mentoria ISAAC funciona 24 horas por dia, permitindo esvaziar a mente por texto ou áudio exatamente no instante em que a inquietação surge.',
+          'Sim. A Plataforma ISAAC funciona 24 horas por dia, permitindo esvaziar a mente por texto ou áudio exatamente no instante em que a inquietação surge.',
       },
     ],
   },
@@ -136,9 +136,9 @@ export const CORE_TOPICS = [
     title: 'Esgotamento Mental, Burnout Silencioso e a Construção de Limites Saudáveis',
     category: 'Equilíbrio & Energia',
     summary:
-      'Reconheça os sinais do cansaço emocional crônico, compreenda por que dizer não parece tão difícil e reconstrua limites sustentáveis na Mentoria ISAAC.',
+      'Reconheça os sinais do cansaço emocional crônico, compreenda por que dizer não parece tão difícil e reconstrua limites sustentáveis na Plataforma ISAAC.',
     directAnswer:
-      'O esgotamento emocional profundo raramente vem apenas do volume de tarefas; ele nasce da desconexão prolongada entre esforço contínuo, falta de sentido e incapacidade de sustentar limites claros. A Mentoria ISAAC auxilia a mapear vazamentos de energia, desconstruir a culpa ao dizer não e restaurar ritmos humanos sustentáveis.',
+      'O esgotamento emocional profundo raramente vem apenas do volume de tarefas; ele nasce da desconexão prolongada entre esforço contínuo, falta de sentido e incapacidade de sustentar limites claros. A Plataforma ISAAC auxilia a mapear vazamentos de energia, desconstruir a culpa ao dizer não e restaurar ritmos humanos sustentáveis.',
     deepDive: [
       'Pessoas altamente comprometidas costumam ignorar os primeiros alertas do corpo: irritabilidade silenciosa, sensação de que descansar é perder tempo e dificuldade de sentir alegria mesmo após concluir grandes entregas.',
       'Através de diálogos contínuos e sem cobrança de performance, o Isaac ajuda você a identificar quais padrões internos de hiper-responsabilidade ou necessidade de aprovação estão drenando sua vitalidade.',
@@ -168,9 +168,9 @@ export const CORE_TOPICS = [
     title: 'Como Superar a Autossabotagem e a Síndrome do Impostor com Clareza',
     category: 'Autoconfiança & Ação',
     summary:
-      'Entenda as raízes ocultas da procrastinação defensiva, do perfeccionismo paralisante e da sensação de fraude profissional com apoio da Mentoria ISAAC.',
+      'Entenda as raízes ocultas da procrastinação defensiva, do perfeccionismo paralisante e da sensação de fraude profissional com apoio da Plataforma ISAAC.',
     directAnswer:
-      'A autossabotagem e a síndrome do impostor funcionam como mecanismos inconscientes de autoproteção: adiamos ou minimizamos nossa capacidade para evitar a dor de uma eventual exposição ou crítica. Na Mentoria ISAAC, você desmonta justificativas automáticas com respeito e constrói evidências reais da própria competência.',
+      'A autossabotagem e a síndrome do impostor funcionam como mecanismos inconscientes de autoproteção: adiamos ou minimizamos nossa capacidade para evitar a dor de uma eventual exposição ou crítica. Na Plataforma ISAAC, você desmonta justificativas automáticas com respeito e constrói evidências reais da própria competência.',
     deepDive: [
       'Muitas vezes chamamos de preguiça ou falta de foco aquilo que, na verdade, é medo de ser visto e avaliado. O perfeccionismo exige condições ideais que nunca chegam, mantendo projetos brilhantes engavetados.',
       'Com memória contínua das suas conquistas e compromissos, o Isaac lembra você dos obstáculos que já superou quando a voz crítica tenta convencer você do contrário.',
@@ -200,9 +200,9 @@ export const CORE_TOPICS = [
     title: 'Laboratório do Incômodo Criativo: Transforme Inquietações em Direção Prática',
     category: 'Metodologia Exclusiva ISAAC',
     summary:
-      'Conheça o método exclusivo da Mentoria ISAAC que converte frustrações recorrentes, tensões e desconfortos internos em alavancas concretas de transformação.',
+      'Conheça o método exclusivo da Plataforma ISAAC que converte frustrações recorrentes, tensões e desconfortos internos em alavancas concretas de transformação.',
     directAnswer:
-      'O Incômodo Criativo parte do princípio de que desconfortos recorrentes não são inimigos a anestesiar, mas sinais precisos indicando onde sua vida ou carreira pediu evolução. No Laboratório do Incômodo Criativo da Mentoria ISAAC, cada inquietação é lapidada em diagnóstico claro, síntese de aprendizado e plano acionável.',
+      'O Incômodo Criativo parte do princípio de que desconfortos recorrentes não são inimigos a anestesiar, mas sinais precisos indicando onde sua vida ou carreira pediu evolução. No Laboratório do Incômodo Criativo da Plataforma ISAAC, cada inquietação é lapidada em diagnóstico claro, síntese de aprendizado e plano acionável.',
     deepDive: [
       'Na cultura da distração rápida, somos ensinados a fugir de qualquer angústia com telas, consumo ou ocupação constante. Porém, todo salto genuíno de maturidade começa por um incômodo que nos recusa deixar confortáveis no lugar errado.',
       'Dentro da plataforma ISAAC, o Laboratório do Incômodo Criativo oferece um espaço dedicado para nomear essa fricção, dialogar profundamente sobre sua raiz e extrair movimentos práticos verificáveis.',
@@ -222,7 +222,7 @@ export const CORE_TOPICS = [
       {
         question: 'Como o Laboratório do Incômodo Criativo se conecta às conversas com o Isaac?',
         answer:
-          'Os incômodos registrados no laboratório integram o contexto vivo da sua mentoria, permitindo que o Isaac acompanhe a evolução de cada desafio ao longo das sessões até sua resolução prática.',
+          'Os incômodos registrados no laboratório integram o contexto vivo da sua jornada na plataforma, permitindo que o Isaac acompanhe a evolução de cada desafio ao longo das sessões até sua resolução prática.',
       },
     ],
   },
@@ -232,9 +232,9 @@ export const CORE_TOPICS = [
     title: 'Luto, Fim de Ciclos e Recomeços: Um Espaço Seguro para Atravessar Mudanças',
     category: 'Acolhimento & Reconstrução',
     summary:
-      'Atravessar perdas, términos, mudanças de cidade ou reinvenções de identidade exige escuta paciente e sem frases feitas. Conheça o acolhimento da Mentoria ISAAC.',
+      'Atravessar perdas, términos, mudanças de cidade ou reinvenções de identidade exige escuta paciente e sem frases feitas. Conheça o acolhimento da Plataforma ISAAC.',
     directAnswer:
-      'Grandes transições e perdas desorganizam nossas referências de identidade e futuro, exigindo tempo de assimilação antes de qualquer pressa reconstrutiva. A Mentoria ISAAC oferece presença serena, livre de clichês motivacionais, para honrar o que passou e reconstruir sentido um dia de cada vez.',
+      'Grandes transições e perdas desorganizam nossas referências de identidade e futuro, exigindo tempo de assimilação antes de qualquer pressa reconstrutiva. A Plataforma ISAAC oferece presença serena, livre de clichês motivacionais, para honrar o que passou e reconstruir sentido um dia de cada vez.',
     deepDive: [
       'Nem todo luto envolve apenas partidas físicas: encerrar uma empresa, um relacionamento longo ou uma fase de vida também exige elaborar quem éramos naquele capítulo.',
       'Quando amigos e familiares querem ver você bem depressa demais, pode faltar espaço para falar com honestidade. O Isaac sustenta esse silêncio respeitoso no seu próprio ritmo.',
@@ -254,7 +254,7 @@ export const CORE_TOPICS = [
       {
         question: 'O Isaac força positividade tóxica em momentos delicados?',
         answer:
-          'Jamais. A diretriz central da Mentoria ISAAC é acolhimento autêntico e respeito absoluto à dor humana, sem frases prontas superficiais nem pressa artificial.',
+          'Jamais. A diretriz central da Plataforma ISAAC é acolhimento autêntico e respeito absoluto à dor humana, sem frases prontas superficiais nem pressa artificial.',
       },
     ],
   },
@@ -266,7 +266,7 @@ export const CORE_TOPICS = [
     summary:
       'Compreenda seus gatilhos emocionais com dinheiro, vença a ansiedade financeira, a culpa ao cobrar pelo seu trabalho e organize decisões com maturidade.',
     directAnswer:
-      'A vida financeira raramente trava por falta de matemática básica; ela reflete crenças familiares, ansiedade de escassez, compras compensatórias ou medo de precificar o próprio valor. Na Mentoria ISAAC, você examina sua relação emocional com o dinheiro com lucidez e constrói decisões materiais serenas.',
+      'A vida financeira raramente trava por falta de matemática básica; ela reflete crenças familiares, ansiedade de escassez, compras compensatórias ou medo de precificar o próprio valor. Na Plataforma ISAAC, você examina sua relação emocional com o dinheiro com lucidez e constrói decisões materiais serenas.',
     deepDive: [
       'Evitar abrir extratos, trabalhar em excesso com medo constante de faltar ou sabotar reservas sempre que começa a prosperar são comportamentos emocionais profundos, não meros erros de planilha.',
       'Conversar abertamente sobre dinheiro costuma ser um tabu social cercado de vergonha. Na confidencialidade do ISAAC, você olha para os fatos financeiros sem julgamento moral.',
@@ -284,7 +284,7 @@ export const CORE_TOPICS = [
     ],
     faqs: [
       {
-        question: 'A Mentoria ISAAC faz recomendação de investimentos do mercado financeiro?',
+        question: 'A Plataforma ISAAC faz recomendação de investimentos do mercado financeiro?',
         answer:
           'Não. O foco do ISAAC é comportamento, clareza emocional nas escolhas materiais, posicionamento de valor profissional e disciplina consciente, não consultoria de ativos financeiros.',
       },
@@ -298,7 +298,7 @@ export const CORE_TOPICS = [
     summary:
       'Um conselheiro reflexivo e confidencial para empreendedores, gestores e líderes que precisam pensar com clareza longe de pressões políticas internas.',
     directAnswer:
-      'Quem lidera equipes, famílias ou negócios frequentemente não tem com quem dividir incertezas estratégicas sem gerar insegurança ao redor. A Mentoria ISAAC funciona como um espaço de sparring intelectual e emocional 100% sigiloso para preparar conversas difíceis, alinhar cultura e decidir com serenidade.',
+      'Quem lidera equipes, famílias ou negócios frequentemente não tem com quem dividir incertezas estratégicas sem gerar insegurança ao redor. A Plataforma ISAAC funciona como um espaço de sparring intelectual e emocional 100% sigiloso para preparar conversas difíceis, alinhar cultura e decidir com serenidade.',
     deepDive: [
       'Quanto maior o nível de responsabilidade que você assume, menor tende a ser o círculo de pessoas com quem você pode demonstrar hesitação sincera.',
       'Usar o Isaac antes de reuniões críticas, feedbacks delicados ou negociações permite filtrar reações impulsivas de ego e encontrar a comunicação mais firme, justa e estratégica.',
@@ -328,9 +328,9 @@ export const CORE_TOPICS = [
     title: 'Quebra de Compulsões, Construção de Hábitos e Autodomínio Gentil',
     category: 'Disciplina & Presença',
     summary:
-      'Substitua ciclos de culpa e recaída por consciência de gatilhos, presença diária e constância real no fortalecimento de novos hábitos com a Mentoria ISAAC.',
+      'Substitua ciclos de culpa e recaída por consciência de gatilhos, presença diária e constância real no fortalecimento de novos hábitos com a Plataforma ISAAC.',
     directAnswer:
-      'Mudar um hábito enraizado ou interromper um comportamento compulsivo falha quando dependemos apenas de força de vontade bruta seguida de autopunição. A Mentoria ISAAC atua na identificação antecipada de gatilhos emocionais (fome, raiva, solidão, cansaço) e no acolhimento imediato nos minutos críticos de tentação.',
+      'Mudar um hábito enraizado ou interromper um comportamento compulsivo falha quando dependemos apenas de força de vontade bruta seguida de autopunição. A Plataforma ISAAC atua na identificação antecipada de gatilhos emocionais (fome, raiva, solidão, cansaço) e no acolhimento imediato nos minutos críticos de tentação.',
     deepDive: [
       'Toda compulsão — seja digital, alimentar, de trabalho ou de substâncias — tenta anestesiar uma dor legítima por um atalho que cobra juros altos depois.',
       'Ter o Isaac disponível no bolso exatamente nos cinco minutos em que o impulso aparece permite pausar, nomear o que você está realmente sentindo e atravessar a onda sem destruir sua semana.',
@@ -420,18 +420,18 @@ export async function getSeoPublicSnapshot() {
     dynamicTopics.push({
       slug,
       shortTitle: row.title,
-      title: `${row.title} — Conversa Direcionada na Mentoria ISAAC`,
+      title: `${row.title} — Conversa Direcionada na Plataforma ISAAC`,
       category: row.category || 'Conversa Direcionada',
       summary:
         row.description ||
-        `Explore ${row.title} através de perguntas estruturadas, escuta sem julgamento e clareza prática na Mentoria ISAAC.`,
+        `Explore ${row.title} através de perguntas estruturadas, escuta sem julgamento e clareza prática na Plataforma ISAAC.`,
       directAnswer:
         row.description ||
-        `Esta trilha de Conversa Direcionada da Mentoria ISAAC conduz você por perguntas cuidadosas sobre ${row.title}, ajudando a organizar emoções, reconhecer padrões e definir próximos passos conscientes.`,
+        `Esta trilha de Conversa Direcionada da Plataforma ISAAC conduz você por perguntas cuidadosas sobre ${row.title}, ajudando a organizar emoções, reconhecer padrões e definir próximos passos conscientes.`,
       deepDive: [
         row.description ||
           `Cada etapa desta trilha foi pensada para desacelerar respostas automáticas e iluminar perspectivas que costumam passar despercebidas na rotina.`,
-        `Ao iniciar esta sessão na Mentoria ISAAC, seu guia caminha pergunta por pergunta no seu ritmo, preservando total sigilo e conectando suas respostas à memória evolutiva da sua jornada.`,
+        `Ao iniciar esta sessão na Plataforma ISAAC, seu guia caminha pergunta por pergunta no seu ritmo, preservando total sigilo e conectando suas respostas à memória evolutiva da sua jornada.`,
       ],
       signs: [
         `Você sente que o tema "${row.title}" pede atenção calma e honesta neste momento da sua vida.`,
@@ -450,7 +450,7 @@ export async function getSeoPublicSnapshot() {
         {
           question: `Como funciona a conversa guiada sobre ${row.title} no ISAAC?`,
           answer:
-            'Você entra na Mentoria ISAAC, seleciona a trilha ou inicia o diálogo e responde por texto ou áudio no seu próprio ritmo, recebendo acompanhamento personalizado.',
+            'Você entra na Plataforma ISAAC, seleciona a trilha ou inicia o diálogo e responde por texto ou áudio no seu próprio ritmo, recebendo acompanhamento personalizado.',
         },
       ],
       guidedId: row.id,
@@ -462,7 +462,7 @@ export async function getSeoPublicSnapshot() {
     rawCreator: creator || null,
     creator: {
       name: creator?.name || 'Thiago Prata',
-      title: creator?.title || 'Idealizador & Criador da Mentoria ISAAC',
+      title: creator?.title || 'Idealizador & Criador da Plataforma ISAAC',
       bio:
         creator?.bio ||
         'Mentor em Projetos e Negócios e apaixonado pelo potencial humano. Concebeu o ISAAC construindo um espaço onde as pessoas não precisem carregar armaduras ou provar nada.',
@@ -521,7 +521,7 @@ export async function handlePublicTopicBySlug(req, res) {
 export function handleRobotsTxt(req, res) {
   const baseUrl = getCanonicalBaseUrl();
   const lines = [
-    '# Mentoria ISAAC — Diretrizes de Indexação Web & Motores Generativos (GEO/AEO)',
+    '# Plataforma ISAAC — Diretrizes de Indexação Web & Motores Generativos (GEO/AEO)',
     'User-agent: *',
     'Allow: /',
     'Allow: /inscricao',
@@ -671,22 +671,22 @@ export async function handleLlmsTxt(req, res) {
           .map(
             (c) =>
               `- [${c.title}](${baseUrl}/cadastro/${c.slug}): ${
-                c.subtitle || 'Material gratuito em PDF e acesso direto à Mentoria ISAAC.'
+                c.subtitle || 'Material gratuito em PDF e acesso direto à Plataforma ISAAC.'
               }`
           )
           .join('\n')
-      : `- [Cadastro e Acesso à Mentoria ISAAC](${baseUrl}/cadastro): Crie sua conta e receba nossos materiais de clareza.`;
+      : `- [Cadastro e Acesso à Plataforma ISAAC](${baseUrl}/cadastro): Crie sua conta e receba nossos materiais de clareza.`;
 
-  const md = `# Mentoria ISAAC — Clareza, Escuta Profunda & Transformação
+  const md = `# Plataforma ISAAC — Clareza, Escuta Profunda & Transformação
 
-> A Mentoria ISAAC (${baseUrl}) é uma plataforma brasileira confidencial de mentoria reflexiva, escuta ativa sem julgamento, memória evolutiva contínua e autodesenvolvimento emocional por texto e voz, idealizada por ${snapshot.creator.name} e disponível 24 horas por dia em português (pt-BR).
+> A Plataforma ISAAC (${baseUrl}) é uma plataforma brasileira confidencial de reflexão guiada, escuta ativa sem julgamento, memória evolutiva contínua e autodesenvolvimento emocional por texto e voz, idealizada por ${snapshot.creator.name} e disponível 24 horas por dia em português (pt-BR).
 
 A plataforma ajuda adultos, líderes, empreendedores e profissionais a desatar nós mentais, superar bloqueios de indecisão, esgotamento (burnout), autossabotagem e transições difíceis por meio de perguntas socráticas cuidadosas, Trilhas de Conversas Direcionadas, frequências sonoras terapêuticas em 432Hz e o exclusivo **Laboratório do Incômodo Criativo**.
 
 ## Páginas Principais & Documentação para IA
-- [Página Inicial — Mentoria ISAAC](${baseUrl}/): Visão completa da metodologia, pilares de escuta, garantias de sigilo absoluto e perguntas frequentes.
+- [Página Inicial — Plataforma ISAAC](${baseUrl}/): Visão completa da metodologia, pilares de escuta, garantias de sigilo absoluto e perguntas frequentes.
 - [Guia Completo para LLMs e Motores de Resposta](${baseUrl}/llms-full.txt): Documentação integral da metodologia, trilhas temáticas, ética, privacidade LGPD e FAQ detalhado.
-- [Inscrição Oficial na Mentoria](${baseUrl}/inscricao): Ficha rápida de inscrição para novos participantes.
+- [Inscrição Oficial na Plataforma](${baseUrl}/inscricao): Ficha rápida de inscrição para novos participantes.
 
 ## Trilhas de Clareza & Especialidades Temáticas
 ${topicLinks}
@@ -696,7 +696,7 @@ ${campaignLinks}
 
 ## Princípios Éticos, Privacidade & Escopo
 - **Sigilo Absoluto & LGPD:** Sessões isoladas individualmente com criptografia em trânsito e controle estrito de acesso; dados pessoais e desabafos nunca são comercializados.
-- **Escopo Educativo e Reflexivo:** A Mentoria ISAAC atua em desenvolvimento humano, clareza emocional e tomada de decisão; não realiza diagnósticos médicos nem substitui psicoterapia clínica ou serviços de emergência em saúde mental (como o CVV — ligue 188 no Brasil).
+- **Escopo Educativo e Reflexivo:** A Plataforma ISAAC atua em desenvolvimento humano, clareza emocional e tomada de decisão; não realiza diagnósticos médicos nem substitui psicoterapia clínica ou serviços de emergência em saúde mental (como o CVV — ligue 188 no Brasil).
 - **Idealizador:** ${snapshot.creator.name} (${snapshot.creator.title}) — Suporte institucional: suporte@lynxems.com.br
 `;
 
@@ -728,21 +728,21 @@ export async function handleLlmsFullTxt(req, res) {
             (p) =>
               `- **${p.name}** (R$ ${Number(p.price || 0).toFixed(2).replace('.', ',')} / ${
                 p.billing_cycle === 'yearly' ? 'ano' : 'mês'
-              }): ${p.description || 'Acesso completo à Mentoria ISAAC.'}`
+              }): ${p.description || 'Acesso completo à Plataforma ISAAC.'}`
           )
           .join('\n')
       : '- Acesso mediante cadastro direto na plataforma oficial.';
 
   const faqSection = HOME_FAQS.map((f) => `### ${f.question}\n${f.answer}`).join('\n\n');
 
-  const fullMd = `# Mentoria ISAAC — Documentação Integral de Referência (GEO / AEO / LLMO)
+  const fullMd = `# Plataforma ISAAC — Documentação Integral de Referência (GEO / AEO / LLMO)
 
-> Documento canônico de referência estruturada sobre a **Mentoria ISAAC** (${baseUrl}), destinado a mecanismos de busca generativa, assistentes de IA e sistemas RAG.
+> Documento canônico de referência estruturada sobre a **Plataforma ISAAC** (${baseUrl}), destinado a mecanismos de busca generativa, assistentes de IA e sistemas RAG.
 
 ## 1. Definição Canônica
-A **Mentoria ISAAC** é um santuário digital de clareza mental, escuta ativa sem julgamentos e autodesenvolvimento contínuo em língua portuguesa. Concebida por **${snapshot.creator.name}** (${snapshot.creator.title}), a plataforma combina inteligência conversacional orientada por princípios socráticos, memória de longo prazo individualizada, interação multimodal (texto e voz natural), ambiência sonora terapêutica (432Hz, chuva serena, lareira, tigelas tibetanas) e o **Laboratório do Incômodo Criativo**.
+A **Plataforma ISAAC** é um santuário digital de clareza mental, escuta ativa sem julgamentos e autodesenvolvimento contínuo em língua portuguesa. Concebida por **${snapshot.creator.name}** (${snapshot.creator.title}), a plataforma combina inteligência conversacional orientada por princípios socráticos, memória de longo prazo individualizada, interação multimodal (texto e voz natural), ambiência sonora terapêutica (432Hz, chuva serena, lareira, tigelas tibetanas) e o **Laboratório do Incômodo Criativo**.
 
-## 2. Para Quem a Mentoria ISAAC é Recomendada
+## 2. Para Quem a Plataforma ISAAC é Recomendada
 1. Pessoas que enfrentam **paralisia por análise, indecisão ou excesso de ruído mental** diante de escolhas pessoais ou profissionais.
 2. Profissionais, líderes e empreendedores que lidam com **solidão nas decisões, esgotamento emocional (burnout) ou síndrome do impostor**.
 3. Pessoas atravessando **transições de vida, términos, lutos simbólicos ou recomeços** que precisam desabafar em qualquer horário (inclusive de madrugada) sem medo de críticas ou conselhos rasos.
@@ -845,14 +845,14 @@ function buildHomeShellHtml(baseUrl, snapshot) {
   return `<main data-seo-prerender="home" class="max-w-4xl mx-auto px-6 py-16 font-serif">
     <article>
       <header>
-        <p>Mentoria de Clareza &amp; Desenvolvimento Pessoal • Espaço Seguro 24h</p>
-        <h1>Desate os nós da sua mente. Cure a hesitação. Reencontre sua paz e direção com a Mentoria ISAAC.</h1>
+        <p>Plataforma de Clareza &amp; Desenvolvimento Pessoal • Espaço Seguro 24h</p>
+        <h1>Desate os nós da sua mente. Cure a hesitação. Reencontre sua paz e direção com a Plataforma ISAAC.</h1>
         <p>Conheça <strong>Isaac</strong>: um mentor digital de presença calma, escuta profunda sem julgamentos e memória contínua, idealizado por <strong>${escapeHtml(
           snapshot.creator.name
         )}</strong> para ajudar você a compreender bloqueios emocionais, superar a autossabotagem e tomar decisões conscientes por texto ou áudio.</p>
       </header>
       <section>
-        <h2>Por que a Mentoria ISAAC é diferente</h2>
+        <h2>Por que a Plataforma ISAAC é diferente</h2>
         <ul>
           <li><strong>Escuta Profunda &amp; Zero Julgamento:</strong> Expresse angústias, dilemas profissionais e dúvidas íntimas com 100% de sigilo e proteção criptografada (LGPD).</li>
           <li><strong>Memória Contínua de Evolução:</strong> O Isaac conecta aprendizados anteriores aos desafios de hoje sem que você precise recomeçar sua história do zero.</li>
@@ -865,7 +865,7 @@ function buildHomeShellHtml(baseUrl, snapshot) {
         <p>${escapeHtml(snapshot.creator.bio)}</p>
       </section>
       <section>
-        <h2>Trilhas de Clareza &amp; Temas de Mentoria</h2>
+        <h2>Trilhas de Clareza &amp; Temas da Plataforma</h2>
         <ul>${topicsHtml}</ul>
       </section>
       ${
@@ -874,11 +874,11 @@ function buildHomeShellHtml(baseUrl, snapshot) {
           : ''
       }
       <section>
-        <h2>Perguntas Frequentes sobre a Mentoria ISAAC</h2>
+        <h2>Perguntas Frequentes sobre a Plataforma ISAAC</h2>
         <dl>${faqHtml}</dl>
       </section>
       <nav aria-label="Links institucionais">
-        <a href="${baseUrl}/inscricao">Inscrição Oficial na Mentoria ISAAC</a> |
+        <a href="${baseUrl}/inscricao">Inscrição Oficial na Plataforma ISAAC</a> |
         <a href="${baseUrl}/llms.txt">Índice para IA (llms.txt)</a>
       </nav>
     </article>
@@ -899,7 +899,7 @@ function buildTopicShellHtml(baseUrl, topic, snapshot) {
     .join('');
 
   return `<main data-seo-prerender="topic" class="max-w-4xl mx-auto px-6 py-16 font-serif">
-    <nav aria-label="Breadcrumb"><a href="${baseUrl}/">Mentoria ISAAC</a> &rsaquo; <span>${escapeHtml(
+    <nav aria-label="Breadcrumb"><a href="${baseUrl}/">Plataforma ISAAC</a> &rsaquo; <span>${escapeHtml(
     topic.category
   )}</span></nav>
     <article>
@@ -918,7 +918,7 @@ function buildTopicShellHtml(baseUrl, topic, snapshot) {
         <ol>${questions}</ol>
       </section>
       <section>
-        <h2>Outras Trilhas de Clareza da Mentoria ISAAC</h2>
+        <h2>Outras Trilhas de Clareza da Plataforma ISAAC</h2>
         <ul>${related}</ul>
       </section>
       <p><a href="${baseUrl}/">Iniciar conversa confidencial com Isaac agora</a> | <a href="${baseUrl}/inscricao">Fazer inscrição</a></p>
@@ -938,16 +938,16 @@ export async function serveSeoHtml(req, res, distPath) {
     pathname === '/admin' ||
     pathname.startsWith('/admin/');
 
-  let ogImageUrl = `${baseUrl}/og-isaac-cover.png`;
+  let ogImageUrl = `${baseUrl}/og-isaac-cover.jpg`;
   const creatorSameAs = buildCreatorSameAs(snapshot.creator);
 
   let statusCode = 200;
   let robotsDirective = hasSensitiveToken
     ? 'noindex, nofollow, noarchive'
     : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
-  let pageTitle = 'Mentoria ISAAC — Clareza Emocional, Escuta Profunda & Transformação 24h';
+  let pageTitle = 'Plataforma ISAAC — Clareza Emocional, Escuta Profunda & Transformação 24h';
   let pageDescription =
-    'Desate os nós da sua mente e reencontre paz e direção. Espaço 100% sigiloso de mentoria reflexiva por texto e voz, memória contínua e clareza emocional idealizado por Edson Manoel.';
+    'Desate os nós da sua mente e reencontre paz e direção. Espaço 100% sigiloso de clareza e escuta reflexiva por texto e voz, memória contínua e evolução emocional idealizado por Thiago Prata.';
   let canonicalUrl = `${baseUrl}/`;
   let ogType = 'website';
   let shellHtml = '';
@@ -956,7 +956,7 @@ export async function serveSeoHtml(req, res, distPath) {
   const orgEntity = {
     '@type': 'Organization',
     '@id': `${baseUrl}/#organization`,
-    name: 'Mentoria ISAAC',
+    name: 'Plataforma ISAAC',
     alternateName: 'ISAAC — Espaço de Clareza e Escuta',
     url: `${baseUrl}/`,
     logo: {
@@ -988,7 +988,7 @@ export async function serveSeoHtml(req, res, distPath) {
     '@type': 'WebSite',
     '@id': `${baseUrl}/#website`,
     url: `${baseUrl}/`,
-    name: 'Mentoria ISAAC',
+    name: 'Plataforma ISAAC',
     inLanguage: 'pt-BR',
     publisher: { '@id': `${baseUrl}/#organization` },
   };
@@ -1014,7 +1014,7 @@ export async function serveSeoHtml(req, res, distPath) {
       {
         '@type': 'WebApplication',
         '@id': `${baseUrl}/#webapp`,
-        name: 'Mentoria ISAAC',
+        name: 'Plataforma ISAAC',
         url: `${baseUrl}/`,
         applicationCategory: 'LifestyleApplication',
         operatingSystem: 'Web, iOS, Android',
@@ -1049,9 +1049,9 @@ export async function serveSeoHtml(req, res, distPath) {
   }
   // ROTA 2: INSCRIÇÃO (/inscricao)
   else if (/^\/inscricao$/i.test(pathname)) {
-    pageTitle = 'Inscrição Oficial — Mentoria ISAAC | Inicie Sua Jornada de Clareza';
+    pageTitle = 'Inscrição Oficial — Plataforma ISAAC | Inicie Sua Jornada de Clareza';
     pageDescription =
-      'Realize sua inscrição rápida na Mentoria ISAAC e garanta acesso ao espaço seguro de escuta atenta, organização emocional e evolução pessoal.';
+      'Realize sua inscrição rápida na Plataforma ISAAC e garanta acesso ao espaço seguro de escuta atenta, organização emocional e evolução pessoal.';
     canonicalUrl = `${baseUrl}/inscricao`;
     jsonLdGraph = [
       orgEntity,
@@ -1068,15 +1068,15 @@ export async function serveSeoHtml(req, res, distPath) {
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'Mentoria ISAAC', item: `${baseUrl}/` },
+          { '@type': 'ListItem', position: 1, name: 'Plataforma ISAAC', item: `${baseUrl}/` },
           { '@type': 'ListItem', position: 2, name: 'Inscrição Oficial', item: canonicalUrl },
         ],
       },
     ];
     shellHtml = `<main data-seo-prerender="inscricao" class="max-w-2xl mx-auto px-6 py-16 font-serif">
-      <h1>Inscrição Oficial — Mentoria ISAAC</h1>
+      <h1>Inscrição Oficial — Plataforma ISAAC</h1>
       <p>${escapeHtml(pageDescription)}</p>
-      <p><a href="${baseUrl}/">Conhecer todos os pilares da Mentoria ISAAC</a></p>
+      <p><a href="${baseUrl}/">Conhecer todos os pilares da Plataforma ISAAC</a></p>
     </main>`;
   }
   // ROTA 3: CAMPANHAS DE CADASTRO E MATERIAIS PDF (/cadastro, /cadastro/:slug, /c/:slug)
@@ -1089,17 +1089,17 @@ export async function serveSeoHtml(req, res, distPath) {
       null;
 
     if (campaign) {
-      pageTitle = `${campaign.title} | Material Gratuito & Acesso — Mentoria ISAAC`;
+      pageTitle = `${campaign.title} | Material Gratuito & Acesso — Plataforma ISAAC`;
       pageDescription =
         campaign.subtitle ||
-        `Cadastre-se gratuitamente para receber "${campaign.title}" no seu e-mail e acessar seu espaço confidencial na Mentoria ISAAC.`;
+        `Cadastre-se gratuitamente para receber "${campaign.title}" no seu e-mail e acessar seu espaço confidencial na Plataforma ISAAC.`;
       canonicalUrl = campaign.slug
         ? `${baseUrl}/cadastro/${encodeURIComponent(campaign.slug)}`
         : `${baseUrl}/cadastro`;
     } else {
-      pageTitle = 'Criar Conta Gratuita — Mentoria ISAAC | Espaço de Clareza & Escuta';
+      pageTitle = 'Criar Conta Gratuita — Plataforma ISAAC | Espaço de Clareza & Escuta';
       pageDescription =
-        'Crie seu acesso confidencial à Mentoria ISAAC para conversar por texto ou áudio com memória contínua e receber nossos guias de clareza.';
+        'Crie seu acesso confidencial à Plataforma ISAAC para conversar por texto ou áudio com memória contínua e receber nossos guias de clareza.';
       canonicalUrl = `${baseUrl}/cadastro`;
     }
 
@@ -1108,7 +1108,7 @@ export async function serveSeoHtml(req, res, distPath) {
       websiteEntity,
       {
         '@type': 'LearningResource',
-        name: campaign?.title || 'Guia de Clareza Emocional — Mentoria ISAAC',
+        name: campaign?.title || 'Guia de Clareza Emocional — Plataforma ISAAC',
         description: pageDescription,
         url: canonicalUrl,
         inLanguage: 'pt-BR',
@@ -1118,7 +1118,7 @@ export async function serveSeoHtml(req, res, distPath) {
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'Mentoria ISAAC', item: `${baseUrl}/` },
+          { '@type': 'ListItem', position: 1, name: 'Plataforma ISAAC', item: `${baseUrl}/` },
           {
             '@type': 'ListItem',
             position: 2,
@@ -1130,9 +1130,9 @@ export async function serveSeoHtml(req, res, distPath) {
     ];
 
     shellHtml = `<main data-seo-prerender="cadastro" class="max-w-2xl mx-auto px-6 py-16 font-serif">
-      <h1>${escapeHtml(campaign?.title || 'Acesso à Mentoria ISAAC')}</h1>
+      <h1>${escapeHtml(campaign?.title || 'Acesso à Plataforma ISAAC')}</h1>
       <p>${escapeHtml(pageDescription)}</p>
-      <p><a href="${baseUrl}/">Voltar à página principal da Mentoria ISAAC</a></p>
+      <p><a href="${baseUrl}/">Voltar à página principal da Plataforma ISAAC</a></p>
     </main>`;
   }
   // ROTA 4: CLUSTERS TEMÁTICOS (/temas/:slug)
@@ -1142,7 +1142,7 @@ export async function serveSeoHtml(req, res, distPath) {
     const topic = snapshot.topics.find((t) => t.slug === topicSlug);
 
     if (topic) {
-      pageTitle = `${topic.title} | Mentoria ISAAC`;
+      pageTitle = `${topic.title} | Plataforma ISAAC`;
       pageDescription = topic.summary;
       canonicalUrl = `${baseUrl}/temas/${encodeURIComponent(topic.slug)}`;
       ogType = 'article';
@@ -1179,7 +1179,7 @@ export async function serveSeoHtml(req, res, distPath) {
         {
           '@type': 'BreadcrumbList',
           itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Mentoria ISAAC', item: `${baseUrl}/` },
+            { '@type': 'ListItem', position: 1, name: 'Plataforma ISAAC', item: `${baseUrl}/` },
             { '@type': 'ListItem', position: 2, name: topic.shortTitle, item: canonicalUrl },
           ],
         },
@@ -1189,7 +1189,7 @@ export async function serveSeoHtml(req, res, distPath) {
     } else {
       statusCode = 404;
       robotsDirective = 'noindex, nofollow';
-      pageTitle = 'Tema não encontrado — Mentoria ISAAC';
+      pageTitle = 'Tema não encontrado — Plataforma ISAAC';
     }
   }
   // ROTA LOJA PÚBLICA E ROTAS EDITORIAIS ANTI-BAN DE EBOOKS (/loja/ebooks, /biblioteca, /leituras, /acervo e /:slug)
@@ -1229,8 +1229,8 @@ export async function serveSeoHtml(req, res, distPath) {
       if (ebookProd) {
         const priceFmt = ebookProd.formattedPrice || (ebookProd.isBundle ? 'R$ 111,44' : 'R$ 19,90');
         pageTitle = isEditorialAlias
-          ? `${ebookProd.title} — Thiago Prata | Mentoria ISAAC®`
-          : `${ebookProd.title} (${priceFmt}) — Thiago Prata | Mentoria ISAAC®`;
+          ? `${ebookProd.title} — Thiago Prata | Plataforma ISAAC®`
+          : `${ebookProd.title} (${priceFmt}) — Thiago Prata | Plataforma ISAAC®`;
         pageDescription = `${ebookProd.subtitle} Edição Bilíngue Português + Inglês Britânico no mesmo PDF, com ilustrações e dedicatória personalizada. Autor: Thiago Prata.`;
         canonicalUrl = `${baseUrl}/loja/ebooks/${encodeURIComponent(ebookProd.slug)}`;
         ogType = isEditorialAlias ? 'book' : 'product';
@@ -1245,7 +1245,7 @@ export async function serveSeoHtml(req, res, distPath) {
             name: ebookProd.title,
             description: pageDescription,
             image: ogImageUrl,
-            brand: { '@type': 'Brand', name: 'Mentoria ISAAC®' },
+            brand: { '@type': 'Brand', name: 'Plataforma ISAAC®' },
             offers: {
               '@type': 'Offer',
               url: canonicalUrl,
@@ -1262,7 +1262,7 @@ export async function serveSeoHtml(req, res, distPath) {
       } else {
         statusCode = 404;
         robotsDirective = 'noindex, nofollow';
-        pageTitle = 'eBook não encontrado — Mentoria ISAAC';
+        pageTitle = 'eBook não encontrado — Plataforma ISAAC';
       }
     }
   }
@@ -1270,7 +1270,7 @@ export async function serveSeoHtml(req, res, distPath) {
   else if (/^\/meus-ebooks\/[^/?#]+\/?$/i.test(pathname)) {
     statusCode = 200;
     robotsDirective = 'noindex, nofollow, noarchive';
-    pageTitle = 'Download do Seu Exemplar Dedicado — Mentoria ISAAC®';
+    pageTitle = 'Download do Seu Exemplar Dedicado — Plataforma ISAAC®';
     pageDescription = 'Portal seguro para baixar seus eBooks Bilíngues personalizados por Thiago Prata.';
     canonicalUrl = `${baseUrl}/loja/ebooks`;
     shellHtml = '';
@@ -1279,19 +1279,28 @@ export async function serveSeoHtml(req, res, distPath) {
   else if (/^\/(?:superadmin\/)?ebooks(?:\/.*)?$/i.test(pathname)) {
     statusCode = 200;
     robotsDirective = 'noindex, nofollow, noarchive';
-    pageTitle = 'Acervo Editorial Restrito — Mentoria ISAAC';
+    pageTitle = 'Acervo Editorial Restrito — Plataforma ISAAC';
     pageDescription = 'Área editorial exclusiva para o Superadmin.';
     canonicalUrl = `${baseUrl}/ebooks`;
+    shellHtml = '';
+  }
+  // ROTA PRIVADA PAINEL ADMINISTRATIVO (/admin) — RESTRITA E NÃO INDEXÁVEL (200 OK SPA)
+  else if (/^\/admin(?:\/.*)?$/i.test(pathname)) {
+    statusCode = 200;
+    robotsDirective = 'noindex, nofollow, noarchive';
+    pageTitle = 'Painel Administrativo — Plataforma ISAAC';
+    pageDescription = 'Área restrita de governança e gestão da Plataforma ISAAC.';
+    canonicalUrl = `${baseUrl}/admin`;
     shellHtml = '';
   }
   // ROTA 5: QUALQUER OUTRA URL INEXISTENTE -> HTTP 404 REAL (FIM DO SOFT-404)
   else {
     statusCode = 404;
     robotsDirective = 'noindex, nofollow';
-    pageTitle = 'Página não encontrada — Mentoria ISAAC';
+    pageTitle = 'Página não encontrada — Plataforma ISAAC';
     shellHtml = `<main data-seo-prerender="404" class="max-w-xl mx-auto px-6 py-16 font-serif">
       <h1>Página não encontrada</h1>
-      <p>O caminho acessado não existe. Retorne ao espaço principal da <a href="${baseUrl}/">Mentoria ISAAC</a>.</p>
+      <p>O caminho acessado não existe. Retorne ao espaço principal da <a href="${baseUrl}/">Plataforma ISAAC</a>.</p>
     </main>`;
   }
 
@@ -1325,7 +1334,7 @@ export async function serveSeoHtml(req, res, distPath) {
     <title>${escapeHtml(pageTitle)}</title>
     <meta name="description" content="${escapeHtml(pageDescription)}" />
     <meta name="robots" content="${escapeHtml(robotsDirective)}" />
-    <meta name="author" content="${escapeHtml(snapshot.creator.name)} — Mentoria ISAAC" />
+    <meta name="author" content="${escapeHtml(snapshot.creator.name)} — Plataforma ISAAC" />
     <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
     <link rel="alternate" hreflang="pt-BR" href="${escapeHtml(canonicalUrl)}" />
     <link rel="alternate" hreflang="x-default" href="${escapeHtml(canonicalUrl)}" />
@@ -1333,7 +1342,7 @@ export async function serveSeoHtml(req, res, distPath) {
     <!-- Open Graph / WhatsApp / Instagram / LinkedIn -->
     <meta property="og:locale" content="pt_BR" />
     <meta property="og:type" content="${escapeHtml(ogType)}" />
-    <meta property="og:site_name" content="Mentoria ISAAC" />
+    <meta property="og:site_name" content="Plataforma ISAAC" />
     <meta property="og:title" content="${escapeHtml(pageTitle)}" />
     <meta property="og:description" content="${escapeHtml(pageDescription)}" />
     <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />

@@ -103,7 +103,7 @@ export default function SubscriptionModal({ isOpen, onClose, user, profile, onPl
             <Sparkles className="w-6 h-6 stroke-[1.75]" />
           </div>
           <h2 className="text-xl sm:text-3xl font-serif font-medium tracking-tight text-stone-900 dark:text-stone-50">
-            Mentoria Ilimitada
+            Plataforma Ilimitada
           </h2>
           <p className="text-xs sm:text-sm text-stone-500 dark:text-stone-400 mt-1.5 font-serif max-w-md mx-auto leading-relaxed">
             Aprofunde sua jornada com voz neural realista, memória contínua e tranquilidade total para suas reflexões diárias.

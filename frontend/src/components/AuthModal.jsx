@@ -228,7 +228,7 @@ export default function AuthModal({
               Cadastro Realizado com Sucesso!
             </h2>
             <p className="text-xs text-stone-500 dark:text-stone-400 font-serif leading-relaxed">
-              Seu espaço pessoal de clareza e mentoria já está pronto.
+              Seu espaço pessoal na Plataforma ISAAC já está pronto.
             </p>
           </div>
 
@@ -302,7 +302,7 @@ export default function AuthModal({
           )}
 
           <h2 className="text-xl sm:text-2xl font-serif font-medium tracking-tight text-stone-900 dark:text-stone-50">
-            {mode === 'login' && 'Acessar Mentoria'}
+            {mode === 'login' && 'Acessar Plataforma'}
             {mode === 'signup' && 'Iniciar Sua Jornada'}
             {mode === 'forgot' && 'Recuperar Acesso'}
           </h2>
@@ -632,7 +632,7 @@ export default function AuthModal({
             ) : (
               <>
                 <span>
-                  {mode === 'login' && 'Acessar Mentoria'}
+                  {mode === 'login' && 'Acessar Plataforma'}
                   {mode === 'signup' &&
                     (defaultCampaign
                       ? 'Concluir Cadastro e Receber PDF'

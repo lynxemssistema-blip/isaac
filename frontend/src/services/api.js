@@ -9,7 +9,7 @@ import { formatBrazilTime, formatBrazilDate, sortChatMessagesChronologically } f
 
 /**
  * Remove formatações Markdown, emojis, URLs e caracteres que quebram o fluxo da fala.
- * Otimizado para entonação calma e meditativa da mentoria.
+ * Otimizado para entonação calma e meditativa da plataforma.
  */
 export function cleanTextForSpeech(text) {
   if (!text) return '';

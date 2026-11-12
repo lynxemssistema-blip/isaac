@@ -483,7 +483,7 @@ export async function updateAdminMentorNotes(req, res) {
 }
 
 /**
- * 10. Mentoria Guiada Dinâmica via Chat (Agente Isaac / Thiago Prata)
+ * 10. Reflexão Guiada Dinâmica via Chat (Agente Isaac / Thiago Prata)
  * Conduz o usuário dinamicamente pelas 5 etapas do Incômodo Criativo com opções interativas
  * POST /api/creative-troubles/chat-step
  */

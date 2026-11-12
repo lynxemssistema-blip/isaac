@@ -321,7 +321,7 @@ export default function DirectSignupPage({
             </h1>
             <p className="text-xs sm:text-sm text-stone-500 dark:text-stone-400 font-serif leading-relaxed">
               {completionData.mode === 'new_signup'
-                ? 'Seu acesso ao ecossistema de mentoria ISAAC já está liberado.'
+                ? 'Seu acesso ao ecossistema da Plataforma ISAAC já está liberado.'
                 : 'Identificamos sua conta no ISAAC e já disparamos o seu material.'}
             </p>
           </div>

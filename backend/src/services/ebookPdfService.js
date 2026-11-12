@@ -119,10 +119,10 @@ function drawInteriorHeaderAndFooter(doc, { pageNum, lang = 'pt', bookShortTitle
   if (cleanBuyer) {
     if (lang === 'en') {
       dedicationLine1 = `Personal edition warmly dedicated to ${cleanBuyer}`;
-      dedicationLine2 = `May these pages bring clarity, peace, and direction to your journey. • Thiago Prata — ISAAC® Mentoring`;
+      dedicationLine2 = `May these pages bring clarity, peace, and direction to your journey. • Thiago Prata — ISAAC® Platform`;
     } else {
       dedicationLine1 = `Exemplar dedicado especialmente a ${cleanBuyer}`;
-      dedicationLine2 = `Que estas páginas iluminem suas decisões, sua paz e sua caminhada. • Thiago Prata — Mentoria ISAAC®`;
+      dedicationLine2 = `Que estas páginas iluminem suas decisões, sua paz e sua caminhada. • Thiago Prata — Plataforma ISAAC®`;
     }
   } else if (lang === 'en') {
     dedicationLine1 = `Official Bilingual Authorial Edition • Thiago Prata — Mentor & Creator of ISAAC®`;
@@ -510,7 +510,7 @@ function renderAuthorAndDedicationPage(doc, state, { isBundle, mainProduct, buye
 
   const enDed = cleanBuyer
     ? `For ${cleanBuyer}: thank you for investing in your clarity and growth. This bilingual edition has been personally dedicated to accompany your most meaningful decisions.`
-    : `Thank you for creating quiet space to reflect and decide with clarity. Every framework in these pages grew from mentoring real people committed to purposeful living.`;
+    : `Thank you for creating quiet space to reflect and decide with clarity. Every framework in these pages grew from guiding real people committed to purposeful living.`;
 
   doc
     .font('Times-BoldItalic')
@@ -1057,7 +1057,7 @@ function renderClosingBackCoverPage(doc, { buyerName }) {
     .font('Helvetica-Bold')
     .fontSize(10)
     .fillColor(COLORS.goldBright)
-    .text('MENTORIA ISAAC® • ESPAÇO CONFIDENCIAL DE CLAREZA & DIREÇÃO', 70, y, {
+    .text('PLATAFORMA ISAAC® • ESPAÇO CONFIDENCIAL DE CLAREZA & DIREÇÃO', 70, y, {
       width: PAGE_W - 140,
       align: 'center',
     });
@@ -1079,7 +1079,7 @@ function renderClosingBackCoverPage(doc, { buyerName }) {
     .fillColor('#e2e8f0')
     .text(
       cleanPdfText(
-        'A leitura abre a consciência; a prática acompanhada consolida a transformação. Acesse gratuitamente o App Web da Mentoria ISAAC® para conversar em texto e voz 24h, registrar seus aprendizados no Laboratório do Incômodo Criativo e caminhar com memória evolutiva contínua.'
+        'A leitura abre a consciência; a prática acompanhada consolida a transformação. Acesse gratuitamente o App Web da Plataforma ISAAC® para conversar em texto e voz 24h, registrar seus aprendizados no Laboratório do Incômodo Criativo e caminhar com memória evolutiva contínua.'
       ),
       80,
       y,
@@ -1093,7 +1093,7 @@ function renderClosingBackCoverPage(doc, { buyerName }) {
     .fillColor('#94a3b8')
     .text(
       cleanPdfText(
-        'Reading awakens awareness; guided practice consolidates transformation. Visit the ISAAC® Mentoring Web App free of charge to reflect via text and voice 24/7, use the Creative Trouble Lab, and grow with continuous evolutionary memory.'
+        'Reading awakens awareness; guided practice consolidates transformation. Visit the ISAAC® Platform Web App free of charge to reflect via text and voice 24/7, use the Creative Trouble Lab, and grow with continuous evolutionary memory.'
       ),
       80,
       y,
@@ -1182,10 +1182,10 @@ export async function generateEbookBilingualPdfBuffer({
           Title: isBundle
             ? `${COMPLETE_BUNDLE_PRODUCT.title} — Thiago Prata`
             : `${product.title} — Thiago Prata`,
-          Author: 'Thiago Prata — Mentor & Idealizador da Mentoria ISAAC®',
+          Author: 'Thiago Prata — Mentor & Idealizador da Plataforma ISAAC®',
           Subject: 'Coleção ISAAC® Essential (Edição Bilíngue Português + Inglês Britânico)',
-          Keywords: 'ISAAC, Thiago Prata, Clareza, Liderança, Mentoria, Bilingual eBook',
-          Creator: 'Mentoria ISAAC® Editorial Engine',
+          Keywords: 'ISAAC, Thiago Prata, Clareza, Liderança, Plataforma, Bilingual eBook',
+          Creator: 'Plataforma ISAAC® Editorial Engine',
         },
       });
 

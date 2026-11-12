@@ -54,14 +54,14 @@ export default function Navbar({
   }, []);
 
   const getInitials = () => {
-    const name = profile?.full_name || user?.email || 'V';
+    const name = profile?.full_name || user?.user_metadata?.full_name || user?.email || 'V';
     return name.slice(0, 2).toUpperCase();
   };
 
   return (
     <header className="w-full border-b border-stone-200/80 dark:border-slate-800 bg-stone-50/95 dark:bg-slate-900/95 backdrop-blur-xl transition-colors shadow-xs">
       <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-2">
-        {/* LOGO DA MENTORIA */}
+        {/* LOGO DA PLATAFORMA */}
         <div
           onClick={() => setActiveTab('landing')}
           className="flex items-center space-x-2.5 sm:space-x-3 cursor-pointer group min-w-0"
@@ -71,7 +71,7 @@ export default function Navbar({
           </div>
           <div className="min-w-0">
             <span className="text-base sm:text-lg font-serif font-medium tracking-tight text-stone-900 dark:text-stone-50 flex items-center gap-1.5 truncate">
-              Mentoria
+              Plataforma
               <span className="hidden sm:inline-block text-[10px] font-sans font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800/40">
                 Clareza & Direção
               </span>
@@ -84,10 +84,10 @@ export default function Navbar({
 
         {/* NAVEGAÇÃO CENTRAL TERAPÊUTICA */}
         <nav className="hidden md:flex items-center space-x-1 bg-stone-200/50 dark:bg-slate-800/50 p-1.5 rounded-2xl border border-stone-300/50 dark:border-slate-700/50">
-          {user && activeTab !== 'landing' && (
+          {user && (
             <button
               onClick={() => setActiveTab('chat')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'chat'
                   ? 'bg-teal-700 dark:bg-teal-600 text-white shadow-sm'
                   : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
@@ -258,6 +258,7 @@ export default function Navbar({
                 type="button"
                 onClick={onOpenFeedback}
                 title="Suporte Oficial Lynx (Sugestões ou Reclamações)"
+                aria-label="Suporte Oficial Lynx"
                 className="p-1.5 sm:p-2 text-stone-500 hover:text-teal-700 dark:hover:text-teal-400 hover:bg-stone-200/60 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
               >
                 <LifeBuoy className="w-4 h-4" />
@@ -268,6 +269,7 @@ export default function Navbar({
                 type="button"
                 onClick={onOpenProfile}
                 title="Visualizar e editar seu perfil"
+                aria-label="Meu Perfil"
                 className="flex items-center gap-2 p-1 sm:px-2.5 sm:py-1 rounded-2xl hover:bg-stone-200/60 dark:hover:bg-slate-800 transition text-left"
               >
                 <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-teal-700/10 dark:bg-teal-500/20 border border-teal-700/20 dark:border-teal-500/30 overflow-hidden flex items-center justify-center text-teal-800 dark:text-teal-300 font-serif text-xs font-semibold shrink-0">
@@ -284,7 +286,7 @@ export default function Navbar({
 
                 <div className="hidden sm:flex flex-col text-left">
                   <span className="text-xs font-medium text-stone-800 dark:text-stone-200 truncate max-w-[120px]">
-                    {profile?.full_name || user.email?.split('@')[0]}
+                    {profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0]}
                   </span>
                   <span className="text-[10px] text-teal-700 dark:text-teal-400">
                     Meu Perfil
@@ -297,6 +299,7 @@ export default function Navbar({
                   type="button"
                   onClick={onOpenOnboarding}
                   title="Alterar o nome do seu Guia"
+                  aria-label="Preferências e nome do Guia"
                   className="hidden sm:inline-flex p-2 text-stone-500 hover:text-teal-700 dark:hover:text-teal-400 hover:bg-stone-200/60 dark:hover:bg-slate-800 rounded-xl transition"
                 >
                   <Edit3 className="w-4 h-4" />
@@ -306,6 +309,7 @@ export default function Navbar({
               <button
                 onClick={onLogout}
                 title="Sair com segurança"
+                aria-label="Sair com segurança"
                 className="p-1.5 sm:p-2 text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-stone-200/60 dark:hover:bg-slate-800 rounded-xl transition"
               >
                 <LogOut className="w-4 h-4" />
@@ -318,7 +322,7 @@ export default function Navbar({
                 className="px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-2xl bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white text-xs font-medium tracking-wide shadow-md shadow-teal-700/20 transition flex items-center gap-1.5 shrink-0"
               >
                 <Heart className="w-3.5 h-3.5" />
-                <span>Acessar Mentoria</span>
+                <span>Acessar Plataforma</span>
               </button>
             </div>
           )}

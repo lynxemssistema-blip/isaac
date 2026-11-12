@@ -22,6 +22,7 @@ class AmbientAudioEngine {
   initContext() {
     if (!this.audioCtx) {
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
       this.audioCtx = new AudioContextClass();
 
       this.masterGain = this.audioCtx.createGain();

@@ -393,7 +393,7 @@ export default function AdminCreativeTroubles({ currentUser }) {
                     <Compass className="w-4 h-4" />
                   </span>
                   <h3 className="text-lg font-bold text-stone-900 dark:text-stone-100">
-                    Prontuário de Mentoria: Incômodo Criativo
+                    Prontuário da Plataforma: Incômodo Criativo
                   </h3>
                 </div>
                 <p className="text-xs text-stone-500 dark:text-slate-400 mt-1">
@@ -639,7 +639,7 @@ export default function AdminCreativeTroubles({ currentUser }) {
                   rows={4}
                   value={mentorNotesText}
                   onChange={(e) => setMentorNotesText(e.target.value)}
-                  placeholder="Ex: Usuário apresentou postura de justificar em relação ao sócio. Recomendar na mentoria foco na distinção entre fatos e interpretações..."
+                  placeholder="Ex: Usuário apresentou postura de justificar em relação ao sócio. Recomendar na plataforma foco na distinção entre fatos e interpretações..."
                   className="w-full p-3 text-xs sm:text-sm rounded-xl border border-amber-200 dark:border-amber-900/50 bg-white dark:bg-slate-900 text-stone-900 dark:text-stone-100 focus:outline-hidden focus:ring-2 focus:ring-amber-500"
                 />
 

@@ -330,6 +330,21 @@ export async function updateUserPlan(userId, planId, planStatus = 'active') {
   return await res.json();
 }
 
+export async function updateUserWhatsappAccess({ userId, enabled, durationMode = 'lifetime', phone }) {
+  const res = await authFetch(`${BACKEND_URL}/api/admin/users/whatsapp-access`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, enabled, durationMode, phone }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Falha ao atualizar autorização do WhatsApp para o usuário.');
+  }
+
+  return data;
+}
+
 export async function fetchAdminSubscriptions() {
   try {
     const res = await authFetch(`${BACKEND_URL}/api/admin/subscriptions`);

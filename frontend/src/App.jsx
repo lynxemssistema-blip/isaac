@@ -142,10 +142,16 @@ function parseEbookDownloadLocation() {
   return null;
 }
 
+function parseAdminLocation() {
+  if (typeof window === 'undefined') return false;
+  const pathname = window.location.pathname || '/';
+  return /^\/admin(?:\/.*)?$/i.test(pathname);
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [activeTab, setActiveTab] = useState('landing'); // 'landing' | 'chat' | 'admin'
+  const [activeTab, setActiveTab] = useState(() => (parseAdminLocation() ? 'admin' : 'landing')); // 'landing' | 'chat' | 'admin' | 'incomodo'
   const [directSignupRoute, setDirectSignupRoute] = useState(() => parseDirectSignupLocation());
   const [isInscriptionRoute, setIsInscriptionRoute] = useState(() => parseInscriptionLocation());
   const [topicRoute, setTopicRoute] = useState(() => parseTopicLocation());
@@ -279,6 +285,9 @@ export default function App() {
       setIsSuperAdminEbooksRoute(parseSuperAdminEbooksLocation());
       setEbookStoreRoute(parseEbookStoreLocation());
       setEbookDownloadRoute(parseEbookDownloadLocation());
+      if (parseAdminLocation()) {
+        setActiveTab('admin');
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -296,13 +305,13 @@ export default function App() {
       return;
     }
     if (activeTab === 'landing') {
-      document.title = 'Mentoria ISAAC — Clareza Emocional, Escuta Profunda & Transformação 24h';
+      document.title = 'Plataforma ISAAC — Clareza Emocional, Escuta Profunda & Transformação 24h';
     } else if (activeTab === 'chat') {
-      document.title = `${guideName || 'Isaac'} • Espaço de Mentoria — ISAAC`;
+      document.title = `${guideName || 'Isaac'} • Espaço da Plataforma — ISAAC`;
     } else if (activeTab === 'incomodo') {
-      document.title = 'Laboratório do Incômodo Criativo — Mentoria ISAAC';
+      document.title = 'Laboratório do Incômodo Criativo — Plataforma ISAAC';
     } else if (activeTab === 'admin') {
-      document.title = 'Painel Administrativo — Mentoria ISAAC';
+      document.title = 'Painel Administrativo — Plataforma ISAAC';
     }
   }, [
     activeTab,
@@ -397,11 +406,18 @@ export default function App() {
           Boolean(parseEbookStoreLocation()) ||
           Boolean(parseEbookDownloadLocation());
         if (!onPublicRoute) {
-          // REQUISITO: Usuário autenticado já abre direto na página de conversa com ISAAC
-          setActiveTab('chat');
+          if (parseAdminLocation()) {
+            setActiveTab('admin');
+          } else {
+            // REQUISITO: Usuário autenticado já abre direto na página de conversa com ISAAC
+            setActiveTab('chat');
+          }
         }
       } else {
         setLoadingProfile(false);
+        if (parseAdminLocation()) {
+          setIsAuthOpen(true);
+        }
       }
     });
 
@@ -479,7 +495,7 @@ export default function App() {
       setProfile(savedProfile);
     }
     loadUserProfile(loggedUser);
-    setActiveTab('chat');
+    setActiveTab(parseAdminLocation() ? 'admin' : 'chat');
   };
 
   const openAuthModal = (mode = 'login', emailPrefill = '') => {
@@ -649,7 +665,16 @@ export default function App() {
   if (isInscriptionRoute) {
     return (
       <Suspense fallback={<LazyFallbackLoader />}>
-        <SimpleInscriptionPage />
+        <SimpleInscriptionPage
+          onBackToHome={() => {
+            if (typeof window !== 'undefined') {
+              window.history.pushState({}, '', '/');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            setIsInscriptionRoute(false);
+            setActiveTab('landing');
+          }}
+        />
       </Suspense>
     );
   }
@@ -725,17 +750,32 @@ export default function App() {
     );
   }
 
+  const navigateToTab = (tab) => {
+    if ((tab === 'chat' || tab === 'admin' || tab === 'incomodo') && !user) {
+      openAuthModal('login', '');
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      if (tab === 'admin' && window.location.pathname !== '/admin') {
+        window.history.pushState({}, '', '/admin');
+      } else if (tab !== 'admin' && /^\/admin(?:\/.*)?$/i.test(window.location.pathname || '')) {
+        window.history.pushState({}, '', '/');
+      }
+    }
+    setActiveTab(tab);
+  };
+
   return (
     <div
       className={`bg-stone-50 dark:bg-slate-900 text-stone-800 dark:text-stone-100 flex flex-col font-sans selection:bg-teal-700/20 selection:text-teal-900 dark:selection:text-teal-200 transition-colors duration-300 ${
-        activeTab === 'chat' ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-[100dvh] pb-20 md:pb-0'
+        activeTab === 'chat' ? 'h-ios-dvh max-h-[100dvh] overflow-hidden' : 'min-h-ios-dvh pb-20 md:pb-0'
       }`}
     >
       {/* ONBOARDING DO GUIA (Primeiro Acesso) */}
       {showOnboarding && (
         <Suspense fallback={null}>
           <WelcomeOnboarding
-            userName={profile?.full_name || user?.email?.split('@')[0] || 'Viajante'}
+            userName={profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Viajante'}
             onComplete={handleCompleteOnboarding}
           />
         </Suspense>
@@ -747,13 +787,7 @@ export default function App() {
           user={user}
           profile={profile}
           activeTab={activeTab}
-          setActiveTab={(tab) => {
-            if ((tab === 'chat' || tab === 'admin') && !user) {
-              openAuthModal('login', '');
-              return;
-            }
-            setActiveTab(tab);
-          }}
+          setActiveTab={navigateToTab}
           onOpenAuth={() => openAuthModal('login', '')}
           onLogout={handleLogout}
           onOpenOnboarding={() => setIsSettingsOpen(true)}
@@ -786,14 +820,14 @@ export default function App() {
               <ReflectionSpace
                 user={profile || user}
                 onEditGuideName={() => setIsSettingsOpen(true)}
-                onBackToHome={() => setActiveTab('landing')}
+                onBackToHome={() => navigateToTab('landing')}
                 systemSettings={systemSettings}
               />
             ) : (
               <div className="flex-1 flex items-center justify-center p-6 text-center">
                 <div className="max-w-md p-8 rounded-4xl bg-white dark:bg-slate-800/80 border border-stone-200 dark:border-slate-700 shadow-xl space-y-4">
                   <h3 className="text-xl font-serif font-medium text-stone-900 dark:text-stone-100">
-                    Sua Mentoria Pessoal
+                    Sua Plataforma Pessoal
                   </h3>
                   <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed">
                     Para que seus momentos de reflexão e desenvolvimento fiquem guardados com total sigilo e continuidade, entre na sua conta.
@@ -802,7 +836,7 @@ export default function App() {
                     onClick={() => openAuthModal('login', '')}
                     className="w-full py-3.5 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-medium text-xs tracking-wide shadow-md shadow-teal-700/20 transition"
                   >
-                    Acessar Mentoria
+                    Acessar Plataforma
                   </button>
                 </div>
               </div>
@@ -826,10 +860,10 @@ export default function App() {
                     Esta área é exclusiva para a administração do ecossistema.
                   </p>
                   <button
-                    onClick={() => setActiveTab('landing')}
+                    onClick={() => navigateToTab('landing')}
                     className="px-6 py-2.5 rounded-xl bg-stone-200 dark:bg-slate-700 hover:bg-stone-300 font-medium text-xs transition"
                   >
-                    Voltar para a Mentoria
+                    Voltar para a Plataforma
                   </button>
                 </div>
               </div>
@@ -900,6 +934,18 @@ export default function App() {
             profile={profile}
             onProfileUpdated={(updated) => setProfile(updated)}
             onOpenWhatsappPlan={() => setIsWhatsappPlanOpen(true)}
+            onOpenSettings={() => {
+              setIsProfileOpen(false);
+              setIsSettingsOpen(true);
+            }}
+            onOpenFeedback={() => {
+              setIsProfileOpen(false);
+              setIsFeedbackOpen(true);
+            }}
+            onLogout={() => {
+              setIsProfileOpen(false);
+              handleLogout();
+            }}
           />
         )}
 
@@ -951,13 +997,7 @@ export default function App() {
       {/* MENU INFERIOR FIXO PARA CELULARES E TABLETS (BOTTOM NAVIGATION BAR) */}
       <MobileBottomNav
         activeTab={activeTab}
-        onNavigate={(tab) => {
-          if ((tab === 'chat' || tab === 'admin') && !user) {
-            openAuthModal('login', '');
-            return;
-          }
-          setActiveTab(tab);
-        }}
+        onNavigate={navigateToTab}
         onOpenProfile={() => {
           if (!user) {
             openAuthModal('login', '');
@@ -965,7 +1005,6 @@ export default function App() {
             setIsProfileOpen(true);
           }
         }}
-        onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenPlans={() => setIsWhatsappPlanOpen(true)}
         onOpenEbookStore={(slug) => handleOpenEbookStore(typeof slug === 'string' ? slug : '')}
         user={user}

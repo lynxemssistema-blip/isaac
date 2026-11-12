@@ -349,8 +349,8 @@ async function deliverOrderViaWhatsApp(order, { appUrl = DEFAULT_APP_URL } = {})
     : `Olá, *${firstName}*! ✨\n\nMuito obrigado! Seu pedido na *Biblioteca Oficial ISAAC® Essential* (autor: *Thiago Prata*) foi confirmado com sucesso!\n\nSeu exemplar em PDF Bilíngue (*Português + Inglês Britânico no mesmo arquivo*), com ilustrações exclusivas e *dedicatória especial para ${cleanFullName} na margem inferior das páginas*, já está pronto logo abaixo.`;
 
   const bubble2Link = order.is_international_phone
-    ? `📥 Here is your personal access link to download your PDF(s) whenever you wish:\n${portalUrl}\n\nWarm regards,\n*Thiago Prata — ISAAC® Mentoring*`
-    : `📥 Aqui está o seu link exclusivo para baixar seu(s) PDF(s) sempre que desejar:\n${portalUrl}\n\nExcelente leitura e clareza na sua caminhada!\n*Thiago Prata — Mentoria ISAAC®*`;
+    ? `📥 Here is your personal access link to download your PDF(s) whenever you wish:\n${portalUrl}\n\nWarm regards,\n*Thiago Prata — ISAAC® Platform*`
+    : `📥 Aqui está o seu link exclusivo para baixar seu(s) PDF(s) sempre que desejar:\n${portalUrl}\n\nExcelente leitura e clareza na sua caminhada!\n*Thiago Prata — Plataforma ISAAC®*`;
 
   try {
     await sendWhatsAppImageSafe({

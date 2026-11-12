@@ -73,7 +73,7 @@ export default function EbookSalesPage({
             bundle: res.bundle,
             ebooks: res.allEbooks || [],
           });
-          document.title = `${res.product.title} — Thiago Prata | Mentoria ISAAC®`;
+          document.title = `${res.product.title} — Thiago Prata | Plataforma ISAAC®`;
         })
         .catch((err) => {
           if (!active) return;
@@ -88,7 +88,7 @@ export default function EbookSalesPage({
         .then((res) => {
           if (!active) return;
           setStoreData(res);
-          document.title = 'Biblioteca Oficial de eBooks Bilíngues — Thiago Prata | Mentoria ISAAC®';
+          document.title = 'Biblioteca Oficial de eBooks Bilíngues — Thiago Prata | Plataforma ISAAC®';
         })
         .catch((err) => {
           if (!active) return;
@@ -141,7 +141,7 @@ export default function EbookSalesPage({
 
   const author = storeData?.author || {
     name: 'Thiago Prata',
-    rolePt: 'Mentor em Projetos e Negócios • Idealizador & Criador da Mentoria e do App ISAAC®',
+    rolePt: 'Mentor em Projetos e Negócios • Idealizador & Criador da Plataforma e do App ISAAC®',
     bioPt:
       'Estrategista, mentor de líderes e empreendedores e criador da Metodologia ISAAC® (Inovação, Sustentabilidade, Amor, Atitude e Conhecimento).',
     quotePt: '"Fazer do bem um bom negócio — conquistando a liberdade de ser quem você nasceu para ser."',

@@ -727,7 +727,7 @@ export async function handleDownloadVoice(req, res) {
       const ext = memHit.ext || (memHit.mimeType === 'audio/mpeg' ? 'mp3' : 'wav');
       res.setHeader('Content-Type', memHit.mimeType);
       res.setHeader('Content-Length', String(buf.length));
-      res.setHeader('Content-Disposition', `attachment; filename="mentoria-isaac-reflexao.${ext}"`);
+      res.setHeader('Content-Disposition', `attachment; filename="plataforma-isaac-reflexao.${ext}"`);
       return res.status(200).send(buf);
     }
 
@@ -750,7 +750,7 @@ export async function handleDownloadVoice(req, res) {
           });
           res.setHeader('Content-Type', 'audio/mpeg');
           res.setHeader('Content-Length', String(storedBuf.length));
-          res.setHeader('Content-Disposition', 'attachment; filename="mentoria-isaac-reflexao.mp3"');
+          res.setHeader('Content-Disposition', 'attachment; filename="plataforma-isaac-reflexao.mp3"');
           return res.status(200).send(storedBuf);
         }
       }
@@ -833,7 +833,7 @@ export async function handleDownloadVoice(req, res) {
     res.setHeader('Content-Length', String(transcoded.buffer.length));
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="mentoria-isaac-reflexao.${transcoded.ext}"`
+      `attachment; filename="plataforma-isaac-reflexao.${transcoded.ext}"`
     );
     return res.status(200).send(transcoded.buffer);
   } catch (error) {

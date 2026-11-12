@@ -1,13 +1,13 @@
 /**
  * BRITISH ENGLISH EDITION (en-GB) — ISAAC® ESSENTIAL COLLECTION
- * Authored by Thiago Prata — Mentor & Creator of ISAAC® Mentoring
+ * Authored by Thiago Prata — Mentor & Creator of ISAAC® Platform
  * Every volume is delivered as a Bilingual Edition (Português + British English) inside the same PDF.
  */
 
 export const AUTHOR_PROFILE = {
   name: 'Thiago Prata',
-  rolePt: 'Mentor em Projetos e Negócios • Idealizador & Criador da Mentoria ISAAC®',
-  roleEn: 'Business & Project Mentor • Founder & Creator of ISAAC® Mentoring',
+  rolePt: 'Mentor em Projetos e Negócios • Idealizador & Criador da Plataforma ISAAC®',
+  roleEn: 'Business & Project Mentor • Founder & Creator of ISAAC® Platform',
   bioPt:
     'Mentor em Projetos e Negócios e apaixonado pelo potencial humano. Concebeu o ISAAC® após anos de observação sobre a subjetividade humana, investigando como o automatismo provocado por modelos engessados de educação e de relações gera distorções na nossa capacidade genuína de Ser Humano, decidir com clareza e construir negócios com propósito.',
   bioEn:
@@ -298,7 +298,7 @@ export const EBOOKS_EN_GB = {
         frameworkItems: [
           '1. Unconditional Offer (Connection): Open insights, free gatherings, and clarity pills that genuinely help.',
           '2. Semi-Conditional Offer (Engagement): Diagnostics, practical challenges, or pilot projects for those who complete agreed steps.',
-          '3. Conditional Offer (Sustainability): Paid products, mentoring, subscriptions, and structured services.',
+          '3. Conditional Offer (Sustainability): Paid products, advisory programmes, subscriptions, and structured services.',
         ],
         practicalExercise:
           'Map out today 1 concrete deliverable for each tier of your work: what is open to everyone, what rewards committed action-takers, and what forms your flagship paid offer.',

@@ -561,6 +561,128 @@ export async function updateUserPlan(req, res) {
   }
 }
 
+// 16B. Liberar ou revogar manualmente o acesso do usuário à função WhatsApp (idêntico à autorização Asaas, sem gerar cobrança)
+export async function updateUserWhatsappAccess(req, res) {
+  try {
+    const { userId, enabled, durationMode = 'lifetime', phone } = req.body || {};
+
+    if (!userId || typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: 'Informe userId e enabled (true ou false).' });
+    }
+
+    const { data: existingProfile, error: fetchErr } = await supabaseAdmin
+      .from('izaque_profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (fetchErr) throw fetchErr;
+    if (!existingProfile) {
+      return res.status(404).json({
+        error: 'Este contato ainda não possui Conta no App (é apenas uma ficha de inscrição). Peça para criar a conta gratuita no App primeiro.',
+      });
+    }
+
+    const superAdminEmail = (process.env.SUPERADMIN_EMAIL || 'edsonmanoel2012@gmail.com').trim().toLowerCase();
+    const isTargetMaster =
+      existingProfile.role === 'master' ||
+      String(existingProfile.email || '').trim().toLowerCase() === superAdminEmail;
+
+    if (isTargetMaster && !enabled) {
+      return res.status(400).json({ error: 'A conta SuperAdmin Master possui acesso vitalício nativo ao WhatsApp.' });
+    }
+
+    const nowIso = new Date().toISOString();
+    const existingPrefs =
+      existingProfile.preferences && typeof existingProfile.preferences === 'object'
+        ? existingProfile.preferences
+        : {};
+
+    const nextPreferences = {
+      ...existingPrefs,
+      whatsapp_admin_override: enabled ? 'granted' : 'revoked',
+      whatsapp_access_source: enabled ? 'manual_admin' : 'revoked_admin',
+      whatsapp_admin_mode: enabled ? (durationMode === '30d' ? 'monthly_30d' : 'lifetime') : null,
+      whatsapp_admin_updated_at: nowIso,
+      whatsapp_admin_updated_by: req.user?.email || req.user?.id || 'admin',
+    };
+
+    let expiresAtIso = null;
+    if (enabled && durationMode === '30d') {
+      const exp = new Date();
+      exp.setDate(exp.getDate() + 30);
+      expiresAtIso = exp.toISOString();
+    }
+
+    const updates = {
+      plan_id: enabled ? 'whatsapp_monthly' : 'free',
+      plan_status: enabled ? 'active' : 'free',
+      plan_expires_at: enabled ? expiresAtIso : null,
+      preferences: nextPreferences,
+      updated_at: nowIso,
+    };
+
+    if (enabled) {
+      updates.plan_activated_at = nowIso;
+      updates.is_active = true;
+    }
+
+    if (phone !== undefined) {
+      const cleanedPhone = String(phone || '').trim();
+      if (cleanedPhone) {
+        const prevDigits = String(existingProfile.phone || '').replace(/\D/g, '');
+        const nextDigits = cleanedPhone.replace(/\D/g, '');
+        updates.phone = cleanedPhone;
+        if (prevDigits && nextDigits && prevDigits !== nextDigits) {
+          updates.whatsapp_jid = null;
+        }
+      }
+    }
+
+    const { data: updatedProfile, error: updateErr } = await supabaseAdmin
+      .from('izaque_profiles')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (updateErr) throw updateErr;
+
+    // Sincroniza também o status de plano em izaque_whatsapp_contacts caso o contato já exista na agenda Evolution
+    await supabaseAdmin
+      .from('izaque_whatsapp_contacts')
+      .update({
+        app_plan_id: updates.plan_id,
+        app_plan_status: updates.plan_status,
+        updated_at: nowIso,
+      })
+      .eq('app_user_id', userId)
+      .then(() => {})
+      .catch(() => {});
+
+    invalidateAuthCache();
+
+    console.log(
+      `📲 [Admin WhatsApp Access] Usuário ${updatedProfile.email || userId} -> WhatsApp ${
+        enabled ? `LIBERADO (${durationMode === '30d' ? '30 dias' : 'sem vencimento'})` : 'REVOGADO (Plano Gratuito)'
+      } por ${req.user?.email || 'admin'}`
+    );
+
+    res.status(200).json({
+      success: true,
+      enabled,
+      profile: {
+        ...updatedProfile,
+        account_type: 'app',
+        is_inscription: false,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar acesso WhatsApp do usuário:', error);
+    res.status(500).json({ error: 'Erro ao atualizar acesso ao WhatsApp do usuário.', details: error.message });
+  }
+}
+
 // 17. Listar todos os pedidos e assinaturas PIX
 export async function getAdminSubscriptions(req, res) {
   try {
@@ -1380,7 +1502,7 @@ export async function sendGroupBroadcast(req, res) {
                   : '';
                 let fullWhatsappMsg = personalBody
                   ? `*${personalTitle}*\n\n${personalBody}`
-                  : `*${personalTitle}*\n\nAcesse seu espaço de mentoria em https://isaac.lynxems.com.br/`;
+                  : `*${personalTitle}*\n\nAcesse seu espaço na Plataforma ISAAC em https://isaac.lynxems.com.br/`;
 
                 if (audio_url) {
                   fullWhatsappMsg += `\n\n🎧 Ouça também a mensagem de voz preparada para você: ${audio_url}`;

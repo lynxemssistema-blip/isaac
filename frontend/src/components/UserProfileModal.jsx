@@ -15,6 +15,9 @@ import {
   Briefcase,
   Compass,
   MessageCircle,
+  Sliders,
+  LifeBuoy,
+  LogOut,
 } from 'lucide-react';
 import { updateUserProfile, uploadUserAvatar } from '../services/api';
 import {
@@ -23,7 +26,17 @@ import {
   formatPhoneMask,
 } from './DirectSignupPage';
 
-export default function UserProfileModal({ isOpen, onClose, user, profile, onProfileUpdated, onOpenWhatsappPlan }) {
+export default function UserProfileModal({
+  isOpen,
+  onClose,
+  user,
+  profile,
+  onProfileUpdated,
+  onOpenWhatsappPlan,
+  onOpenSettings,
+  onOpenFeedback,
+  onLogout,
+}) {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [birthDate, setBirthDate] = useState('');
@@ -150,7 +163,8 @@ export default function UserProfileModal({ isOpen, onClose, user, profile, onPro
         <button
           onClick={onClose}
           type="button"
-          className="absolute top-5 right-5 p-2 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 rounded-full hover:bg-stone-200/50 dark:hover:bg-slate-800 transition min-w-[36px] min-h-[36px] flex items-center justify-center"
+          aria-label="Fechar perfil"
+          className="absolute top-5 right-5 p-2 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 rounded-full hover:bg-stone-200/50 dark:hover:bg-slate-800 transition min-w-[38px] min-h-[38px] flex items-center justify-center"
         >
           <X className="w-5 h-5" />
         </button>
@@ -438,7 +452,7 @@ export default function UserProfileModal({ isOpen, onClose, user, profile, onPro
           {/* NIVEL / ROLE */}
           <div className="p-3.5 rounded-2xl bg-stone-100/70 dark:bg-slate-800/40 border border-stone-200/80 dark:border-slate-700/60 flex items-center justify-between text-xs">
             <span className="font-serif text-stone-600 dark:text-stone-300">
-              Nível de Acesso na Mentoria:
+              Nível de Acesso na Plataforma:
             </span>
             <span className="px-2.5 py-0.5 rounded-full font-serif font-medium bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/40 flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5" />
@@ -446,7 +460,7 @@ export default function UserProfileModal({ isOpen, onClose, user, profile, onPro
                 ? 'Super Administrador (Master)'
                 : profile?.role === 'admin'
                 ? 'Administrador'
-                : 'Membro da Mentoria'}
+                : 'Membro da Plataforma'}
             </span>
           </div>
 
@@ -468,6 +482,42 @@ export default function UserProfileModal({ isOpen, onClose, user, profile, onPro
               </>
             )}
           </button>
+
+          {/* ATALHOS RÁPIDOS DE CONTA (ESSENCIAL EM CELULARES ONDE O CABEÇALHO FICA RECOLHIDO) */}
+          {(onOpenSettings || onOpenFeedback || onLogout) && (
+            <div className="pt-3 border-t border-stone-200/80 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {onOpenSettings && (
+                <button
+                  type="button"
+                  onClick={onOpenSettings}
+                  className="py-2.5 px-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-200 dark:border-slate-700 hover:border-teal-600 text-xs font-medium text-stone-700 dark:text-stone-200 flex items-center justify-center gap-1.5 transition min-h-[42px]"
+                >
+                  <Sliders className="w-3.5 h-3.5 text-teal-700 dark:text-teal-400" />
+                  <span>Ajustes de Voz</span>
+                </button>
+              )}
+              {onOpenFeedback && (
+                <button
+                  type="button"
+                  onClick={onOpenFeedback}
+                  className="py-2.5 px-3 rounded-2xl bg-white dark:bg-slate-800 border border-stone-200 dark:border-slate-700 hover:border-teal-600 text-xs font-medium text-stone-700 dark:text-stone-200 flex items-center justify-center gap-1.5 transition min-h-[42px]"
+                >
+                  <LifeBuoy className="w-3.5 h-3.5 text-teal-700 dark:text-teal-400" />
+                  <span>Suporte Oficial</span>
+                </button>
+              )}
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="py-2.5 px-3 rounded-2xl bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/50 hover:bg-rose-100 dark:hover:bg-rose-950/50 text-xs font-medium text-rose-700 dark:text-rose-300 flex items-center justify-center gap-1.5 transition min-h-[42px]"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sair da Conta</span>
+                </button>
+              )}
+            </div>
+          )}
         </form>
       </div>
     </div>

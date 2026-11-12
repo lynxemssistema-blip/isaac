@@ -69,7 +69,7 @@ export default function AdminHelpGuide() {
               Manual Completo do Superadmin
             </h2>
             <p className="text-xs sm:text-sm text-stone-300 font-serif max-w-3xl leading-relaxed">
-              Documentação técnica e operacional detalhada da Mentoria ISAAC. Abrange a gestão de usuários e níveis de acesso, sessões com memória unificada, conversas direcionadas com roteiro de perguntas, grupos com classificação N:N, disparos de áudio e texto, mentores especialistas e infraestrutura de produção.
+              Documentação técnica e operacional detalhada da Plataforma ISAAC. Abrange a gestão de usuários e níveis de acesso, sessões com memória unificada, conversas direcionadas com roteiro de perguntas, grupos com classificação N:N, disparos de áudio e texto, mentores especialistas e infraestrutura de produção.
             </p>
           </div>
           <div className="w-16 h-16 rounded-3xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
@@ -136,7 +136,7 @@ export default function AdminHelpGuide() {
         {openSections.users && (
           <div className="p-5 sm:p-6 pt-0 space-y-4 border-t border-stone-100 dark:border-slate-700/60 text-xs sm:text-sm text-stone-700 dark:text-stone-300 font-serif leading-relaxed">
             <p>
-              A Mentoria ISAAC implementa três papéis de usuário com isolamento garantido por políticas de RLS no PostgreSQL (Supabase):
+              A Plataforma ISAAC implementa três papéis de usuário com isolamento garantido por políticas de RLS no PostgreSQL (Supabase):
             </p>
 
             <div className="grid sm:grid-cols-3 gap-3 my-3">
@@ -154,7 +154,7 @@ export default function AdminHelpGuide() {
                   Papel: admin
                 </span>
                 <p className="text-xs mt-1 text-stone-600 dark:text-stone-300">
-                  <strong>Gerente de Mentoria:</strong> Acessa a rota <code>/admin</code>. Visualiza lista de membros, acompanha memórias de sessões, cria novos mentores e anexa materiais de estudo técnicos.
+                  <strong>Gerente da Plataforma:</strong> Acessa a rota <code>/admin</code>. Visualiza lista de membros, acompanha memórias de sessões, cria novos mentores e anexa materiais de estudo técnicos.
                 </p>
               </div>
 

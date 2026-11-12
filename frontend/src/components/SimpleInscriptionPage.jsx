@@ -12,11 +12,12 @@ import {
   Loader2,
   Heart,
   Lock,
+  ArrowLeft,
 } from 'lucide-react';
 
 const EMAIL_CHECK = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-export default function SimpleInscriptionPage() {
+export default function SimpleInscriptionPage({ onBackToHome }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -121,6 +122,20 @@ export default function SimpleInscriptionPage() {
               <span>Agradecemos por caminhar conosco.</span>
             </div>
 
+            <a
+              href="/"
+              onClick={(e) => {
+                if (onBackToHome) {
+                  e.preventDefault();
+                  onBackToHome();
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold shadow-sm transition"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Conhecer a Plataforma ISAAC</span>
+            </a>
+
             <button
               type="button"
               onClick={handleResetForAnother}
@@ -138,7 +153,22 @@ export default function SimpleInscriptionPage() {
   // FICHA DE INSCRIÇÃO SIMPLES (SEM SENHA)
   // ==========================================================================
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center py-8 px-4 sm:px-6 bg-stone-50 dark:bg-slate-900 text-stone-800 dark:text-stone-100 font-sans">
+    <div className="min-h-ios-dvh flex flex-col items-center justify-center py-8 px-4 sm:px-6 bg-stone-50 dark:bg-slate-900 text-stone-800 dark:text-stone-100 font-sans">
+      <div className="w-full max-w-md mb-4 flex items-center justify-between px-1">
+        <a
+          href="/"
+          onClick={(e) => {
+            if (onBackToHome) {
+              e.preventDefault();
+              onBackToHome();
+            }
+          }}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-500 hover:text-teal-700 dark:text-stone-400 dark:hover:text-teal-300 transition"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Voltar para a Plataforma ISAAC</span>
+        </a>
+      </div>
       <div className="w-full max-w-md bg-white dark:bg-slate-900/95 border border-stone-200/90 dark:border-slate-800 rounded-4xl shadow-2xl p-6 sm:p-9 space-y-6 animate-fadeIn">
         {/* Cabeçalho */}
         <div className="text-center space-y-2">
@@ -165,13 +195,16 @@ export default function SimpleInscriptionPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Nome */}
           <div>
-            <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+            <label htmlFor="inscription-fullname" className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1.5">
               Nome Completo *
             </label>
             <div className="relative">
               <User className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
               <input
+                id="inscription-fullname"
+                name="fullName"
                 type="text"
+                autoComplete="name"
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
@@ -197,13 +230,16 @@ export default function SimpleInscriptionPage() {
 
             {/* E-mail */}
             <div>
-              <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+              <label htmlFor="inscription-email" className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
                 E-mail
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
                 <input
+                  id="inscription-email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
@@ -220,13 +256,16 @@ export default function SimpleInscriptionPage() {
 
             {/* Celular / WhatsApp */}
             <div>
-              <label className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
+              <label htmlFor="inscription-phone" className="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">
                 Celular / WhatsApp (com DDD)
               </label>
               <div className="relative">
                 <Phone className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
                 <input
+                  id="inscription-phone"
+                  name="phone"
                   type="tel"
+                  autoComplete="tel"
                   value={phone}
                   onChange={(e) => setPhone(formatPhoneMask(e.target.value))}
                   placeholder="(11) 99999-9999"

@@ -85,7 +85,7 @@ export default function EbookDownloadPage({ token, onBackToHome, onOpenStore }) 
       <div className="min-h-screen bg-stone-50 dark:bg-slate-900 flex flex-col items-center justify-center p-6 gap-3">
         <Loader2 className="w-9 h-9 text-teal-700 dark:text-teal-400 animate-spin" />
         <p className="text-sm font-serif text-stone-600 dark:text-stone-300">
-          Verificando seu exemplar personalizado da Mentoria ISAAC®...
+          Verificando seu exemplar personalizado da Plataforma ISAAC®...
         </p>
       </div>
     );

@@ -175,8 +175,8 @@ function buildPrintableBookHtml(ebooksArray, collectionMeta) {
           <!-- CONTRACAPA DE CONVERSÃO -->
           <section class="back-cover">
             <div class="back-badge" style="color:${style.hex}">PRÓXIMO PASSO DA SUA JORNADA</div>
-            <h3>Continue sua evolução com a Mentoria ISAAC®</h3>
-            <p>Aplique os exercícios deste volume e leve suas decisões, reflexões e desafios para o espaço confidencial de mentoria 24h em texto e voz.</p>
+            <h3>Continue sua evolução com a Plataforma ISAAC®</h3>
+            <p>Aplique os exercícios deste volume e leve suas decisões, reflexões e desafios para o espaço confidencial da plataforma 24h em texto e voz.</p>
             <div class="back-url">https://isaac.lynxems.com.br</div>
           </section>
         </article>
@@ -674,7 +674,7 @@ export default function SuperAdminEbooksPage({
             onClick={onBackToApp}
             className="w-full py-3 rounded-2xl bg-stone-900 dark:bg-slate-800 text-white text-xs font-semibold transition cursor-pointer"
           >
-            Voltar para a Mentoria ISAAC
+            Voltar para a Plataforma ISAAC
           </button>
         </div>
       </div>
@@ -911,7 +911,7 @@ export default function SuperAdminEbooksPage({
 
                         <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-amber-200 font-semibold">
                           <Award className="w-3.5 h-3.5" />
-                          <span>Autor Oficial: Thiago Prata — Mentor &amp; Criador da Mentoria ISAAC®</span>
+                          <span>Autor Oficial: Thiago Prata — Mentor &amp; Criador da Plataforma ISAAC®</span>
                           <span>•</span>
                           <span>Edição Bilíngue (PT-BR + Inglês Britânico no mesmo PDF)</span>
                         </div>
@@ -1106,8 +1106,8 @@ export default function SuperAdminEbooksPage({
                             <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/25 border border-indigo-200/70 dark:border-indigo-800/50 space-y-1">
                               <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-800 dark:text-indigo-300">
                                 {readLang === 'en'
-                                  ? 'Real-World Mentoring Case Study — Thiago Prata'
-                                  : 'Estudo de Caso Real na Mentoria — Thiago Prata'}
+                                  ? 'Real-World Applied Case Study — Thiago Prata'
+                                  : 'Estudo de Caso Real na Prática — Thiago Prata'}
                               </div>
                               <p className="text-xs text-stone-700 dark:text-stone-200 leading-relaxed">
                                 {ch.caseStudy}
