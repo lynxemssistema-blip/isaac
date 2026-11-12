@@ -2403,6 +2403,34 @@ _(If you prefer not to receive updates on WhatsApp, simply reply "stop".)_`,
 
   return (
     <div className="space-y-6">
+      {/* ALERTA AO VIVO DE CONEXÃO DA EVOLUTION API */}
+      {overview.evolutionConnection && !overview.evolutionConnection.connected && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-400/80 dark:border-rose-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-serif font-bold text-rose-900 dark:text-rose-200">
+                Instância WhatsApp &ldquo;{overview.evolutionConnection.instanceName || 'isaac'}&rdquo; Desconectada na Evolution API
+              </h3>
+              <p className="text-xs text-rose-800/90 dark:text-rose-300/90 mt-0.5 leading-relaxed">
+                O WhatsApp do número conectado foi desvinculado (<code className="font-mono text-[11px]">state: close</code>). Escaneie novamente o QR Code no painel da Evolution para retomar os disparos e o atendimento automático.
+              </p>
+            </div>
+          </div>
+          <a
+            href={overview.evolutionConnection.managerUrl || 'https://evo.lynxems.com.br/manager'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-sm transition flex items-center justify-center gap-1.5 shrink-0"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            <span>Abrir Painel Evolution (QR Code)</span>
+          </a>
+        </div>
+      )}
+
       {/* BANNER DE TRAVA DE SEGURANÇA & ANTI-BAN META */}
       <div className="p-4 sm:p-5 rounded-3xl bg-emerald-50/90 dark:bg-emerald-950/35 border border-emerald-300/80 dark:border-emerald-800/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-start gap-3">

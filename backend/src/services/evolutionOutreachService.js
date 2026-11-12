@@ -2820,8 +2820,16 @@ export async function getOutreachDashboardOverview({ search = '', filter = 'all'
     }
   }
 
+  const evoCfg = getEvoConfig();
+  const evoConnected = await isEvolutionInstanceConnected();
+
   return {
     safety: safetyCfg,
+    evolutionConnection: {
+      connected: Boolean(evoConnected),
+      instanceName: evoCfg.instanceName,
+      managerUrl: `${evoCfg.baseUrl}/manager`,
+    },
     serverAutopilot: {
       workerRunning: Boolean(outreachInterval),
       cycleIntervalSeconds: 20,

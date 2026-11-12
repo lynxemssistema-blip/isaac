@@ -243,6 +243,26 @@ function VoiceReflectionButton({
   );
 }
 
+const DEFAULT_CHAT_INPUT_HEIGHT = 96;
+const MIN_CHAT_INPUT_HEIGHT = 58;
+const MAX_CHAT_INPUT_HEIGHT = 440;
+const GLOBAL_CHAT_INPUT_HEIGHT_KEY = 'isaac_chat_input_height_px';
+
+function readSavedComposerHeight(userId) {
+  if (typeof window === 'undefined') return DEFAULT_CHAT_INPUT_HEIGHT;
+  try {
+    const userSpecific = userId ? localStorage.getItem(`isaac_chat_input_height_${userId}`) : null;
+    const raw = userSpecific || localStorage.getItem(GLOBAL_CHAT_INPUT_HEIGHT_KEY);
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed >= MIN_CHAT_INPUT_HEIGHT && parsed <= MAX_CHAT_INPUT_HEIGHT) {
+      return Math.round(parsed);
+    }
+  } catch {
+    // ignora bloqueio de storage
+  }
+  return DEFAULT_CHAT_INPUT_HEIGHT;
+}
+
 export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, systemSettings: propSystemSettings }) {
   const [systemSettings, setSystemSettings] = useState(propSystemSettings || null);
 
@@ -332,10 +352,84 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
   const isRecordingCancelledRef = useRef(false);
   const endRef = useRef(null);
   const chatScrollRef = useRef(null);
+  const chatInputRef = useRef(null);
+  const isDraggingComposerRef = useRef(false);
+  const [isDraggingComposer, setIsDraggingComposer] = useState(false);
+  const [composerHeight, setComposerHeight] = useState(() => readSavedComposerHeight(user?.id));
+  const appliedComposerHeightRef = useRef(composerHeight);
   const isUserNearBottomRef = useRef(true);
   const [showScrollBottomPill, setShowScrollBottomPill] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState(null);
   const [visibleWindowSize, setVisibleWindowSize] = useState(CHAT_VIRTUAL_WINDOW_STEP);
+
+  const persistComposerHeight = (rawPx) => {
+    const viewportCap =
+      typeof window !== 'undefined'
+        ? Math.max(120, Math.min(MAX_CHAT_INPUT_HEIGHT, Math.floor(window.innerHeight * 0.55)))
+        : MAX_CHAT_INPUT_HEIGHT;
+    const clamped = Math.max(MIN_CHAT_INPUT_HEIGHT, Math.min(viewportCap, Math.round(rawPx)));
+    appliedComposerHeightRef.current = clamped;
+    setComposerHeight(clamped);
+    try {
+      localStorage.setItem(GLOBAL_CHAT_INPUT_HEIGHT_KEY, String(clamped));
+      if (user?.id) {
+        localStorage.setItem(`isaac_chat_input_height_${user.id}`, String(clamped));
+      }
+    } catch {
+      // ignora bloqueio de storage
+    }
+    return clamped;
+  };
+
+  useEffect(() => {
+    const saved = readSavedComposerHeight(user?.id);
+    appliedComposerHeightRef.current = saved;
+    setComposerHeight(saved);
+  }, [user?.id]);
+
+  // Sincroniza e persiste caso o usuário redimensione pela alça nativa do navegador (resize-y no canto inferior)
+  useEffect(() => {
+    const el = chatInputRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(() => {
+      if (isDraggingComposerRef.current) return;
+      const inlineH = parseFloat(el.style.height || '');
+      if (
+        Number.isFinite(inlineH) &&
+        inlineH > 0 &&
+        Math.abs(Math.round(inlineH) - appliedComposerHeightRef.current) >= 2
+      ) {
+        persistComposerHeight(inlineH);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isRecording, user?.id]);
+
+  const handleComposerResizeStart = (e) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = chatInputRef.current?.offsetHeight || composerHeight || DEFAULT_CHAT_INPUT_HEIGHT;
+    isDraggingComposerRef.current = true;
+    setIsDraggingComposer(true);
+
+    const onPointerMove = (moveEvt) => {
+      const deltaY = startY - moveEvt.clientY;
+      persistComposerHeight(startHeight + deltaY);
+    };
+
+    const onPointerUp = () => {
+      isDraggingComposerRef.current = false;
+      setIsDraggingComposer(false);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+  };
 
   // Fixação (Pin) do Painel Lateral
   const [isSidebarPinned, setIsSidebarPinned] = useState(() => {
@@ -2411,53 +2505,79 @@ export default function ReflectionSpace({ user, onEditGuideName, onBackToHome, s
             </div>
           </motion.div>
         ) : (
-          <form onSubmit={handleSendReflection} className="relative flex items-center gap-2">
-            <textarea
-              id="isaac-chat-input"
-              name="message"
-              aria-label="Mensagem de reflexão para o mentor"
-              rows={isDesktop ? 2 : 1}
-              value={inputVal}
-              onChange={(e) => setInputVal(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendReflection();
-                }
-              }}
-              placeholder="O que está pesando na mente ou coração? Desabafe aqui..."
-              disabled={isReflecting}
-              className="w-full resize-none px-3.5 sm:px-5 py-2.5 sm:py-3 min-h-[46px] max-h-32 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 dark:focus:border-teal-400 focus:ring-1 focus:ring-teal-700 text-base sm:text-sm text-stone-800 dark:text-stone-100 placeholder-stone-400 outline-none leading-relaxed transition pr-24 sm:pr-26 shadow-sm"
-            />
+          <form onSubmit={handleSendReflection} className="relative flex flex-col">
+            {/* Alça superior para redimensionar livremente no celular ou computador — prevalece a altura deixada pelo usuário */}
+            <div
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="Arraste para redimensionar a caixa de texto"
+              title="Arraste para cima ou para baixo para ajustar o tamanho da caixa de texto"
+              onPointerDown={handleComposerResizeStart}
+              className="group flex items-center justify-center py-1.5 -mt-1 cursor-ns-resize touch-none select-none"
+            >
+              <div
+                className={`w-12 h-1 rounded-full transition-colors ${
+                  isDraggingComposer
+                    ? 'bg-teal-600 dark:bg-teal-400'
+                    : 'bg-stone-300/90 dark:bg-slate-700 group-hover:bg-teal-600/75 dark:group-hover:bg-teal-400/75'
+                }`}
+              />
+            </div>
 
-            <div className="absolute right-1.5 sm:right-3 flex items-center gap-1">
-              <button
-                type="button"
-                onClick={startAudioRecording}
+            <div className="relative flex items-end">
+              <textarea
+                ref={chatInputRef}
+                id="isaac-chat-input"
+                name="message"
+                aria-label="Mensagem de reflexão para o mentor"
+                rows={3}
+                value={inputVal}
+                onChange={(e) => setInputVal(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendReflection();
+                  }
+                }}
+                placeholder="O que está pesando na mente ou coração? Desabafe aqui..."
                 disabled={isReflecting}
-                title="Gravar desabafo em áudio (com transcrição automática)"
-                aria-label="Gravar desabafo em áudio"
-                className="p-2 sm:p-2.5 rounded-full text-stone-500 hover:text-teal-800 dark:hover:text-teal-400 hover:bg-stone-100 dark:hover:bg-slate-700 transition min-w-[40px] min-h-[40px] sm:min-w-[42px] sm:min-h-[42px] flex items-center justify-center active:scale-95"
-              >
-                <Mic className="w-4 h-4" />
-              </button>
+                style={{
+                  height: `${composerHeight}px`,
+                  minHeight: `${MIN_CHAT_INPUT_HEIGHT}px`,
+                  maxHeight: '55dvh',
+                }}
+                className="w-full resize-y px-3.5 sm:px-5 py-3 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-slate-700 focus:border-teal-700 dark:focus:border-teal-400 focus:ring-1 focus:ring-teal-700 text-base sm:text-sm text-stone-800 dark:text-stone-100 placeholder-stone-400 outline-none leading-relaxed transition-[border-color,box-shadow,background-color] pr-24 sm:pr-28 shadow-sm"
+              />
 
-              <button
-                type="submit"
-                disabled={isReflecting || !inputVal.trim()}
-                title="Enviar desabafo"
-                aria-label="Enviar desabafo"
-                className="p-2 sm:p-2.5 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white shadow-md shadow-teal-700/20 disabled:opacity-40 transition flex items-center justify-center min-w-[40px] min-h-[40px] sm:min-w-[42px] sm:min-h-[42px] active:scale-95"
-              >
-                <Send className="w-4 h-4" />
-              </button>
+              <div className="absolute right-2.5 sm:right-3.5 bottom-2.5 sm:bottom-3 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={startAudioRecording}
+                  disabled={isReflecting}
+                  title="Gravar desabafo em áudio (com transcrição automática)"
+                  aria-label="Gravar desabafo em áudio"
+                  className="p-2 sm:p-2.5 rounded-full text-stone-500 hover:text-teal-800 dark:hover:text-teal-400 hover:bg-stone-100 dark:hover:bg-slate-700 transition min-w-[40px] min-h-[40px] sm:min-w-[42px] sm:min-h-[42px] flex items-center justify-center active:scale-95"
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isReflecting || !inputVal.trim()}
+                  title="Enviar desabafo"
+                  aria-label="Enviar desabafo"
+                  className="p-2 sm:p-2.5 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white shadow-md shadow-teal-700/20 disabled:opacity-40 transition flex items-center justify-center min-w-[40px] min-h-[40px] sm:min-w-[42px] sm:min-h-[42px] active:scale-95"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </form>
         )}
 
         <div className="mt-1 text-center hidden sm:block">
           <span className="text-[10px] text-stone-400 dark:text-stone-500">
-            Pressione Enter para enviar • Áudio transcrito automaticamente • Total sigilo
+            Enter envia • Shift+Enter pula linha • Arraste a barra p/ redimensionar • Total sigilo
           </span>
         </div>
       </footer>
